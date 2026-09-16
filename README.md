@@ -10,6 +10,8 @@ site, and uses Apple's Liquid Glass design system for the navigation layer.
 
 Unofficial and unaffiliated with 2ch.
 
+<img src="preview.png" alt="The board list, in the app's dark theme" width="320">
+
 ## Install
 
 Download the `.ipa` from [Releases](../../releases).
