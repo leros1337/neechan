@@ -84,7 +84,9 @@ final class StreamingPlayerOptions: KSOptions {
     override func process(url: URL) -> AbstractAVIOContext? {
         guard !url.isFileURL else { return nil }
         return StreamingAVIOContext(
-            reader: MediaRangeReader(url: url, headers: headers, session: session)
+            reader: MediaRangeReader(
+                url: url, headers: headers, session: session, store: .shared
+            )
         )
     }
 

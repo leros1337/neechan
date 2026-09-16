@@ -88,6 +88,10 @@ public final class GalleryViewModel {
 
     private let services: AppServices
     private let downloader: any MediaDownloading
+    /// Where whole files and half-watched pieces are kept. Injectable so a test
+    /// works in a directory of its own rather than in the reader's real cache.
+    private let cache: MediaCache
+    private let blocks: MediaBlockStore
     /// The work behind `transfer`, kept so Cancel has something to stop.
     private var transferTask: Task<Void, Never>?
     /// When the last progress update was published.
@@ -111,12 +115,16 @@ public final class GalleryViewModel {
         startIndex: Int,
         services: AppServices,
         downloader: (any MediaDownloading)? = nil,
+        cache: MediaCache = .shared,
+        blocks: MediaBlockStore = .shared,
         cookieProvider: ((DvachDomain) -> [String: String])? = nil
     ) {
         self.items = items
         self.currentIndex = min(max(0, startIndex), max(0, items.count - 1))
         self.services = services
         self.downloader = downloader ?? services.downloader
+        self.cache = cache
+        self.blocks = blocks
         self.isLooping = services.settings.videoLoops
         let domain = services.settings.domain
         self.sessionCookies = (cookieProvider ?? GalleryViewModel.storedCookies)(domain)
@@ -239,7 +247,7 @@ public final class GalleryViewModel {
         }
 
         do {
-            let downloaded = try await download(url, referer: settings.domain.baseURL)
+            let downloaded = try await wholeFile(url, referer: settings.domain.baseURL)
             scratch.append(downloaded)
             guard !Task.isCancelled else { return }
             let file = try await converted(downloaded, of: item)
@@ -298,7 +306,7 @@ public final class GalleryViewModel {
         guard let item = currentItem, let url = url(for: item) else { return nil }
         transfer = Transfer(stage: .downloading, fraction: 0)
         defer { transfer = nil }
-        return try? await download(url, referer: services.settings.domain.baseURL)
+        return try? await wholeFile(url, referer: services.settings.domain.baseURL)
     }
 
     /// Turns a WebM into an MP4, when that is what the reader asked for.
@@ -356,6 +364,20 @@ public final class GalleryViewModel {
     /// Fetches a file, keeping the capsule's fraction up to date.
     private func download(_ url: URL, referer: URL?) async throws -> URL {
         try await downloader.download(url, referer: referer) { [weak self] progress in
+            Task { @MainActor in self?.publish(progress) }
+        }
+    }
+
+    /// A copy of the whole file, for saving or sharing.
+    ///
+    /// Goes through the cache rather than straight to the network: a clip just
+    /// watched is already on disk, in whole or in pieces, and downloading it
+    /// again was costing the reader the file twice. A copy, because both callers
+    /// delete what they are given.
+    private func wholeFile(_ url: URL, referer: URL?) async throws -> URL {
+        try await LocalMediaFile.exportCopy(
+            url, referer: referer, downloader: downloader, cache: cache, blocks: blocks
+        ) { [weak self] progress in
             Task { @MainActor in self?.publish(progress) }
         }
     }

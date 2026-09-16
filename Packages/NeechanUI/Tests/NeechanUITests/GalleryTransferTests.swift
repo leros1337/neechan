@@ -2,6 +2,7 @@ import Foundation
 import NeechanAPI
 import NeechanAPITesting
 import NeechanCore
+import NeechanMedia
 import NeechanSettings
 import NeechanTestSupport
 import Testing
@@ -83,8 +84,16 @@ struct GalleryTransferTests {
             postNum: 7,
             threadKey: ThreadKey(board: "b", threadNum: 1)
         )
+        // A cache and a block store of this test's own, so a save neither
+        // reads what another run left behind nor writes into the real one.
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
         return GalleryViewModel(
-            items: [item], startIndex: 0, services: services, downloader: downloader
+            items: [item],
+            startIndex: 0,
+            services: services,
+            downloader: downloader,
+            cache: MediaCache(directory: directory.appending(path: "files")),
+            blocks: MediaBlockStore(directory: directory.appending(path: "blocks"))
         )
     }
 

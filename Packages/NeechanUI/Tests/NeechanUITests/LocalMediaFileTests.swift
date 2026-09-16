@@ -71,4 +71,40 @@ struct LocalMediaFileTests {
             _ = try await LocalMediaFile.resolve(uniqueURL(), referer: nil, downloader: downloader)
         }
     }
+
+    // MARK: Handing a file out
+
+    /// Saving deletes what it is given, and converting a WebM deletes its
+    /// source. Handing either the cache's own file empties the cache.
+    @Test("a copy handed out can be deleted without emptying the cache")
+    func exportedCopyIsTheCallersOwn() async throws {
+        let downloader = StubDownloader()
+        let url = uniqueURL()
+
+        let copy = try await LocalMediaFile.exportCopy(url, referer: nil, downloader: downloader)
+        let cached = try await LocalMediaFile.resolve(url, referer: nil, downloader: downloader)
+
+        #expect(copy != cached, "the copy must not be the cache entry itself")
+        #expect(try Data(contentsOf: copy) == Data(contentsOf: cached))
+
+        // What saving does to it.
+        try FileManager.default.removeItem(at: copy)
+
+        #expect(FileManager.default.fileExists(atPath: cached.path), "the cache lost its file")
+    }
+
+    /// The bug the reader noticed: a clip already on the device downloaded all
+    /// over again the moment they saved it.
+    @Test("exporting a file already held does not download it again")
+    func exportingUsesWhatIsHeld() async throws {
+        let downloader = StubDownloader()
+        let url = uniqueURL()
+        _ = try await LocalMediaFile.resolve(url, referer: nil, downloader: downloader)
+        let downloadsSoFar = downloader.calls
+
+        let copy = try await LocalMediaFile.exportCopy(url, referer: nil, downloader: downloader)
+        defer { try? FileManager.default.removeItem(at: copy) }
+
+        #expect(downloader.calls == downloadsSoFar, "it went back to the network")
+    }
 }

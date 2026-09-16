@@ -363,3 +363,107 @@ struct LoopPolicyTests {
         #expect(LoopPolicy.shouldRestart(state: state, isLooping: true) == false)
     }
 }
+
+/// How long the cache may keep something nobody has looked at.
+///
+/// Age is counted from last use, not from arrival, because the cache stamps a
+/// file every time it is read: a clip watched again this morning is not old
+/// because it was fetched last month.
+@Suite("Media cache age")
+struct MediaCacheAgeTests {
+    private func makeCache(blocks: MediaBlockStore? = nil) -> (MediaCache, URL) {
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        return (MediaCache(directory: directory, byteLimit: 1 << 30, blocks: blocks), directory)
+    }
+
+    private func url(_ name: String) -> URL {
+        URL(string: "https://example.invalid/\(UUID().uuidString)/\(name)")!
+    }
+
+    /// Winds a file back in time. Both dates, since eviction reads the access
+    /// date where there is one and the modification date where there is not.
+    private func backdate(_ file: URL, days: Double) {
+        let when = Date.now.addingTimeInterval(-days * 24 * 60 * 60)
+        try? FileManager.default.setAttributes(
+            [.modificationDate: when], ofItemAtPath: file.path
+        )
+        var values = URLResourceValues()
+        values.contentAccessDate = when
+        var url = file
+        try? url.setResourceValues(values)
+    }
+
+    @Test("what nobody has opened for longer than allowed is dropped")
+    func expiredFilesGo() async throws {
+        let (cache, directory) = makeCache()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let stale = url("stale.webm")
+        let fresh = url("fresh.webm")
+        let staleFile = try await cache.store(Data(repeating: 1, count: 16), for: stale)
+        _ = try await cache.store(Data(repeating: 2, count: 16), for: fresh)
+        backdate(staleFile, days: 10)
+
+        await cache.setMaxAge(days: 7)
+
+        #expect(await cache.cachedFile(for: stale) == nil)
+        #expect(await cache.cachedFile(for: fresh) != nil)
+    }
+
+    /// The default, and what the app did before there was a control.
+    @Test("keeping forever drops nothing, however old")
+    func foreverKeepsEverything() async throws {
+        let (cache, directory) = makeCache()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let ancient = url("ancient.webm")
+        let file = try await cache.store(Data(repeating: 1, count: 16), for: ancient)
+        backdate(file, days: 4000)
+
+        await cache.evictIfNeeded()
+
+        #expect(await cache.cachedFile(for: ancient) != nil)
+    }
+
+    /// A day means a day: a file touched this morning survives a one-day limit.
+    @Test("something used inside the window stays")
+    func recentSurvives() async throws {
+        let (cache, directory) = makeCache()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let clip = url("clip.webm")
+        let file = try await cache.store(Data(repeating: 1, count: 16), for: clip)
+        backdate(file, days: 0.5)
+
+        await cache.setMaxAge(days: 1)
+
+        #expect(await cache.cachedFile(for: clip) != nil)
+    }
+
+    /// Half-watched clips age out too, or the setting would only half apply.
+    @Test("pieces of a part-watched clip age out as well")
+    func expiredBlocksGo() async throws {
+        let blockDirectory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        let blocks = MediaBlockStore(directory: blockDirectory, blockSize: 1024)
+        let (cache, directory) = makeCache(blocks: blocks)
+        defer {
+            try? FileManager.default.removeItem(at: directory)
+            try? FileManager.default.removeItem(at: blockDirectory)
+        }
+        let stale = url("stale.webm")
+        let fresh = url("fresh.webm")
+        blocks.store(Data(repeating: 1, count: 1024), block: 0, for: stale)
+        blocks.store(Data(repeating: 2, count: 1024), block: 0, for: fresh)
+        // The store names directories by hash, so age the one holding the stale
+        // clip by finding it through its own bytes.
+        for entry in blocks.entries() {
+            let files = (try? FileManager.default.contentsOfDirectory(
+                at: entry.url, includingPropertiesForKeys: nil
+            )) ?? []
+            guard files.contains(where: { (try? Data(contentsOf: $0))?.first == 1 }) else { continue }
+            for file in files { backdate(file, days: 10) }
+        }
+
+        await cache.setMaxAge(days: 7)
+
+        #expect(blocks.block(0, for: stale) == nil)
+        #expect(blocks.block(0, for: fresh) != nil)
+    }
+}

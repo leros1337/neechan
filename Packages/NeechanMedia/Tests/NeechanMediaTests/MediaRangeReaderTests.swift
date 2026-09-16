@@ -60,18 +60,38 @@ final class RangeServingProtocol: URLProtocol, @unchecked Sendable {
 
 @Suite("Ranged media reads", .serialized)
 struct MediaRangeReaderTests {
-    private func makeReader(body: Data, honoursRanges: Bool = true, chunkSize: Int = 64 << 10)
-        -> MediaRangeReader
-    {
-        RangeServingProtocol.reset(body: body, honoursRanges: honoursRanges)
+    private func makeReader(
+        body: Data,
+        honoursRanges: Bool = true,
+        blockSize: Int = 64 << 10,
+        store: MediaBlockStore? = nil,
+        url: URL = URL(string: "https://example.invalid/clip.webm")!,
+        serving: Bool = true
+    ) -> MediaRangeReader {
+        if serving { RangeServingProtocol.reset(body: body, honoursRanges: honoursRanges) }
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [RangeServingProtocol.self]
         return MediaRangeReader(
-            url: URL(string: "https://example.invalid/clip.webm")!,
+            url: url,
             headers: ["Referer": "https://example.invalid/"],
             session: URLSession(configuration: configuration),
-            chunkSize: chunkSize
+            store: store,
+            blockSize: blockSize
         )
+    }
+
+    /// A block store of its own, so one test's pieces are not another's.
+    private func makeStore(blockSize: Int = 64 << 10) -> (MediaBlockStore, URL) {
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        return (MediaBlockStore(directory: directory, blockSize: blockSize), directory)
+    }
+
+    private func requestsSoFar() -> [String] {
+        RangeServingProtocol.requestedRanges.withLock { $0 }
+    }
+
+    private func forgetRequests() {
+        RangeServingProtocol.requestedRanges.withLock { $0 = [] }
     }
 
     private func body(_ count: Int) -> Data {
@@ -107,7 +127,7 @@ struct MediaRangeReaderTests {
     /// The point of the whole thing: playing a clip must not mean fetching it.
     @Test("reading the start of a large file fetches only the start")
     func readingTheStartIsNotADownload() {
-        let reader = makeReader(body: body(8 << 20), chunkSize: 64 << 10)
+        let reader = makeReader(body: body(8 << 20), blockSize: 64 << 10)
 
         _ = read(reader, at: 0, count: 4096)
 
@@ -117,7 +137,7 @@ struct MediaRangeReaderTests {
 
     @Test("consecutive reads inside one piece cost no further requests")
     func windowIsReused() {
-        let reader = makeReader(body: body(1 << 20), chunkSize: 64 << 10)
+        let reader = makeReader(body: body(1 << 20), blockSize: 64 << 10)
 
         _ = read(reader, at: 0, count: 1024)
         _ = read(reader, at: 1024, count: 1024)
@@ -130,7 +150,7 @@ struct MediaRangeReaderTests {
     @Test("a read far away fetches from there, not from the beginning")
     func seekingReadsFromTheOffset() {
         let source = body(4 << 20)
-        let reader = makeReader(body: source, chunkSize: 64 << 10)
+        let reader = makeReader(body: source, blockSize: 64 << 10)
         _ = read(reader, at: 0, count: 1024)
 
         let (copied, data) = read(reader, at: 3 << 20, count: 512)
@@ -196,5 +216,125 @@ struct MediaRangeReaderTests {
             )
         )
         #expect(MediaRangeReader.totalLength(of: response) == nil)
+    }
+
+    // MARK: Keeping what was fetched
+
+    /// Fetches land on block boundaries, so what is kept lines up with what can
+    /// be served back.
+    @Test("a read part way into a block still fetches the whole block")
+    func fetchesAreAligned() {
+        let reader = makeReader(body: body(4 << 20))
+
+        _ = read(reader, at: 1000, count: 256)
+
+        #expect(requestsSoFar() == ["bytes=0-65535"], "asked for \(requestsSoFar())")
+    }
+
+    /// Scrubbing backwards over ground already watched used to pay for it twice.
+    @Test("seeking back over what was already read costs nothing")
+    func backwardSeekIsFree() {
+        let (store, directory) = makeStore()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let reader = makeReader(body: body(4 << 20), store: store)
+
+        _ = read(reader, at: 0, count: 256)
+        _ = read(reader, at: 2 << 20, count: 256)
+        forgetRequests()
+        _ = read(reader, at: 0, count: 256)
+
+        #expect(requestsSoFar().isEmpty, "went back to the server for \(requestsSoFar())")
+    }
+
+    /// The promise across sessions: reopening a clip reads it off the disk.
+    @Test("a second reader over the same store asks the server for nothing")
+    func aSecondReaderReadsFromDisk() {
+        let (store, directory) = makeStore()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let clip = URL(string: "https://example.invalid/again.webm")!
+        let source = body(4 << 20)
+
+        let first = makeReader(body: source, store: store, url: clip)
+        _ = read(first, at: 0, count: 4096)
+        forgetRequests()
+
+        let second = makeReader(body: source, store: store, url: clip, serving: false)
+        let (copied, data) = read(second, at: 0, count: 4096)
+
+        #expect(requestsSoFar().isEmpty, "went back to the server for \(requestsSoFar())")
+        #expect(copied == 4096)
+        #expect(data == source.subdata(in: 0..<4096))
+        #expect(second.length() == Int64(source.count), "the size has to survive too")
+    }
+
+    @Test("the short last block is kept and served like any other")
+    func lastBlockIsKept() {
+        let (store, directory) = makeStore()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        // Two whole blocks and a short one.
+        let source = body((64 << 10) * 2 + 1234)
+        let clip = URL(string: "https://example.invalid/tail.webm")!
+        let tailStart = Int64((64 << 10) * 2)
+
+        let first = makeReader(body: source, store: store, url: clip)
+        _ = read(first, at: tailStart, count: 1234)
+        forgetRequests()
+
+        let second = makeReader(body: source, store: store, url: clip, serving: false)
+        let (copied, data) = read(second, at: tailStart, count: 1234)
+
+        #expect(requestsSoFar().isEmpty, "went back to the server for \(requestsSoFar())")
+        #expect(copied == 1234)
+        #expect(data == source.subdata(in: Int(tailStart)..<source.count))
+    }
+
+    /// A server that answers a ranged request with the whole file starts at the
+    /// beginning, whatever was asked for. Labelling that answer with the offset
+    /// wanted served the wrong bytes from then on.
+    @Test("a server that ignores ranges still reads correctly away from the start")
+    func withoutRangeSupportAtAnOffset() {
+        let source = body(20_000)
+        let reader = makeReader(body: source, honoursRanges: false)
+
+        let (copied, data) = read(reader, at: 15_000, count: 256)
+
+        #expect(copied == 256)
+        #expect(data == source.subdata(in: 15_000..<15_256))
+    }
+
+    /// A whole-file answer is only a block when the file fits in one. For
+    /// anything larger it is not a block at all, and writing it down as one
+    /// would have it read back later as though the file ended there.
+    @Test("a whole-file answer larger than a block is not kept as one")
+    func rangeIgnoringServerIsNotCached() {
+        let (store, directory) = makeStore()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let clip = URL(string: "https://example.invalid/whole.webm")!
+        let reader = makeReader(
+            body: body(4 << 20), honoursRanges: false, store: store, url: clip
+        )
+
+        _ = read(reader, at: 0, count: 256)
+
+        #expect(store.sizeOnDisk() == 0)
+    }
+
+    @Test("a file smaller than one block is kept whole")
+    func smallFileIsKept() {
+        let (store, directory) = makeStore()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let clip = URL(string: "https://example.invalid/small.webm")!
+        let source = body(20_000)
+
+        let first = makeReader(body: source, store: store, url: clip)
+        _ = read(first, at: 0, count: 256)
+        forgetRequests()
+
+        let second = makeReader(body: source, store: store, url: clip, serving: false)
+        let (copied, data) = read(second, at: 0, count: 256)
+
+        #expect(requestsSoFar().isEmpty)
+        #expect(copied == 256)
+        #expect(data == source.subdata(in: 0..<256))
     }
 }
