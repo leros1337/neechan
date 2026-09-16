@@ -12,13 +12,16 @@ IPAD        := iPad Pro 13-inch (M5)
 # and a bare device name then matches one simulator per runtime, which
 # xcodebuild refuses as ambiguous.
 SIM_OS      := 26.5
-DESTINATION := platform=iOS Simulator,name=$(SIMULATOR),OS=$(SIM_OS)
+# Recursively expanded on purpose: `make ipad` overrides SIMULATOR for its own
+# targets, and an immediate assignment here would bake the iPhone in and build
+# for the wrong device while installing on the right one.
+DESTINATION = platform=iOS Simulator,name=$(SIMULATOR),OS=$(SIM_OS)
 DERIVED     := .build/DerivedData
 RESULTS     := .build/TestResults.xcresult
 # Shared SwiftPM clone cache: FFmpegKit alone is a multi-gigabyte checkout, so
 # it must not be re-cloned every time DerivedData is wiped.
 SPM_CACHE   := $(HOME)/Library/Caches/org.swift.swiftpm-neechan
-XCB         := xcodebuild -scheme $(SCHEME) -destination '$(DESTINATION)' \
+XCB          = xcodebuild -scheme $(SCHEME) -destination '$(DESTINATION)' \
                -derivedDataPath $(DERIVED) \
                -clonedSourcePackagesDirPath $(SPM_CACHE) \
                -skipMacroValidation -quiet
@@ -108,11 +111,25 @@ test-report:
 	@./Tools/test-summary.py $(RESULTS)
 
 ## Build, install and launch on the simulator.
+##
+## The device is resolved to a UDID rather than addressed as `booted`: more than
+## one simulator is usually running, and several runtimes offer a device of the
+## same name, so both of the obvious ways to name it are ambiguous.
 sim: build
-	@xcrun simctl boot "$(SIMULATOR)" 2>/dev/null || true
-	@open -a Simulator
-	xcrun simctl install booted "$$(find $(DERIVED)/Build/Products -name 'Neechan.app' -maxdepth 3 | head -1)"
-	xcrun simctl launch booted $(BUNDLE_ID)
+	@set -e; \
+	udid=$$(xcrun simctl list devices available -j | python3 -c "import json,sys; \
+	  devices = json.load(sys.stdin)['devices']; \
+	  runtime = 'iOS-$(subst .,-,$(SIM_OS))'; \
+	  print(next((d['udid'] for k, v in devices.items() if k.endswith(runtime) \
+	    for d in v if d['name'] == '$(SIMULATOR)'), ''))"); \
+	test -n "$$udid" || { echo "no '$(SIMULATOR)' on iOS $(SIM_OS)"; exit 1; }; \
+	xcrun simctl boot $$udid 2>/dev/null || true; \
+	: "Xcode 27 ships no Simulator.app: booting a device raises its window"; \
+	: "through CoreSimulator. Still opened where it exists, for older Xcodes."; \
+	open -a Simulator >/dev/null 2>&1 || true; \
+	app=$$(find $(DERIVED)/Build/Products -name 'Neechan.app' -maxdepth 3 | head -1); \
+	xcrun simctl install $$udid "$$app"; \
+	xcrun simctl launch $$udid $(BUNDLE_ID)
 
 ## Same, on iPad.
 ipad: SIMULATOR := $(IPAD)
