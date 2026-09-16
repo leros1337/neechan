@@ -17,6 +17,8 @@ struct QuotePopupView: View {
 
     @Environment(\.neechanTheme) private var theme
     @State private var revealSpoilers = false
+    /// How far the reader has dragged the card down to put it away.
+    @State private var dragOffset: CGFloat = 0
     /// Natural height of the quoted text, measured off-screen.
     @State private var textHeight: CGFloat = 0
 
@@ -39,7 +41,41 @@ struct QuotePopupView: View {
         .padding(.bottom, 14)
         .glassEffect(.regular, in: .rect(cornerRadius: 20))
         .frame(maxWidth: 560)
+        // Follows the finger and fades as it goes, so the card reads as
+        // something being put down rather than as a panel that jumped.
+        .offset(y: dragOffset)
+        .opacity(1 - min(0.4, dragOffset / 420))
+        // The whole card takes touches, not only the parts with something drawn
+        // on them. Padding and the gaps between rows belong to no view, so a
+        // drag begun there reached nothing at all.
+        .contentShape(.rect(cornerRadius: 20))
+        // A plain gesture, not a simultaneous one: a long quote scrolls inside
+        // the card, and a child scroll view keeps the drags that start in it.
+        // Dragging anywhere else, the header included, puts the card away.
+        .gesture(swipeAway)
         .accessibilityIdentifier("quote-popup")
+    }
+
+    /// Dragging the card down closes it.
+    ///
+    /// The close button is a small target in the top corner of a card that sits
+    /// at the bottom of the screen, which is the wrong end for a thumb.
+    private var swipeAway: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { value in
+                // Downward only: there is nothing above the card to go to.
+                dragOffset = max(0, value.translation.height)
+            }
+            .onEnded { value in
+                // A flick counts as well as a long pull, so the card can be
+                // thrown away without dragging it the whole distance.
+                let flicked = value.predictedEndTranslation.height > 260
+                if dragOffset > 90 || flicked {
+                    onDismiss()
+                } else {
+                    withAnimation(.snappy(duration: 0.22)) { dragOffset = 0 }
+                }
+            }
     }
 
     private var header: some View {

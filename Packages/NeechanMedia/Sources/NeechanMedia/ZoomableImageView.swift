@@ -14,27 +14,36 @@ public struct ZoomableImageView: UIViewRepresentable {
     private let maximumZoomFactor: CGFloat
     /// Called on a single tap, so the gallery can toggle its chrome.
     private let onSingleTap: (() -> Void)?
+    /// Called when the image starts or stops being zoomed in.
+    ///
+    /// The viewer above this closes on a downward drag, which must not happen
+    /// while the reader is dragging a magnified image around.
+    private let onZoomChanged: ((Bool) -> Void)?
 
     public init(
         image: UIImage,
         maximumZoomFactor: CGFloat = 6,
-        onSingleTap: (() -> Void)? = nil
+        onSingleTap: (() -> Void)? = nil,
+        onZoomChanged: ((Bool) -> Void)? = nil
     ) {
         self.image = image
         self.maximumZoomFactor = maximumZoomFactor
         self.onSingleTap = onSingleTap
+        self.onZoomChanged = onZoomChanged
     }
 
     public func makeUIView(context: Context) -> ZoomableImageScrollView {
         let view = ZoomableImageScrollView()
         view.maximumZoomFactor = maximumZoomFactor
         view.onSingleTap = onSingleTap
+        view.onZoomChanged = onZoomChanged
         view.display(image)
         return view
     }
 
     public func updateUIView(_ view: ZoomableImageScrollView, context: Context) {
         view.onSingleTap = onSingleTap
+        view.onZoomChanged = onZoomChanged
         view.display(image)
     }
 }
@@ -53,6 +62,12 @@ public final class ZoomableImageScrollView: UIScrollView, UIScrollViewDelegate {
 
     public var maximumZoomFactor: CGFloat = 6
     public var onSingleTap: (() -> Void)?
+    public var onZoomChanged: ((Bool) -> Void)?
+
+    /// Whether the reader has zoomed in past the size that fits the screen.
+    public var isZoomedIn: Bool { zoomScale > minimumZoomScale * 1.01 }
+    /// What was last reported, so the gallery hears about changes only.
+    private var lastReportedZoom = false
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -72,6 +87,10 @@ public final class ZoomableImageScrollView: UIScrollView, UIScrollViewDelegate {
         contentInsetAdjustmentBehavior = .never
         bouncesZoom = true
         decelerationRate = .fast
+        // Off until the reader zooms in. An image that already fits has nothing
+        // to scroll, and a scroll view that bounces anyway swallows the
+        // downward drag the viewer above closes on.
+        bounces = false
 
         imageView.contentMode = .scaleToFill
         imageView.isUserInteractionEnabled = true
@@ -131,6 +150,7 @@ public final class ZoomableImageScrollView: UIScrollView, UIScrollViewDelegate {
         if resetToFit || zoomScale < fitScale {
             zoomScale = fitScale
         }
+        reportZoom()
     }
 
     /// Keeps the image centred while it is smaller than the viewport.
@@ -176,6 +196,17 @@ public final class ZoomableImageScrollView: UIScrollView, UIScrollViewDelegate {
 
     public func scrollViewDidZoom(_ scrollView: UIScrollView) {
         centerImage()
+        reportZoom()
+    }
+
+    /// Tells the gallery whether the image is magnified, and lets the scroll
+    /// view bounce only while it is.
+    private func reportZoom() {
+        let zoomed = isZoomedIn
+        bounces = zoomed
+        guard zoomed != lastReportedZoom else { return }
+        lastReportedZoom = zoomed
+        onZoomChanged?(zoomed)
     }
 }
 #endif

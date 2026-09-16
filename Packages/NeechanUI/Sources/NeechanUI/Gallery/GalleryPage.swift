@@ -17,6 +17,9 @@ struct GalleryPage: View {
     var onGoToPost: (() -> Void)?
     var onSave: () -> Void = {}
     var onShare: () -> Void = {}
+    /// Reports a picture being magnified, so the gallery leaves the
+    /// drag-to-close gesture alone while the reader moves it about.
+    var onZoomChanged: (Bool) -> Void = { _ in }
     /// Playback is reported upward so the gallery can host one control stack
     /// rather than each page drawing its own bar.
     @Binding var playbackState: PlaybackState
@@ -25,6 +28,7 @@ struct GalleryPage: View {
 
     @Environment(AppServices.self) private var services
     @Environment(\.scenePhase) private var scenePhase
+
     @State private var loadState: PageLoadState = .idle
     /// Set once a stream has failed and the clip has been fetched whole
     /// instead, so one unplayable file cannot start that over and over.
@@ -46,7 +50,20 @@ struct GalleryPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(.rect)
-        .contextMenu { menu }
+        // The system's own press, with a preview of our own. Left to itself it
+        // lifts the view the menu is attached to, and here that is the whole
+        // screen: it spent a second or two rendering a full-size copy of the
+        // picture and drew it over the menu while it worked. A small card costs
+        // nothing to render.
+        //
+        // A long press of our own was tried instead and cost more than it
+        // bought: written either way it left the pager unable to turn to the
+        // next file once it had fired.
+        .contextMenu {
+            menu
+        } preview: {
+            menuPreview
+        }
         .task(id: isCurrent) {
             guard isCurrent else { return }
             await load()
@@ -97,8 +114,31 @@ struct GalleryPage: View {
 
         if let postURL {
             Section {
-                LinkActionsMenu(url: postURL, title: "№\(item.postNum)")
+                LinkActionsMenu(url: postURL, title: "\u{2116}\(item.postNum)")
             }
+        }
+    }
+
+    /// The card the menu lifts: small on purpose.
+    @ViewBuilder
+    private var menuPreview: some View {
+        switch loadState {
+        case .still(let image):
+            Image(platformImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 240, height: 240)
+        default:
+            // A clip has no still to show, and one being fetched has nothing
+            // yet, so the file says what it is instead.
+            VStack(spacing: 8) {
+                Image(systemName: item.isVideo ? "film" : "photo")
+                    .font(.largeTitle)
+                Text(verbatim: "\u{2116}\(item.postNum)")
+                    .font(.caption.monospacedDigit())
+            }
+            .foregroundStyle(.secondary)
+            .frame(width: 200, height: 140)
         }
     }
 
@@ -122,7 +162,11 @@ struct GalleryPage: View {
 
         case .still(let image):
             #if os(iOS)
-            ZoomableImageView(image: image, onSingleTap: onSingleTap)
+            ZoomableImageView(
+                image: image,
+                onSingleTap: onSingleTap,
+                onZoomChanged: onZoomChanged
+            )
             #else
             Image(platformImage: image).resizable().scaledToFit()
             #endif

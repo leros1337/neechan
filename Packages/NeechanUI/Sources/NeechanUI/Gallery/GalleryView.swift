@@ -13,6 +13,11 @@ public struct GalleryView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var shareURL: URL?
     @State private var isPreparingShare = false
+    /// How far the reader has dragged the viewer down to close it.
+    @State private var dragOffset: CGFloat = 0
+    /// Set while the picture on screen is magnified, where a drag belongs to
+    /// the picture rather than to the viewer.
+    @State private var isZoomedIn = false
 
     /// Called with a post number when the reader asks to go to it.
     ///
@@ -36,36 +41,7 @@ public struct GalleryView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            TabView(selection: $model.currentIndex) {
-                ForEach(Array(model.items.enumerated()), id: \.element.id) { index, item in
-                    GalleryPage(
-                        item: item,
-                        url: model.url(for: item),
-                        playerOptions: model.playerOptions(for: item),
-                        isCurrent: index == model.currentIndex,
-                        onSingleTap: { model.toggleControls() },
-                        onGoToPost: onGoToPost.map { goToPost in
-                            { 
-                                dismiss()
-                                goToPost(item.postNum)
-                            }
-                        },
-                        onSave: { model.saveCurrentItem() },
-                        onShare: { share() },
-                        playbackState: $model.playbackState,
-                        playbackProgress: $model.playbackProgress,
-                        playbackControl: $model.playbackControl
-                    )
-                    .tag(index)
-                }
-            }
-            #if os(iOS)
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            #endif
-            .ignoresSafeArea()
-            .onChange(of: model.currentIndex) { _, _ in
-                model.resetPlayback()
-            }
+            pages
 
             if model.areControlsVisible {
                 controls
@@ -82,6 +58,10 @@ public struct GalleryView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        // Alongside the tap and the paging rather than instead of them: a
+        // sideways drag is still paging, and this only takes an interest once
+        // the drag is clearly downward.
+        .simultaneousGesture(closeDrag)
         .animation(.snappy(duration: 0.2), value: model.transfer)
         // The tick clears itself once it has been on screen long enough to read.
         .task(id: model.transfer?.isFinished) {
@@ -111,6 +91,91 @@ public struct GalleryView: View {
                 dismissButton: .default(Text("OK", bundle: .module))
             )
         }
+    }
+
+    /// The files, one per page, swiped between sideways.
+    ///
+    /// Its own property rather than part of the body: with the drag to close
+    /// added inline, the whole body became one expression the compiler would
+    /// not finish type-checking.
+    private var pages: some View {
+        TabView(selection: $model.currentIndex) {
+            ForEach(Array(model.items.enumerated()), id: \.element.id) { index, item in
+                page(at: index, item: item).tag(index)
+            }
+        }
+        #if os(iOS)
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        #endif
+        .ignoresSafeArea()
+        // Follows the finger on the way out, and shrinks a little as it goes,
+        // so the drag reads as putting the file down rather than as the screen
+        // glitching.
+        .offset(y: dragOffset)
+        .scaleEffect(1 - min(0.12, dragOffset / 2600))
+        .onChange(of: model.currentIndex) { _, _ in
+            model.resetPlayback()
+            // A new page is never zoomed, and the one left behind stops having
+            // a say in the gesture.
+            isZoomedIn = false
+        }
+    }
+
+    private func page(at index: Int, item: GalleryItem) -> some View {
+        GalleryPage(
+            item: item,
+            url: model.url(for: item),
+            playerOptions: model.playerOptions(for: item),
+            isCurrent: index == model.currentIndex,
+            onSingleTap: { model.toggleControls() },
+            onGoToPost: onGoToPost.map { goToPost in
+                {
+                    dismiss()
+                    goToPost(item.postNum)
+                }
+            },
+            onSave: { model.saveCurrentItem() },
+            onShare: { share() },
+            onZoomChanged: { zoomed in
+                // Only the page being looked at has a say: the ones either side
+                // report as they are built.
+                guard index == model.currentIndex else { return }
+                isZoomedIn = zoomed
+            },
+            playbackState: $model.playbackState,
+            playbackProgress: $model.playbackProgress,
+            playbackControl: $model.playbackControl
+        )
+    }
+
+    /// Dragging the viewer down closes it.
+    ///
+    /// The close button is easy to miss on a phone held one-handed, and every
+    /// other full-screen picture on the device is put away this way.
+    private var closeDrag: some Gesture {
+        DragGesture(minimumDistance: 16)
+            .onChanged { value in
+                // A magnified picture owns its own drags: the reader is moving
+                // it around, not putting it away.
+                guard !isZoomedIn else { return }
+                // Downward and more down than across, or this would fight the
+                // swipe between files.
+                guard value.translation.height > 0,
+                      value.translation.height > abs(value.translation.width)
+                else { return }
+                dragOffset = value.translation.height
+            }
+            .onEnded { value in
+                guard dragOffset > 0 else { return }
+                // A flick counts as well as a long pull: the gesture is a
+                // throw, and waiting for 140 points of it feels stuck.
+                let flicked = value.predictedEndTranslation.height > 420
+                if dragOffset > 140 || flicked {
+                    dismiss()
+                } else {
+                    withAnimation(.snappy(duration: 0.25)) { dragOffset = 0 }
+                }
+            }
     }
 
     /// Downloads the file and hands it to the share sheet.
