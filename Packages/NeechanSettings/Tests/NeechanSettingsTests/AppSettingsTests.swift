@@ -30,7 +30,6 @@ struct AppSettingsTests {
         #expect(settings.collapsePostLineLimit == 12)
         #expect(settings.autoRefreshIntervalSeconds == 0, "auto refresh is off until asked for")
         #expect(settings.downloadSubdirectoryPattern == "<board>/<thread>")
-        #expect(settings.proxyHost == nil)
     }
 
     /// Everything a file carries about where it came from goes by default: the
@@ -78,25 +77,14 @@ struct AppSettingsTests {
         settings.mediaLoadPolicy = .wifiOnly
         settings.appearance = .dark
         settings.downloadConflictAction = .skip
-        settings.proxyHost = "127.0.0.1"
-        settings.proxyPort = 8080
         settings.themeID = "solarized"
         settings.catalogByDefault = false
 
         #expect(settings.mediaLoadPolicy == .wifiOnly)
         #expect(settings.appearance == .dark)
         #expect(settings.downloadConflictAction == .skip)
-        #expect(settings.proxyHost == "127.0.0.1")
-        #expect(settings.proxyPort == 8080)
         #expect(settings.themeID == "solarized")
         #expect(settings.catalogByDefault == false)
-    }
-
-    @Test("an empty proxy host clears the proxy rather than storing nothing")
-    func blankProxyHostIsNil() throws {
-        let settings = try makeSettings()
-        settings.proxyHost = "  "
-        #expect(settings.proxyHost == nil)
     }
 
     @Test("the auto refresh interval is either off or at least fifteen seconds")
@@ -141,7 +129,7 @@ struct AppSettingsObservationTests {
         "every kind of preference is observed, not just the ones with a stored default",
         arguments: [
             "domain", "themeID", "textScale", "collapsePostLineLimit",
-            "mediaLoadPolicy", "remembersHistory", "proxyHost", "safeForWork",
+            "mediaLoadPolicy", "remembersHistory", "safeForWork",
         ]
     )
     func everyPreferenceIsObserved(name: String) throws {
@@ -156,7 +144,6 @@ struct AppSettingsObservationTests {
             case "collapsePostLineLimit": _ = settings.collapsePostLineLimit
             case "mediaLoadPolicy": _ = settings.mediaLoadPolicy
             case "remembersHistory": _ = settings.remembersHistory
-            case "proxyHost": _ = settings.proxyHost
             default: _ = settings.safeForWork
             }
         } onChange: {
@@ -170,7 +157,6 @@ struct AppSettingsObservationTests {
         case "collapsePostLineLimit": settings.collapsePostLineLimit = 5
         case "mediaLoadPolicy": settings.mediaLoadPolicy = .never
         case "remembersHistory": settings.remembersHistory = false
-        case "proxyHost": settings.proxyHost = "127.0.0.1"
         default: settings.safeForWork = true
         }
 

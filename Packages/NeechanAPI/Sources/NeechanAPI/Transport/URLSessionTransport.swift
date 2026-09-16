@@ -1,5 +1,4 @@
 import Foundation
-import Synchronization
 
 /// The production transport.
 ///
@@ -11,45 +10,23 @@ public final class URLSessionTransport: HTTPTransport, Sendable {
     /// Kept as a name callers can still use; the value lives in `UserAgent`.
     public static var defaultUserAgent: String { UserAgent.current }
 
-    /// The session is replaced when the proxy changes, so it is held behind a
-    /// lock rather than as a plain `let`.
-    private let state: Mutex<URLSession>
-    /// Kept so a new session can be built with the same cookie jar and cache.
-    private let configuration: URLSessionConfiguration?
+    private let session: URLSession
     /// An agent for this transport alone, or nil to follow `UserAgent`.
     ///
     /// Almost always nil: the app's agent is read from a web view after this
     /// object exists, so capturing a value here would pin the fallback forever.
     private let overriddenUserAgent: String?
 
-    private var session: URLSession { state.withLock { $0 } }
-
     private var userAgent: String { overriddenUserAgent ?? UserAgent.current }
 
     public init(session: URLSession, userAgent: String? = nil) {
-        self.state = Mutex(session)
-        self.configuration = nil
+        self.session = session
         self.overriddenUserAgent = userAgent
     }
 
     private init(configuration: URLSessionConfiguration, userAgent: String?) {
-        self.state = Mutex(URLSession(configuration: configuration))
-        self.configuration = configuration
+        self.session = URLSession(configuration: configuration)
         self.overriddenUserAgent = userAgent
-    }
-
-    /// Points every later request at this proxy, or at nothing when given nil.
-    ///
-    /// Requests already in flight keep the session they started on.
-    public func setProxy(_ proxy: ProxyConfiguration?) {
-        guard let configuration else { return }
-        configuration.connectionProxyDictionary = proxy?.connectionProxyDictionary
-        let replacement = URLSession(configuration: configuration)
-        let previous = state.withLock { session -> URLSession in
-            defer { session = replacement }
-            return session
-        }
-        previous.finishTasksAndInvalidate()
     }
 
     /// Builds a session with a private cookie jar and an on-disk response cache.

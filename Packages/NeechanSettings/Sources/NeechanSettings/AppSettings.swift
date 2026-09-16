@@ -196,20 +196,6 @@ public final class AppSettings {
         set { write(newValue, forKey: Key.catalogByDefault) }
     }
 
-    /// Proxy host, or nil when the connection is direct.
-    public var proxyHost: String? {
-        get { defaults.string(forKey: Key.proxyHost) }
-        set {
-            let trimmed = newValue?.trimmingCharacters(in: .whitespacesAndNewlines)
-            write((trimmed?.isEmpty ?? true) ? nil : trimmed, forKey: Key.proxyHost)
-        }
-    }
-
-    public var proxyPort: Int {
-        get { defaults.object(forKey: Key.proxyPort) as? Int ?? 0 }
-        set { write(max(0, min(65535, newValue)), forKey: Key.proxyPort) }
-    }
-
     // MARK: Contents
 
     /// How often an open thread refreshes itself, or 0 for never.
@@ -424,8 +410,6 @@ public final class AppSettings {
         static let remembersHistory = "general.remembersHistory"
         static let internalBrowser = "general.internalBrowser"
         static let catalogByDefault = "forum.catalogByDefault"
-        static let proxyHost = "forum.proxyHost"
-        static let proxyPort = "forum.proxyPort"
         static let autoRefresh = "contents.autoRefresh"
         static let endlessMode = "contents.endlessMode"
         static let favoritesOrder = "contents.favoritesOrder"

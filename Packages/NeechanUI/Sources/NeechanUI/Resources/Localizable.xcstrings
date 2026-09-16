@@ -840,23 +840,6 @@
         }
       }
     },
-    "Apply proxy": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Apply proxy"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Применить прокси"
-          }
-        }
-      }
-    },
     "Archive": {
       "extractionState": "manual",
       "localizations": {
@@ -2631,23 +2614,6 @@
         }
       }
     },
-    "Host": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Host"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Хост"
-          }
-        }
-      }
-    },
     "Icons": {
       "extractionState": "manual",
       "localizations": {
@@ -2882,23 +2848,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Вид"
-          }
-        }
-      }
-    },
-    "Leave the host empty to connect directly.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leave the host empty to connect directly."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Оставьте хост пустым для прямого подключения."
           }
         }
       }
@@ -4365,23 +4314,6 @@
         }
       }
     },
-    "Port": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Port"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Порт"
-          }
-        }
-      }
-    },
     "Post %lld": {
       "extractionState": "manual",
       "localizations": {
@@ -4582,23 +4514,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Подготовка файлов…"
-          }
-        }
-      }
-    },
-    "Proxy": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Proxy"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Прокси"
           }
         }
       }

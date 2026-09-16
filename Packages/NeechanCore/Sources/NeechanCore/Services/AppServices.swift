@@ -48,8 +48,6 @@ public final class AppServices {
     /// Bridges the main-actor settings to the client, which reads the domain
     /// from its own executor.
     @ObservationIgnored private let domainHolder: DomainHolder
-    /// Kept so the proxy can be changed without rebuilding every collaborator.
-    @ObservationIgnored private let sessionTransport: URLSessionTransport?
     @ObservationIgnored private let challenges: ChallengeRelay
 
     public init(
@@ -72,7 +70,6 @@ public final class AppServices {
                 diskPath: "NeechanResponses"
             )
         )
-        self.sessionTransport = transport as? URLSessionTransport
 
         // Built before `self` exists, so the hook goes through a box that is
         // filled in below.
@@ -222,16 +219,6 @@ public final class AppServices {
         // the reader's own are copied across before anything is fetched.
         await cookies.mirror(names: CookieManager.portableCookieNames, to: target)
         domainHolder.set(target)
-        await boards.invalidate()
-        releaseThreads()
-    }
-
-    /// Points the connection at the proxy in settings, or back at a direct
-    /// connection, and drops what was fetched through the old route.
-    public func applyProxySettings() async {
-        sessionTransport?.setProxy(
-            ProxyConfiguration(host: settings.proxyHost, port: settings.proxyPort)
-        )
         await boards.invalidate()
         releaseThreads()
     }

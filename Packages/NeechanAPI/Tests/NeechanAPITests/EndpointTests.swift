@@ -107,31 +107,3 @@ struct EndpointTests {
         #expect(try url(.boardPage(board: "b", page: -1)) == "https://2ch.org/b/index.json")
     }
 }
-
-@Suite("Proxy configuration")
-struct ProxyConfigurationTests {
-    @Test(
-        "a half-filled proxy form is no proxy at all",
-        arguments: [
-            (String?.none, 8080),
-            ("", 8080),
-            ("   ", 8080),
-            ("127.0.0.1", 0),
-            ("127.0.0.1", 70000),
-        ]
-    )
-    func incompleteFormsAreRefused(host: String?, port: Int) {
-        #expect(ProxyConfiguration(host: host, port: port) == nil)
-    }
-
-    @Test("a filled form points both schemes at the proxy")
-    func completeForm() throws {
-        let proxy = try #require(ProxyConfiguration(host: " 127.0.0.1 ", port: 8080))
-        #expect(proxy.host == "127.0.0.1", "the host is trimmed before it is used")
-
-        let dictionary = proxy.connectionProxyDictionary
-        #expect(dictionary["HTTPSProxy"] as? String == "127.0.0.1")
-        #expect(dictionary["HTTPSPort"] as? Int == 8080)
-        #expect(dictionary[kCFNetworkProxiesHTTPProxy] as? String == "127.0.0.1")
-    }
-}
