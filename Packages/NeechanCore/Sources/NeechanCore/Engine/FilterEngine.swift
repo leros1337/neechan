@@ -46,19 +46,61 @@ public enum FilterEngine {
         onBoard board: String,
         rules: [AutohideRuleValue]
     ) -> Bool {
+        hidesThread(
+            openingPost: openingPost,
+            onBoard: board,
+            rules: rules,
+            commentText: {
+                // The comment is HTML until something parses it, and a rule must
+                // match what a reader sees rather than the markup.
+                CommentHTMLParser()
+                    .parse($0.comment, inThread: $0.num, onBoard: board)
+                    .plainText
+            }
+        )
+    }
+
+    /// The same question, with the comment text supplied.
+    ///
+    /// The board list asks this for every thread on screen, several times per
+    /// redraw, and parsing a comment is the most expensive thing in the answer.
+    /// Taking the text lets the caller parse each opening post once, off the
+    /// main actor, and keep it.
+    ///
+    /// - Parameter commentText: called only when a rule actually looks at the
+    ///   comment, so a board with no such rule still parses nothing.
+    public static func hidesThread(
+        openingPost: Post,
+        onBoard board: String,
+        rules: [AutohideRuleValue],
+        commentText: (Post) -> String
+    ) -> Bool {
         let thread = ThreadKey(board: board, threadNum: openingPost.num)
         let applicable = rules.filter { $0.isUsable && $0.appliesTo(thread: thread) }
         guard !applicable.isEmpty else { return false }
 
-        // The comment is HTML until something parses it, and a rule must match
-        // what a reader sees rather than the markup. Parsing is skipped when no
-        // applicable rule looks at the comment at all.
-        let commentText = applicable.contains(where: \.matchesComment)
-            ? CommentHTMLParser()
-                .parse(openingPost.comment, inThread: thread.threadNum, onBoard: board)
-                .plainText
-            : ""
-        return applicable.contains { matches($0, post: openingPost, commentText: commentText) }
+        let text = applicable.contains(where: \.matchesComment) ? commentText(openingPost) : ""
+        return applicable.contains { matches($0, post: openingPost, commentText: text) }
+    }
+
+    /// Which of these threads the rules hide.
+    ///
+    /// Answered once for a whole board rather than per row.
+    public static func hiddenThreadNums(
+        in openingPosts: [Post],
+        onBoard board: String,
+        rules: [AutohideRuleValue],
+        commentText: (Post) -> String
+    ) -> Set<Int> {
+        guard !rules.isEmpty else { return [] }
+        var hidden: Set<Int> = []
+        for post in openingPosts
+        where hidesThread(
+            openingPost: post, onBoard: board, rules: rules, commentText: commentText
+        ) {
+            hidden.insert(post.num)
+        }
+        return hidden
     }
 
     // MARK: Global rules

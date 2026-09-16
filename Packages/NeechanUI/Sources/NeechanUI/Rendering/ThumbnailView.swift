@@ -13,6 +13,7 @@ public struct ThumbnailView: View {
     let side: CGFloat?
 
     @Environment(AppServices.self) private var services
+    @Environment(\.displayScale) private var displayScale
     @State private var image: PlatformImage?
     @State private var didFail = false
     /// Set when the reader taps a thumbnail the media policy is holding back.
@@ -27,9 +28,13 @@ public struct ThumbnailView: View {
 
     public var body: some View {
         sized
-            .blur(radius: isBlurred ? 12 : 0)
+            // Applied only when it is wanted. A `.blur` installed at radius zero
+            // is still a filter pass per thumbnail, and a board grid draws
+            // dozens of them.
+            .modifier(SafeForWorkBlur(isActive: isBlurred))
             .background(.quaternary)
             .clipShape(.rect(cornerRadius: side == nil ? 0 : 10))
+            .overlay { playIndicator }
             .overlay { revealButton }
             .overlay(alignment: .bottomTrailing) { badge }
             // Names the format so a reader using VoiceOver, and the UI tests,
@@ -108,22 +113,58 @@ public struct ThumbnailView: View {
         }
     }
 
-    /// Videos are marked so the reader knows a tap will play something.
+    /// Marks a video, so a reader knows a tap plays something rather than
+    /// opening a picture.
+    ///
+    /// Deliberately not a button. The whole thumbnail is already one tap target
+    /// inside a `Button`, and a control in the middle of it would take the tap
+    /// meant for the thumbnail and add a second element for VoiceOver to stop
+    /// on. `PinBadge` on the board cells is the same idea.
+    @ViewBuilder
+    private var playIndicator: some View {
+        if showsPlayIndicator {
+            Image(systemName: "play.fill")
+                .font(.system(size: playIndicatorSide * 0.4, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: playIndicatorSide, height: playIndicatorSide)
+                .glassEffect(in: .circle)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+    }
+
+    /// Whether there is a video, and a thumbnail under it to mark.
+    ///
+    /// `isBlurred` already means the image has loaded, so this reads as: a
+    /// video, whose thumbnail has arrived, that safe-for-work mode is not
+    /// covering. While it is still loading, or the media policy is holding it
+    /// back, there is nothing for the button to sit on; and behind the blur the
+    /// middle belongs to the reveal button.
+    private var showsPlayIndicator: Bool {
+        attachment.isVideo && image != nil && !isBlurred
+    }
+
+    /// How big the play button is, in points.
+    ///
+    /// Proportional, with a ceiling and no floor. A fixed size cannot serve this
+    /// view: the compact board row asks for 44 points, where anything with a
+    /// floor of twenty-odd would cover half the picture, and the same circle
+    /// disappears on a grid cell that fills the width of the screen.
+    private var playIndicatorSide: CGFloat {
+        // A thumbnail that fills its cell has no side to scale from.
+        guard let side else { return 40 }
+        return min(40, side * services.settings.thumbnailScale * 0.34)
+    }
+
+    /// An animation is marked, because nothing else says that it moves.
+    ///
+    /// A video is not marked here: it carries a play button in the middle
+    /// instead. The two want different things said about them — a video waits
+    /// for a tap, while an animation is already running — so a shared badge that
+    /// only differed by its text was saying the wrong thing about one of them.
     @ViewBuilder
     private var badge: some View {
-        if attachment.isVideo {
-            HStack(spacing: 3) {
-                Image(systemName: "play.fill")
-                if let duration = attachment.durationText {
-                    Text(duration)
-                }
-            }
-            .font(.system(size: 9, weight: .semibold))
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
-            .background(.thinMaterial, in: .capsule)
-            .padding(3)
-        } else if attachment.isAnimated {
+        if attachment.isAnimated {
             Text(verbatim: "GIF")
                 .font(.system(size: 9, weight: .bold))
                 .padding(.horizontal, 4)
@@ -153,6 +194,17 @@ public struct ThumbnailView: View {
         services.settings.safeForWork && !isRevealed && image != nil
     }
 
+    /// The longest side this thumbnail will actually be drawn at, in pixels.
+    ///
+    /// Asking the decoder for this rather than the file's own size keeps the
+    /// pixels off the render thread: an image decoded at draw time is decoded
+    /// during the scroll. A tile that fills its slot has no fixed side, so it is
+    /// given a sensible ceiling instead of the full file.
+    private var targetPixelSize: Int {
+        let points = (side ?? 320) * services.settings.thumbnailScale
+        return Int((points * displayScale).rounded())
+    }
+
     private func load() async {
         guard services.allowsMediaLoading || isForced else { return }
         let domain = services.settings.domain
@@ -160,15 +212,31 @@ public struct ThumbnailView: View {
             didFail = true
             return
         }
-        if let cached = await ImageLoader.shared.cachedImage(at: url) {
+        let pixels = targetPixelSize
+        if let cached = await ImageLoader.shared.cachedImage(at: url, maxPixelSize: pixels) {
             image = cached
             return
         }
         do {
-            image = try await ImageLoader.shared.image(at: url, referer: domain.baseURL)
+            image = try await ImageLoader.shared.image(
+                at: url, referer: domain.baseURL, maxPixelSize: pixels
+            )
             didFail = false
         } catch {
             didFail = !Task.isCancelled
+        }
+    }
+}
+
+/// The safe-for-work blur, mounted only while it is on.
+private struct SafeForWorkBlur: ViewModifier {
+    let isActive: Bool
+
+    func body(content: Content) -> some View {
+        if isActive {
+            content.blur(radius: 12)
+        } else {
+            content
         }
     }
 }

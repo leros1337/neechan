@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// The production transport.
 ///
@@ -42,12 +43,27 @@ public final class URLSessionTransport: HTTPTransport, Sendable {
         configuration.urlCache = cache
         configuration.requestCachePolicy = .useProtocolCachePolicy
         configuration.timeoutIntervalForRequest = 30
+        // A ceiling on the whole exchange, retries and waiting for connectivity
+        // included. Without one an offline poll tick could stay queued
+        // indefinitely, and the next tick would queue another behind it.
+        configuration.timeoutIntervalForResource = 180
         configuration.waitsForConnectivity = true
+        // Four is enough to load a board's thumbnails without the app opening a
+        // socket per visible row.
+        configuration.httpMaximumConnectionsPerHost = 4
         self.init(configuration: configuration, userAgent: userAgent)
     }
 
+    /// Names every request that leaves the app.
+    ///
+    /// The cheapest way to count what the radio is asked to do: attach with
+    /// `log stream --predicate 'subsystem == "com.lain.neechan"'` and count the
+    /// lines, rather than reading a trace.
+    private static let log = Logger(subsystem: Signposts.subsystem, category: "network")
+
     public func send(_ request: URLRequest) async throws -> HTTPReply {
         let request = identifying(request)
+        Self.log.debug("request \(request.url?.path() ?? "?", privacy: .public)")
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else {
             throw URLError(.badServerResponse)

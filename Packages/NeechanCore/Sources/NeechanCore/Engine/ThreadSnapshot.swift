@@ -18,6 +18,21 @@ public struct ThreadSnapshot: Sendable {
     /// Posts made from this device.
     public let ownPostNums: Set<Int>
 
+    /// Bumped by the repository each time it builds a new snapshot.
+    ///
+    /// A snapshot is a value with no cheap identity: comparing two of them means
+    /// comparing every post. This lets the view tell "the same snapshot I am
+    /// already showing" from "a new one" in a single integer compare, which is
+    /// what stops a refresh that found nothing from re-rendering the thread.
+    public let generation: Int
+
+    /// Whether any post carries a file.
+    ///
+    /// Stored because the thread view asks on every render to decide whether the
+    /// gallery is worth offering, and the only other way to answer was to build
+    /// the whole list of attachments and look at its count.
+    public let hasAttachments: Bool
+
     private let positionByNum: [Int: Int]
 
     public init(
@@ -26,7 +41,8 @@ public struct ThreadSnapshot: Sendable {
         meta: ThreadMeta,
         index: ReplyIndex,
         deletedPostNums: Set<Int> = [],
-        ownPostNums: Set<Int> = []
+        ownPostNums: Set<Int> = [],
+        generation: Int = 0
     ) {
         self.key = key
         self.posts = posts
@@ -34,9 +50,11 @@ public struct ThreadSnapshot: Sendable {
         self.index = index
         self.deletedPostNums = deletedPostNums
         self.ownPostNums = ownPostNums
+        self.generation = generation
         self.positionByNum = Dictionary(
             uniqueKeysWithValues: posts.enumerated().map { ($0.element.num, $0.offset) }
         )
+        self.hasAttachments = posts.contains { !$0.files.isEmpty }
     }
 
     public static func empty(key: ThreadKey) -> ThreadSnapshot {

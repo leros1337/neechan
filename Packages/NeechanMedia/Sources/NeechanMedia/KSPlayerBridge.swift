@@ -1,4 +1,7 @@
 @preconcurrency import KSPlayer
+#if canImport(AVFAudio)
+import AVFAudio
+#endif
 import Foundation
 import NeechanAPI
 import SwiftUI
@@ -34,7 +37,11 @@ enum KSPlayerBridge {
     static func makeOptions(from options: MediaPlayerOptions) -> KSOptions {
         configureEngineOnce()
 
-        let ksOptions = KSOptions()
+        // Options that know how to read for themselves. A remote file is read
+        // through the app's networking, so playback can start on the first
+        // frames instead of waiting for the whole clip; a local one is left to
+        // the engine, unchanged.
+        let ksOptions = StreamingPlayerOptions(headers: options.httpHeaders)
         // The engine's own loop flag is deliberately left off, whatever the
         // reader chose.
         //
@@ -46,6 +53,11 @@ enum KSPlayerBridge {
         // point during playback.
         ksOptions.isLoopPlay = false
         ksOptions.isAccurateSeek = true
+        // A three-second muted WebM is not something to hand the lock screen.
+        // Registering it takes over the Now Playing slot from whatever the
+        // reader was listening to and keeps the remote-control machinery awake
+        // for the length of a clip nobody will scrub.
+        ksOptions.registerRemoteControll = false
 
         // Hardware decoding only where VideoToolbox has a decoder: H.264 and
         // HEVC in MP4. With it on, the engine asks VideoToolbox to take every
@@ -90,6 +102,12 @@ enum KSPlayerBridge {
     static func selectEngine(for options: MediaPlayerOptions) {
         configureEngineOnce()
 
+        // Autoplay is global to the engine and read when a player is built, so
+        // it is set here alongside the engine choice rather than on the options,
+        // where it would be read too late. Until now the reader's preference was
+        // offered in settings and never consulted.
+        KSOptions.isAutoPlay = options.autoplays
+
         // Video goes through FFmpeg, MP4 included: the board serves HEVC tagged
         // `hev1`, which AVFoundation will not open, and a file it cannot open
         // shows nothing rather than reporting a failure the second engine could
@@ -101,6 +119,30 @@ enum KSPlayerBridge {
             KSOptions.firstPlayerType = KSAVPlayer.self
             KSOptions.secondPlayerType = KSMEPlayer.self
         }
+    }
+
+    /// Lets the screen sleep again.
+    ///
+    /// The engine turns the idle timer off when it starts playing and back on
+    /// when it is paused or stopped, but not when a clip simply reaches its
+    /// end: sitting on a finished video kept the screen awake indefinitely.
+    static func allowScreenToSleep() {
+        #if canImport(UIKit) && !os(watchOS)
+        UIApplication.shared.isIdleTimerDisabled = false
+        #endif
+    }
+
+    /// Hands the audio session back.
+    ///
+    /// The engine claims playback when a player is built and never lets go, so
+    /// closing the gallery left the session active and whatever the reader had
+    /// been listening to still stopped.
+    static func releaseAudioSession() {
+        #if canImport(AVFAudio) && os(iOS)
+        try? AVAudioSession.sharedInstance().setActive(
+            false, options: .notifyOthersOnDeactivation
+        )
+        #endif
     }
 
     /// Maps the engine's state onto the app's.

@@ -260,11 +260,33 @@ private struct PinBadge: View {
 
 /// Parses a post body once and caches the plain text, so a list can show
 /// previews without re-parsing HTML on every redraw.
+///
+/// The single place a board's opening posts are parsed. The row previews, the
+/// autohide rules and the filter field all used to parse them separately, and
+/// the last two did it on the main actor on every pass of the list's body.
 enum PostPreview {
     private static let cache = PreviewCache()
 
     static func text(for post: Post) async -> String {
         await cache.text(for: post)
+    }
+
+    /// Which of these threads the rules hide, parsing each opening post at most
+    /// once.
+    static func hiddenThreadNums(
+        in threads: [ThreadSummary],
+        onBoard board: String,
+        rules: [AutohideRuleValue]
+    ) async -> Set<Int> {
+        await cache.hiddenThreadNums(in: threads, onBoard: board, rules: rules)
+    }
+
+    /// The threads matching a filter, parsing each opening post at most once.
+    static func filter(
+        _ threads: [ThreadSummary],
+        matching query: String
+    ) async -> [ThreadSummary] {
+        await cache.filter(threads, matching: query)
     }
 
     private actor PreviewCache {
@@ -282,6 +304,23 @@ enum PostPreview {
             if entries.count > 600 { entries.removeAll(keepingCapacity: true) }
             entries[post.num] = parsed
             return parsed
+        }
+
+        func hiddenThreadNums(
+            in threads: [ThreadSummary],
+            onBoard board: String,
+            rules: [AutohideRuleValue]
+        ) -> Set<Int> {
+            FilterEngine.hiddenThreadNums(
+                in: threads.map(\.opPost),
+                onBoard: board,
+                rules: rules,
+                commentText: { self.text(for: $0) }
+            )
+        }
+
+        func filter(_ threads: [ThreadSummary], matching query: String) -> [ThreadSummary] {
+            CatalogRepository.filter(threads, matching: query) { self.text(for: $0) }
         }
     }
 }

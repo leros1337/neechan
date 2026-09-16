@@ -21,15 +21,53 @@ public actor ThreadWatcher {
     private let favorites: FavoritesRepository
     private let states: WatchedThreadStore
     private var pollTask: Task<Void, Never>?
+    /// Threads being polled right now.
+    ///
+    /// The loop and the Favorites screen can both ask at once, and without this
+    /// they each sent their own request for the same thread.
+    private var inFlight: Set<ThreadKey> = []
+    /// The device and preference state a poll has to respect, asked afresh each
+    /// pass. A closure rather than a value because the answer lives on the main
+    /// actor and changes while this actor is asleep.
+    private var conditions: @Sendable () async -> PollConditions
+
+    /// When each thread is next worth asking about.
+    ///
+    /// Held in memory and seeded from the store as threads are first seen, so
+    /// the dedupe survives a relaunch without a schema change. The backoff
+    /// count starts again at the reader's interval after a launch, which is the
+    /// right way round: someone who has just opened the app wants to be told.
+    private var scheduleStates: [ThreadKey: WatcherSchedule.ThreadState] = [:]
+    private var schedule = WatcherSchedule(baseInterval: .seconds(60))
+
+    /// How many threads are asked about at once.
+    ///
+    /// The radio costs far more to wake than to keep awake, so a pass that
+    /// finishes quickly is cheaper than the same requests spread thin. Small
+    /// enough not to look like a flood to the site.
+    static let concurrentPolls = 3
+
+    /// The longest a thread is ever left, and where closed threads sit.
+    static let closedThreadInterval = Duration.seconds(900)
 
     public init(
         client: DvachClient,
         favorites: FavoritesRepository,
-        states: WatchedThreadStore
+        states: WatchedThreadStore,
+        conditions: @escaping @Sendable () async -> PollConditions = { .unrestricted }
     ) {
         self.client = client
         self.favorites = favorites
         self.states = states
+        self.conditions = conditions
+    }
+
+    /// Points the watcher at the live device and preference state.
+    ///
+    /// Set after construction because it reads the main actor, which does not
+    /// exist to be read while the services are still being built.
+    public func setConditions(_ conditions: @escaping @Sendable () async -> PollConditions) {
+        self.conditions = conditions
     }
 
     deinit {
@@ -37,9 +75,53 @@ public actor ThreadWatcher {
     }
 
     /// Polls every watched thread once and reports what changed.
+    ///
+    /// Asks about everything that is not gone. Pull to refresh on the Favorites
+    /// screen is the caller with a right to that; the loop uses `pollDue`.
     @discardableResult
     public func pollOnce() async -> [Result] {
         await pollOnce(skippingPolledWithin: nil)
+    }
+
+    /// Polls the threads the schedule says are due.
+    ///
+    /// - Parameter deadline: when to stop starting new requests. The background
+    ///   task is given a few seconds by the system and killed if it overruns, so
+    ///   it asks about what it can and leaves the rest for next time.
+    @discardableResult
+    public func pollDue(
+        now: Date = .now,
+        deadline: ContinuousClock.Instant? = nil
+    ) async -> [Result] {
+        let conditions = await conditions()
+        guard conditions.allowsPolling else { return [] }
+        guard let keys = try? await favorites.watchedKeys(), !keys.isEmpty else { return [] }
+
+        await seedSchedule(for: keys)
+        let due = schedule
+            .due(keys, states: scheduleStates, at: now, lowPower: conditions.isLowPower)
+            .filter { !inFlight.contains($0) }
+        guard !due.isEmpty else { return [] }
+
+        return await pollConcurrently(due, deadline: deadline)
+    }
+
+    /// How long to sleep before the next pass.
+    public func timeUntilNextPoll(now: Date = .now) async -> Duration {
+        let conditions = await conditions()
+        guard let keys = try? await favorites.watchedKeys(), !keys.isEmpty else {
+            return schedule.baseInterval
+        }
+        guard
+            let wake = schedule.nextWake(
+                keys, states: scheduleStates, at: now, lowPower: conditions.isLowPower
+            )
+        else {
+            // Nothing is ever due again — every favourite is gone. Wait the long
+            // interval rather than spinning; a new favourite restarts the loop.
+            return schedule.maxInterval
+        }
+        return .seconds(max(1, wake.timeIntervalSince(now)))
     }
 
     /// Polls the watched threads, leaving out any polled recently.
@@ -52,12 +134,17 @@ public actor ThreadWatcher {
     ///   leave alone. Nil polls everything.
     @discardableResult
     public func pollOnce(skippingPolledWithin age: Duration?) async -> [Result] {
+        guard await conditions().allowsPolling else { return [] }
         guard let keys = try? await favorites.watchedKeys(), !keys.isEmpty else { return [] }
 
         var results: [Result] = []
         for key in keys {
             guard !Task.isCancelled else { break }
-            if let age, await wasPolled(key, within: age) { continue }
+            guard !inFlight.contains(key) else { continue }
+            guard await isDue(key, within: age) else { continue }
+
+            inFlight.insert(key)
+            defer { inFlight.remove(key) }
             if let result = await poll(key) {
                 results.append(result)
             }
@@ -65,10 +152,70 @@ public actor ThreadWatcher {
         return results
     }
 
-    /// Whether this thread was polled inside the given window.
-    private func wasPolled(_ key: ThreadKey, within age: Duration) async -> Bool {
-        guard let state = try? await states.state(for: key) else { return false }
-        return Date.now.timeIntervalSince(state.lastPolledAt) < Double(age.components.seconds)
+    /// Whether this thread is worth asking about now.
+    ///
+    /// A thread the site has stopped serving will never come back, so it is
+    /// never asked about again; a closed one can gain no posts, so it is asked
+    /// about rarely rather than at the reader's interval. Between them these
+    /// are most of what a long-lived favourites list holds.
+    private func isDue(_ key: ThreadKey, within age: Duration?) async -> Bool {
+        guard let state = try? await states.state(for: key) else { return true }
+        if state.isDeleted { return false }
+
+        let window = state.isClosed ? max(age ?? .zero, Self.closedThreadInterval) : age
+        guard let window else { return true }
+        return Date.now.timeIntervalSince(state.lastPolledAt) >= window.seconds
+    }
+
+    /// Reads what the store knows about threads the schedule has not seen yet.
+    private func seedSchedule(for keys: [ThreadKey]) async {
+        for key in keys where scheduleStates[key] == nil {
+            guard let stored = try? await states.state(for: key) else {
+                scheduleStates[key] = WatcherSchedule.ThreadState()
+                continue
+            }
+            scheduleStates[key] = WatcherSchedule.ThreadState(
+                lastPolledAt: stored.lastPolledAt,
+                quietPolls: 0,
+                isClosed: stored.isClosed,
+                isDeleted: stored.isDeleted
+            )
+        }
+    }
+
+    /// Asks about several threads at once, a few at a time.
+    private func pollConcurrently(
+        _ keys: [ThreadKey],
+        deadline: ContinuousClock.Instant?
+    ) async -> [Result] {
+        var pending = ArraySlice(keys)
+        var results: [Result] = []
+
+        await withTaskGroup(of: (ThreadKey, Result?).self) { group in
+            var running = 0
+
+            func startNext() {
+                guard let key = pending.popFirst() else { return }
+                inFlight.insert(key)
+                running += 1
+                group.addTask { [self] in
+                    (key, await poll(key))
+                }
+            }
+
+            for _ in 0..<min(Self.concurrentPolls, keys.count) { startNext() }
+
+            while running > 0, let (key, result) = await group.next() {
+                running -= 1
+                inFlight.remove(key)
+                if let result { results.append(result) }
+
+                guard !Task.isCancelled else { continue }
+                if let deadline, ContinuousClock.now >= deadline { continue }
+                startNext()
+            }
+        }
+        return results
     }
 
     /// Polls one thread.
@@ -77,7 +224,10 @@ public actor ThreadWatcher {
 
         do {
             let response = try await client.threadInfo(board: key.board, thread: key.threadNum)
-            guard let info = response.thread else { return nil }
+            guard let info = response.thread else {
+                record(key, outcome: .quiet)
+                return nil
+            }
 
             // `posts` excludes the opening post, so the thread's total is one more.
             let total = info.posts + 1
@@ -90,6 +240,7 @@ public actor ThreadWatcher {
                 maxNum: max(known?.lastKnownMaxNum ?? 0, info.num),
                 isDeleted: false
             )
+            record(key, outcome: newPosts > 0 ? .news : .quiet)
             return Result(key: key, newPostCount: newPosts, isDeleted: false)
         } catch {
             // A thread that is gone stays gone; anything else is a hiccup and
@@ -97,11 +248,24 @@ public actor ThreadWatcher {
             let isMissing = error.code?.meansMissing == true || isNotFound(error)
             if isMissing {
                 try? await states.markDeleted(key)
+                record(key, outcome: .deleted)
                 return Result(key: key, newPostCount: 0, isDeleted: true)
             }
             try? await states.recordFailure(key, message: error.readableWatcherMessage)
+            record(key, outcome: isRateLimited(error) ? .rateLimited : .failure)
             return nil
         }
+    }
+
+    /// Notes what a poll found, so the next one is scheduled accordingly.
+    private func record(_ key: ThreadKey, outcome: WatcherSchedule.Outcome) {
+        let state = scheduleStates[key] ?? WatcherSchedule.ThreadState()
+        scheduleStates[key] = schedule.afterPoll(state, outcome: outcome, at: .now)
+    }
+
+    private func isRateLimited(_ error: DvachError) -> Bool {
+        if case .http(let status, _) = error { return status == 429 }
+        return false
     }
 
     // MARK: Scheduling
@@ -115,11 +279,23 @@ public actor ThreadWatcher {
         onResults: (@Sendable ([Result]) async -> Void)? = nil
     ) {
         stopPolling()
+        schedule = WatcherSchedule(
+            baseInterval: interval, maxInterval: Self.closedThreadInterval
+        )
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
-                let results = await self?.pollOnce() ?? []
+                guard let self else { return }
+                // Only what the schedule says is due. Starting the loop is
+                // therefore nearly free, which matters because it is started
+                // again every time the app comes to the front: a notification
+                // banner used to cost a request per favourite.
+                let results = await self.pollDue()
                 await onResults?(results)
-                try? await Task.sleep(for: interval)
+                // Sleeps until the soonest thread is due rather than for a fixed
+                // stretch after the pass, so the period does not drift by however
+                // long the requests took.
+                let wait = await self.timeUntilNextPoll()
+                try? await Task.sleep(for: wait)
             }
         }
     }
@@ -146,5 +322,13 @@ extension DvachError {
         case .api(let error): error.message
         case .decoding: "unexpected response"
         }
+    }
+}
+
+
+extension Duration {
+    /// The duration in seconds, for comparing against a `Date` interval.
+    var seconds: Double {
+        Double(components.seconds) + Double(components.attoseconds) / 1e18
     }
 }

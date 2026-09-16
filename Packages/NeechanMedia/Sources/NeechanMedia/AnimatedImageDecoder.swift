@@ -9,22 +9,24 @@ import UniformTypeIdentifiers
 /// `Image` animates them. ImageIO exposes the frames and their delays, which is
 /// all a renderer needs and costs no extra dependency.
 public enum AnimatedImageDecoder {
-    /// One decoded frame.
-    public struct Frame: Sendable {
-        public let image: CGImage
-        /// How long to show it. Never zero: browsers clamp very short delays.
-        public let duration: TimeInterval
-    }
-
-    /// A decoded animation.
-    public struct Animation: Sendable {
-        public let frames: [Frame]
+    /// Everything about an animation except its pixels.
+    ///
+    /// Read without creating a single frame, so a two-hundred-frame GIF can be
+    /// laid out and timed before any of it is decoded.
+    public struct Metadata: Sendable, Equatable {
+        public let frameCount: Int
+        /// How long each frame is shown. Never zero.
+        public let durations: [TimeInterval]
         /// How many times to repeat; zero means forever.
         public let loopCount: Int
         public let pixelSize: CGSize
 
-        public var isAnimated: Bool { frames.count > 1 }
-        public var totalDuration: TimeInterval { frames.reduce(0) { $0 + $1.duration } }
+        public var isAnimated: Bool { frameCount > 1 }
+        public var totalDuration: TimeInterval { durations.reduce(0, +) }
+        /// The shortest frame, which is the rate the display link needs.
+        public var shortestFrameDuration: TimeInterval {
+            durations.min() ?? AnimatedImageDecoder.defaultFrameDuration
+        }
     }
 
     public enum DecodeError: Error {
@@ -35,33 +37,30 @@ public enum AnimatedImageDecoder {
     /// The shortest frame delay browsers honour. Files below it are slowed to
     /// match, which is what every other viewer does.
     private static let minimumFrameDuration: TimeInterval = 0.02
-    private static let defaultFrameDuration: TimeInterval = 0.1
+    static let defaultFrameDuration: TimeInterval = 0.1
 
-    /// Decodes every frame.
-    ///
-    /// - Parameter frameLimit: stops after this many frames, so a pathological
-    ///   file cannot exhaust memory.
-    public static func decode(_ data: Data, frameLimit: Int = 600) throws -> Animation {
+    /// Reads the frame count, timings and size without decoding any pixels.
+    public static func metadata(_ data: Data, frameLimit: Int = 600) throws -> Metadata {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
             throw DecodeError.notAnImage
         }
+        return try metadata(of: source, frameLimit: frameLimit)
+    }
+
+    static func metadata(of source: CGImageSource, frameLimit: Int) throws -> Metadata {
         let count = min(CGImageSourceGetCount(source), frameLimit)
         guard count > 0 else { throw DecodeError.noFrames }
 
-        var frames: [Frame] = []
-        frames.reserveCapacity(count)
-        for index in 0..<count {
-            guard let image = CGImageSourceCreateImageAtIndex(source, index, nil) else { continue }
-            frames.append(
-                Frame(image: image, duration: frameDuration(of: source, at: index))
-            )
-        }
-        guard let first = frames.first else { throw DecodeError.noFrames }
+        let durations = (0..<count).map { frameDuration(of: source, at: $0) }
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        let width = properties?[kCGImagePropertyPixelWidth] as? Int ?? 0
+        let height = properties?[kCGImagePropertyPixelHeight] as? Int ?? 0
 
-        return Animation(
-            frames: frames,
+        return Metadata(
+            frameCount: count,
+            durations: durations,
             loopCount: loopCount(of: source),
-            pixelSize: CGSize(width: first.image.width, height: first.image.height)
+            pixelSize: CGSize(width: width, height: height)
         )
     }
 

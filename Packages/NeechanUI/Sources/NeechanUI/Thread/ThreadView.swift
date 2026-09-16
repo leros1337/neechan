@@ -20,8 +20,17 @@ public struct ThreadView: View {
     @State private var isShowingGalleryGrid = false
     @State private var browserLink: BrowserLink?
     /// The post at the top of the screen, which is what gets remembered.
-    @State private var topVisiblePostNum: Int?
+    ///
+    /// Held in a reference rather than in the `@State` value itself: the scroll
+    /// view reports this continuously while scrolling, and every store into
+    /// `@State` invalidates the view that owns it, so tracking the top post used
+    /// to re-render the whole thread as it moved. Nothing draws from this; it is
+    /// read once, on the way out.
+    @State private var topPost = TopPostBox()
     @FocusState private var isSearchFocused: Bool
+    /// Whether the thread is the screen being read, rather than one left
+    /// underneath whatever was opened from it.
+    @State private var isVisible = false
     @Environment(\.scenePhase) private var scenePhase
 
     public init(key: ThreadKey, scrollTo: Int? = nil, offline: Bool = false) {
@@ -47,29 +56,42 @@ public struct ThreadView: View {
             await model.refreshSavedState()
             restoreScrollPosition(model)
         }
-        // Polls on the reader's interval while the thread is open. A saved copy
-        // has nothing to poll.
-        .task(id: services.settings.autoRefreshIntervalSeconds) {
-            let seconds = services.settings.autoRefreshIntervalSeconds
-            guard seconds > 0, !isOfflineSource else { return }
-            while !Task.isCancelled {
-                guard (try? await Task.sleep(for: .seconds(seconds))) != nil else { return }
-                await model?.refresh()
-            }
-        }
-        .task {
-            // Lives as long as the screen: picks up refreshes started elsewhere.
+        // Polls while the thread is the screen being read. Keyed on all three
+        // conditions, so a change to any of them cancels the loop and starts a
+        // fresh one: a `task` is torn down when its view goes away, which is not
+        // the same as the reader leaving. Before this, every thread left on the
+        // navigation stack kept its own timer, and they all kept running with
+        // the app in the background.
+        .task(id: autoRefreshKey) { await autoRefresh() }
+        // Lives as long as the screen: picks up refreshes started elsewhere,
+        // such as a reply this device sent.
+        //
+        // Keyed on the model existing, because the task that builds it starts at
+        // the same moment as this one: without the key this ran once, while the
+        // model was still nil, and listened to nothing.
+        .task(id: model == nil) {
             await model?.observeUpdates()
+        }
+        // Narrowing the thread to a search belongs here rather than in a
+        // property observer on the query: the search field writes that binding
+        // during a view update, and recomputing observed state from inside one
+        // is undefined behaviour. Keyed on the snapshot too, so posts arriving
+        // during a search are matched against it.
+        .task(id: SearchKey(query: model?.searchQuery, generation: model?.snapshot.generation)) {
+            await model?.updateSearch()
         }
     }
 
     @ViewBuilder
     private func loaded(_ model: ThreadViewModel) -> some View {
         @Bindable var model = model
+        // Read once. The list, the toolbar's match count and the empty-search
+        // overlay all want it, and it filters every post in the thread.
+        let posts = model.visiblePosts
 
         ScrollView {
             LazyVStack(spacing: 10) {
-                ForEach(model.visiblePosts) { post in
+                ForEach(posts) { post in
                     if model.showsUnreadDivider(before: post.num) {
                         NewPostsDivider()
                     }
@@ -89,7 +111,7 @@ public struct ThreadView: View {
                         isOwn: model.snapshot.isOwn(post.num),
                         repliesToOwn: model.snapshot.repliesToOwnPost(post.num),
                         isDeleted: model.snapshot.isDeleted(post.num),
-                        isNew: model.newPostNums.contains(post.num),
+                        isNew: model.isNew(post.num),
                         revealSpoilers: model.isRevealed(post.num),
                         indexInThread: model.snapshot.indexInThread(of: post),
                         onOpenReplies: { model.repliesSheetPostNum = post.num },
@@ -121,7 +143,7 @@ public struct ThreadView: View {
         // A fallback for the post at the top: the position's own view id is
         // precise but only exists once the scroll view has settled on one.
         .onScrollTargetVisibilityChange(idType: Int.self, threshold: 0.6) { visible in
-            topVisiblePostNum = visible.first
+            topPost.num = visible.first
         }
         .scrollEdgeEffectStyle(.soft, for: .top)
         .refreshable { await model.refresh(userInitiated: true) }
@@ -137,7 +159,7 @@ public struct ThreadView: View {
         // The field is tucked above the content, the way iOS hides search until
         // it is pulled down, so the menu offers an explicit way in.
         .searchFocused($isSearchFocused)
-        .overlay { statusOverlay(model) }
+        .overlay { statusOverlay(model, posts: posts) }
         .overlay(alignment: .bottom) { refreshToast(model) }
         .overlay(alignment: .bottom) { quoteStatusToast(model) }
         .internalBrowser(link: $browserLink)
@@ -166,7 +188,7 @@ public struct ThreadView: View {
                 Task { await model.refresh() }
             }
         }
-        .toolbar { toolbar(model) }
+        .toolbar { toolbar(model, matchCount: posts.count) }
         // Reading is a full-screen job: the tab bar under a thread only offers
         // ways out of it, and while scrolling it shrinks to a pill in the
         // corner that is easy to hit by accident. It comes back on the way out.
@@ -174,7 +196,9 @@ public struct ThreadView: View {
         // Inset rather than overlaid, so the buttons always clear the edge of
         // the screen, and with no spacing so they sit as low as they can.
         .safeAreaInset(edge: .bottom, spacing: 0) { threadControls(model) }
+        .onAppear { isVisible = true }
         .onDisappear {
+            isVisible = false
             let postNum = currentTopPostNum
             Task {
                 await model.markRead()
@@ -212,6 +236,53 @@ public struct ThreadView: View {
             return .handled
         })
     }
+
+    /// What the auto-refresh loop depends on. A change to any of it restarts it.
+    private var autoRefreshKey: AutoRefreshKey {
+        AutoRefreshKey(
+            seconds: services.settings.autoRefreshIntervalSeconds,
+            isActive: scenePhase == .active,
+            isVisible: isVisible
+        )
+    }
+
+    /// Re-reads the thread on the reader's interval, backing off while it is
+    /// quiet.
+    ///
+    /// The interval the reader picked is the fastest they want to be told about
+    /// a new post, not a promise to keep asking at that rate into the evening;
+    /// a thread nobody has posted in is asked about progressively less often,
+    /// and one new post puts it straight back to the chosen rate.
+    private func autoRefresh() async {
+        let seconds = services.settings.autoRefreshIntervalSeconds
+        guard seconds > 0, !isOfflineSource, scenePhase == .active, isVisible else { return }
+
+        let base = Duration.seconds(seconds)
+        var quietPolls = 0
+        while !Task.isCancelled {
+            let wait = PollBackoff.interval(
+                base: base,
+                quiet: quietPolls,
+                cap: Self.autoRefreshCap,
+                // Read each time round rather than observed: the answer only
+                // has to be right by the next poll, and this saves an observer
+                // living as long as the screen.
+                lowPower: ProcessInfo.processInfo.isLowPowerModeEnabled
+            )
+            guard (try? await Task.sleep(for: wait)) != nil else { return }
+            // Cellular, with the reader asking for Wi-Fi only. Waiting rather
+            // than stopping, so it resumes by itself when they are back on
+            // Wi-Fi.
+            guard services.allowsAutomaticPolling else { continue }
+
+            await model?.refresh()
+            quietPolls = model?.newPostNums.isEmpty == false ? 0 : quietPolls + 1
+        }
+    }
+
+    /// The longest the loop will ever wait. Past this a reader who wanted to be
+    /// told would have pulled to refresh.
+    private static let autoRefreshCap = Duration.seconds(300)
 
     /// The thread's own address on the site, for sharing and opening.
     private var threadURL: URL? {
@@ -294,7 +365,7 @@ public struct ThreadView: View {
     // MARK: Pieces
 
     @ToolbarContentBuilder
-    private func toolbar(_ model: ThreadViewModel) -> some ToolbarContent {
+    private func toolbar(_ model: ThreadViewModel, matchCount: Int) -> some ToolbarContent {
         // Sharing is its own capsule: it is the action readers reach for most
         // after reading, and burying it in a menu costs a tap every time.
         if let url = threadURL {
@@ -309,98 +380,18 @@ public struct ThreadView: View {
             }
         }
         ToolbarItem(placement: .trailingBar) {
-            Menu {
-                Button {
-                    Task { await model.toggleFavorite() }
-                } label: {
-                    Label {
-                        Text(model.isFavorite ? "Remove from favorites" : "Add to favorites", bundle: .module)
-                    } icon: {
-                        Image(systemName: model.isFavorite ? "star.fill" : "star")
-                    }
+            ThreadToolbarMenu(
+                model: model,
+                threadURL: threadURL,
+                matchCount: matchCount,
+                onSearch: { isSearchFocused = true },
+                onShowGallery: { isShowingGalleryGrid = true },
+                onShowHiddenPosts: { isShowingHiddenPosts = true },
+                onReload: { Task { await model.reload(userInitiated: true) } },
+                onSave: { includingFiles in
+                    Task { await save(model, includingFiles: includingFiles) }
                 }
-                Button {
-                    isSearchFocused = true
-                } label: {
-                    Label {
-                        Text("Search in thread", bundle: .module)
-                    } icon: {
-                        Image(systemName: "magnifyingglass")
-                    }
-                }
-                Button {
-                    isShowingGalleryGrid = true
-                } label: {
-                    Label {
-                        Text("Gallery", bundle: .module)
-                    } icon: {
-                        Image(systemName: "photo.on.rectangle")
-                    }
-                }
-                .disabled(model.snapshot.galleryItems.isEmpty)
-
-                if !model.isOffline {
-                    Button {
-                        Task { await model.reload(userInitiated: true) }
-                    } label: {
-                        Label {
-                            Text("Reload", bundle: .module)
-                        } icon: {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                    }
-                    Menu {
-                        Button {
-                            Task { await save(model, includingFiles: false) }
-                        } label: {
-                            Text("Text and thumbnails", bundle: .module)
-                        }
-                        Button {
-                            Task { await save(model, includingFiles: true) }
-                        } label: {
-                            Text("Everything, including files", bundle: .module)
-                        }
-                    } label: {
-                        Label {
-                            Text(model.isSaved ? "Update saved copy" : "Save for offline", bundle: .module)
-                        } icon: {
-                            Image(systemName: model.isSaved ? "arrow.down.circle.fill" : "arrow.down.circle")
-                        }
-                    }
-                }
-                if let url = threadURL {
-                    Section {
-                        LinkActionsMenu(url: url, title: model.snapshot.meta.title)
-                    }
-                }
-                if !model.hiddenPostNums.isEmpty {
-                    Button {
-                        isShowingHiddenPosts = true
-                    } label: {
-                        Label {
-                            Text("\(model.hiddenPostNums.count) hidden posts", bundle: .module)
-                        } icon: {
-                            Image(systemName: "eye.slash")
-                        }
-                    }
-                }
-                Section {
-                    if model.isSearching {
-                        Text("\(model.visiblePosts.count) matches", bundle: .module)
-                    }
-                    Text("\(model.snapshot.meta.postsCount) posts", bundle: .module)
-                    Text("\(model.snapshot.meta.filesCount) files", bundle: .module)
-                    if model.snapshot.meta.uniquePosters > 0 {
-                        Text("\(model.snapshot.meta.uniquePosters) posters", bundle: .module)
-                    }
-                }
-            } label: {
-                Label {
-                    Text("Thread actions", bundle: .module)
-                } icon: {
-                    Image(systemName: "ellipsis")
-                }
-            }
+            )
         }
     }
 
@@ -473,7 +464,7 @@ public struct ThreadView: View {
     }
 
     @ViewBuilder
-    private func statusOverlay(_ model: ThreadViewModel) -> some View {
+    private func statusOverlay(_ model: ThreadViewModel, posts: [Post]) -> some View {
         switch model.loadState {
         case .loading where model.snapshot.isEmpty:
             ProgressView()
@@ -493,7 +484,7 @@ public struct ThreadView: View {
                 .buttonStyle(.glassProminent)
             }
         case .idle, .loading, .loaded:
-            if model.isSearching && model.visiblePosts.isEmpty {
+            if model.isSearching && posts.isEmpty {
                 ContentUnavailableView.search(text: model.searchQuery)
             } else if model.snapshot.meta.isDeleted {
                 VStack {
@@ -572,7 +563,7 @@ public struct ThreadView: View {
 
     /// The post the thread is scrolled to.
     private var currentTopPostNum: Int? {
-        scrollPosition.viewID(type: Int.self) ?? topVisiblePostNum
+        scrollPosition.viewID(type: Int.self) ?? topPost.num
     }
 
     /// Puts the reader back where they were, or on the post they came for.
@@ -587,6 +578,31 @@ public struct ThreadView: View {
         guard let destination else { return }
         scrollPosition.scrollTo(id: destination, anchor: .top)
     }
+}
+
+/// Holds the post at the top of the screen without making it observed state.
+///
+/// A class so writing to it is not a write to `@State` itself: the value stored
+/// in `@State` is the reference, and that never changes.
+@MainActor
+private final class TopPostBox {
+    var num: Int?
+}
+
+/// What the in-thread search depends on.
+private struct SearchKey: Equatable {
+    let query: String?
+    let generation: Int?
+}
+
+/// What the auto-refresh loop is keyed on.
+private struct AutoRefreshKey: Equatable {
+    let seconds: Int
+    /// Whether the app is in front. Polling a thread nobody can see is the
+    /// clearest waste of a radio there is.
+    let isActive: Bool
+    /// Whether this thread is the screen being read.
+    let isVisible: Bool
 }
 
 /// Opens the reply form, optionally quoting a post.

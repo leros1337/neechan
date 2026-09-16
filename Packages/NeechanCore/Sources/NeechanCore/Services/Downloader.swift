@@ -59,6 +59,8 @@ public actor Downloader {
     }
 
     private let session: URLSession
+    /// Runs the downloads and reports how far each has got.
+    private let downloads: DownloadDelegate
     /// An agent for this downloader alone, or nil to follow `UserAgent`.
     private let overriddenUserAgent: String?
 
@@ -66,18 +68,28 @@ public actor Downloader {
     /// this object exists.
     private var userAgent: String { overriddenUserAgent ?? UserAgent.current }
 
+    /// - Parameter configuration: the session's configuration. Taken instead of
+    ///   a whole session because the session has to be built around this
+    ///   downloader's own delegate, which is where progress comes from.
     public init(
-        session: URLSession? = nil,
+        configuration: URLSessionConfiguration? = nil,
         userAgent: String? = nil
     ) {
-        if let session {
-            self.session = session
-        } else {
+        let configuration = configuration ?? {
             let configuration = URLSessionConfiguration.default
             configuration.urlCache = nil
             configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-            self.session = URLSession(configuration: configuration)
-        }
+            // Media files are large and the reader is waiting on one of them,
+            // not six; more sockets to the same host would only make each
+            // slower and hold the radio at full power for longer.
+            configuration.httpMaximumConnectionsPerHost = 2
+            return configuration
+        }()
+        let downloads = DownloadDelegate()
+        self.downloads = downloads
+        self.session = URLSession(
+            configuration: configuration, delegate: downloads, delegateQueue: nil
+        )
         self.overriddenUserAgent = userAgent
     }
 
@@ -95,45 +107,50 @@ public actor Downloader {
             request.setValue(referer.absoluteString, forHTTPHeaderField: "Referer")
         }
 
-        let (bytes, response) = try await session.bytes(for: request)
-        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw DownloadError.badStatus(http.statusCode)
-        }
-
-        let expected = response.expectedContentLength > 0 ? response.expectedContentLength : nil
+        // A download task rather than the byte sequence. `URLSession.bytes`
+        // yields one `UInt8` at a time, so a 20 MB clip cost twenty million
+        // iterations of an async sequence, twenty million appends and twenty
+        // million cancellation checks: seconds of a core, for a file the system
+        // will happily write to disk itself.
+        //
+        // Driven entirely through the session's delegate, and deliberately
+        // carrying no completion handler: `didWriteData` is the only place the
+        // system says how many bytes have landed, it reaches the session's
+        // delegate alone, and a task built with a completion handler is never
+        // sent it. Three other shapes were tried and each left the capsule stuck
+        // on one number for a whole download — a task-scoped delegate, which the
+        // async form of `download` never calls; the task's own `progress`, whose
+        // fraction never leaves its first value; and a completion handler, which
+        // reports nothing at all.
         let destination = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension(url.pathExtension)
-        FileManager.default.createFile(atPath: destination.path, contents: nil)
+        let running = RunningDownload()
 
-        let handle = try FileHandle(forWritingTo: destination)
-        defer { try? handle.close() }
-
-        // Buffered rather than byte-by-byte: a 20 MB WebM is millions of writes
-        // otherwise.
-        var buffer = Data()
-        buffer.reserveCapacity(64 * 1024)
-        var received: Int64 = 0
-
-        for try await byte in bytes {
-            buffer.append(byte)
-            if buffer.count >= 64 * 1024 {
-                try handle.write(contentsOf: buffer)
-                received += Int64(buffer.count)
-                buffer.removeAll(keepingCapacity: true)
-                onProgress?(Progress(bytesReceived: received, bytesExpected: expected))
+        let file: URL = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation {
+                (continuation: CheckedContinuation<URL, any Error>) in
+                let task = session.downloadTask(with: request)
+                downloads.watch(
+                    task.taskIdentifier,
+                    savingTo: destination,
+                    onProgress: onProgress
+                ) { result in
+                    continuation.resume(with: result)
+                }
+                running.begin(task)
+                task.resume()
             }
-            if Task.isCancelled {
-                try? FileManager.default.removeItem(at: destination)
-                throw DownloadError.cancelled
-            }
+        } onCancel: {
+            running.cancel()
         }
-        if !buffer.isEmpty {
-            try handle.write(contentsOf: buffer)
-            received += Int64(buffer.count)
-        }
-        onProgress?(Progress(bytesReceived: received, bytesExpected: expected))
-        return destination
+
+        // One last report, from the file that actually landed, so a finished
+        // download never sits next to a capsule reading 98%.
+        let size = (try? FileManager.default.attributesOfItem(atPath: file.path)[.size])
+        let received = (size as? NSNumber)?.int64Value ?? 0
+        onProgress?(Progress(bytesReceived: received, bytesExpected: received))
+        return file
     }
 
     /// Downloads straight into memory. For small files only.
@@ -148,5 +165,116 @@ public actor Downloader {
             throw DownloadError.badStatus(http.statusCode)
         }
         return data
+    }
+}
+
+/// Holds the download in flight, so it can be cancelled.
+///
+/// `URLSessionDownloadTask` is not `Sendable`, and the two things that touch it
+/// — starting the download and cancelling it — can happen on different threads,
+/// so access is locked rather than assumed.
+private final class RunningDownload: @unchecked Sendable {
+    private let lock = NSLock()
+    private var task: URLSessionDownloadTask?
+
+    func begin(_ task: URLSessionDownloadTask) {
+        lock.withLock { self.task = task }
+    }
+
+    func cancel() {
+        let task = lock.withLock { self.task }
+        task?.cancel()
+    }
+}
+
+/// Runs the app's downloads and says how far each has got.
+///
+/// Keyed by task, because one downloader serves the whole app.
+final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    private struct Waiter {
+        let destination: URL
+        let onProgress: (@Sendable (Downloader.Progress) -> Void)?
+        let finish: @Sendable (Result<URL, any Error>) -> Void
+    }
+
+    private let lock = NSLock()
+    private var waiters: [Int: Waiter] = [:]
+
+    func watch(
+        _ taskIdentifier: Int,
+        savingTo destination: URL,
+        onProgress: (@Sendable (Downloader.Progress) -> Void)?,
+        finish: @escaping @Sendable (Result<URL, any Error>) -> Void
+    ) {
+        lock.withLock {
+            waiters[taskIdentifier] = Waiter(
+                destination: destination, onProgress: onProgress, finish: finish
+            )
+        }
+    }
+
+    /// Removes and returns a waiter, so one download is finished exactly once: a
+    /// task that produced a file also reports completion afterwards.
+    private func take(_ taskIdentifier: Int) -> Waiter? {
+        lock.withLock { waiters.removeValue(forKey: taskIdentifier) }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        let waiter = lock.withLock { waiters[downloadTask.taskIdentifier] }
+        waiter?.onProgress?(
+            Downloader.Progress(
+                bytesReceived: totalBytesWritten,
+                bytesExpected: totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : nil
+            )
+        )
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {
+        guard let waiter = take(downloadTask.taskIdentifier) else { return }
+
+        if let http = downloadTask.response as? HTTPURLResponse,
+           !(200..<300).contains(http.statusCode)
+        {
+            waiter.finish(.failure(Downloader.DownloadError.badStatus(http.statusCode)))
+            return
+        }
+        do {
+            // Moved before returning: the system deletes what it handed over as
+            // soon as this call is done with it.
+            try? FileManager.default.removeItem(at: waiter.destination)
+            try FileManager.default.moveItem(at: location, to: waiter.destination)
+            waiter.finish(.success(waiter.destination))
+        } catch {
+            waiter.finish(.failure(error))
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didCompleteWithError error: (any Error)?
+    ) {
+        // Gone already means the file arrived and has been handed over.
+        guard let waiter = take(task.taskIdentifier) else { return }
+
+        if let error {
+            if (error as? URLError)?.code == .cancelled {
+                waiter.finish(.failure(Downloader.DownloadError.cancelled))
+            } else {
+                waiter.finish(.failure(error))
+            }
+        } else {
+            waiter.finish(.failure(Downloader.DownloadError.badStatus(-1)))
+        }
     }
 }

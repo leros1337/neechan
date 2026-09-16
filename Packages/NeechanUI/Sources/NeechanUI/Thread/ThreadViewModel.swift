@@ -14,10 +14,34 @@ import SwiftUI
 public final class ThreadViewModel {
     public let key: ThreadKey
 
-    public private(set) var snapshot: ThreadSnapshot
+    public private(set) var snapshot: ThreadSnapshot {
+        // Every path that replaces the snapshot — the first load, a refresh, a
+        // saved copy being adopted — has to reconsider what is shown, so it
+        // hangs off the property rather than off any one of them. Only the
+        // no-search case is answered here, and only from the async paths that
+        // assign a snapshot; a search is re-run by the view's own task.
+        didSet {
+            guard !isSearching else { return }
+            if visiblePosts.count != snapshot.posts.count || visiblePosts.isEmpty {
+                visiblePosts = snapshot.posts
+            }
+        }
+    }
     public private(set) var loadState: LoadStatus = .idle
-    /// Numbers of posts that arrived in the most recent refresh.
-    public private(set) var newPostNums: [Int] = []
+    /// Numbers of posts that arrived in the most recent refresh, in order.
+    public private(set) var newPostNums: [Int] = [] {
+        didSet { newPostNumSet = Set(newPostNums) }
+    }
+    /// The same numbers as a set.
+    ///
+    /// Every visible row asks whether it is new, and asking an array that is a
+    /// whole refresh long made that a scan per row.
+    private var newPostNumSet: Set<Int> = []
+
+    /// Whether this post arrived in the most recent refresh.
+    public func isNew(_ postNum: Int) -> Bool {
+        newPostNumSet.contains(postNum)
+    }
 
     /// What the most recent refresh found, for the thread to tell the reader.
     public private(set) var lastRefresh: RefreshAnnouncement?
@@ -69,6 +93,12 @@ public final class ThreadViewModel {
     public var repliesSheetPostNum: Int?
     /// Filters the thread to matching posts. Searching happens here rather than
     /// in the search tab, so the reader never leaves the thread to do it.
+    ///
+    /// Deliberately without a `didSet` that narrows the list: SwiftUI's search
+    /// field writes this binding during a view update, and recomputing observed
+    /// state from there is "publishing changes from within view updates", which
+    /// the framework warns about and then behaves unpredictably around. The view
+    /// drives the search from a task instead.
     public var searchQuery = ""
     /// Whether this thread is in the reader's favourites.
     public var isFavorite = false
@@ -254,23 +284,46 @@ public final class ThreadViewModel {
         }
     }
 
-    private func apply(_ update: ThreadUpdate) {
+    /// Takes an update from the repository.
+    ///
+    /// Every write here is guarded, because observation reports a store whether
+    /// or not the value moved, and each of these is read by every visible row.
+    /// The same update can also arrive twice: once as the return value of the
+    /// refresh that asked for it, and once through the stream, which the screen
+    /// keeps open for refreshes started elsewhere.
+    func apply(_ update: ThreadUpdate) {
         switch update {
         case .replaced(let snapshot):
-            self.snapshot = snapshot
-            newPostNums = []
-            loadState = .loaded
+            adopt(snapshot)
+            setNewPostNums([])
+            setLoadState(.loaded)
         case .appended(let snapshot, let nums):
-            self.snapshot = snapshot
-            newPostNums = nums
-            loadState = .loaded
+            adopt(snapshot)
+            setNewPostNums(nums)
+            setLoadState(.loaded)
         case .metaChanged(let snapshot):
-            self.snapshot = snapshot
-            if case .failed = loadState { loadState = .loaded }
+            adopt(snapshot)
+            if case .failed = loadState { setLoadState(.loaded) }
         case .failed(let snapshot, let error):
-            self.snapshot = snapshot
-            loadState = snapshot.isEmpty ? .failed(error.readableMessage) : .loaded
+            adopt(snapshot)
+            setLoadState(snapshot.isEmpty ? .failed(error.readableMessage) : .loaded)
         }
+    }
+
+    /// Stores a snapshot, unless it is the one already on screen.
+    private func adopt(_ incoming: ThreadSnapshot) {
+        guard incoming.generation != snapshot.generation else { return }
+        snapshot = incoming
+    }
+
+    private func setNewPostNums(_ nums: [Int]) {
+        guard nums != newPostNums else { return }
+        newPostNums = nums
+    }
+
+    private func setLoadState(_ state: LoadStatus) {
+        guard state != loadState else { return }
+        loadState = state
     }
 
     /// Marks the posts this device wrote, which 2ch does not report.
@@ -286,16 +339,28 @@ public final class ThreadViewModel {
     }
 
     /// Recomputes which posts a rule hides.
+    ///
+    /// Matched off the main actor: this walks every post in the thread against
+    /// every rule, and a long thread with a few regular expressions in it is
+    /// enough to drop a frame.
     public func refreshHiddenPosts() async {
         let rules = (try? await services.hidden.rules()) ?? []
         let local = (try? await services.hidden.localRules(in: key)) ?? []
-        hiddenPostNums = FilterEngine.hiddenPostNums(
-            in: snapshot.posts,
-            index: snapshot.index,
-            thread: key,
-            rules: rules,
-            localRules: local
-        )
+        let snapshot = self.snapshot
+        let key = self.key
+
+        let hidden = await Task.detached(priority: .userInitiated) {
+            FilterEngine.hiddenPostNums(
+                in: snapshot.posts,
+                index: snapshot.index,
+                thread: key,
+                rules: rules,
+                localRules: local
+            )
+        }.value
+
+        guard hidden != hiddenPostNums else { return }
+        hiddenPostNums = hidden
     }
 
     public func refreshFavoriteState() async {
@@ -332,7 +397,10 @@ public final class ThreadViewModel {
     public func markRead() async {
         guard let last = snapshot.posts.last?.num else { return }
         try? await services.watchedThreads.markRead(
-            key, upTo: last, totalPosts: snapshot.posts.count
+            key,
+            upTo: last,
+            totalPosts: snapshot.posts.count,
+            isClosed: snapshot.meta.isClosed
         )
     }
 
@@ -378,8 +446,38 @@ public final class ThreadViewModel {
     ///
     /// Hidden posts stay in the list as stubs rather than vanishing, so a reply
     /// to one still makes sense.
-    public var visiblePosts: [Post] {
-        snapshot.posts(matching: searchQuery)
+    ///
+    /// Stored rather than computed: searching compares every post's rendered
+    /// text, and the thread's body read this three times per pass, so a query
+    /// was matched against the whole thread several times per keystroke on the
+    /// main actor.
+    public private(set) var visiblePosts: [Post] = []
+
+    /// Narrows the thread to whatever is in the search field.
+    ///
+    /// Owned by the view, which runs it in a task keyed on the query and the
+    /// snapshot: a keystroke cancels the task before it, which is the debounce,
+    /// and leaving the screen cancels it altogether. Matching compares every
+    /// post's rendered text, so it is done away from the main actor.
+    public func updateSearch() async {
+        let query = searchQuery
+        guard isSearching else {
+            if visiblePosts.count != snapshot.posts.count {
+                visiblePosts = snapshot.posts
+            }
+            return
+        }
+
+        try? await Task.sleep(for: .milliseconds(200))
+        guard !Task.isCancelled else { return }
+
+        let snapshot = self.snapshot
+        let matched = await Task.detached(priority: .userInitiated) {
+            snapshot.posts(matching: query)
+        }.value
+
+        guard !Task.isCancelled, searchQuery == query else { return }
+        visiblePosts = matched
     }
 
     public func isHidden(_ postNum: Int) -> Bool {

@@ -45,6 +45,8 @@ public final class AppServices {
     #endif
 
     @ObservationIgnored private var threadRepositories: [ThreadKey: ThreadRepository] = [:]
+    /// Thread keys in the order they were last asked for, oldest first.
+    @ObservationIgnored private var threadOrder: [ThreadKey] = []
     /// Bridges the main-actor settings to the client, which reads the domain
     /// from its own executor.
     @ObservationIgnored private let domainHolder: DomainHolder
@@ -125,10 +127,37 @@ public final class AppServices {
         reachability.allowsMedia(under: settings.mediaLoadPolicy)
     }
 
+    /// The device and preference state a poll has to respect.
+    public var pollConditions: PollConditions {
+        PollConditions(
+            isConnected: reachability.isConnected,
+            isExpensive: reachability.isExpensive,
+            wifiOnly: settings.watcherWiFiOnly,
+            isLowPower: ProcessInfo.processInfo.isLowPowerModeEnabled
+        )
+    }
+
+    /// Whether a poll nobody asked for may go out right now.
+    ///
+    /// The reader's "only on Wi-Fi" preference, which until now was written
+    /// down and never read. Pulling to refresh is a request they made and is
+    /// never held back by this; the watcher and the open thread's timer are.
+    public var allowsAutomaticPolling: Bool {
+        pollConditions.allowsPolling
+    }
+
     /// Starts listening for gate pages. Called once by the shell.
     public func observeChallenges() {
         reachability.start()
         applyHistoryRecordingSetting()
+        // Points the watcher at the live network and preference state. Done
+        // here rather than in `init`, which cannot read the main actor because
+        // it is still building the thing that lives on it.
+        Task { [weak self, watcher] in
+            await watcher.setConditions {
+                await MainActor.run { self?.pollConditions ?? .unrestricted }
+            }
+        }
         challenges.onReport = { [weak self] url in
             guard let self, pendingChallengeURL == nil else { return }
             pendingChallengeURL = url
@@ -154,13 +183,36 @@ public final class AppServices {
         EmojiCaptchaSession(client: client)
     }
 
+    /// How many threads' posts are kept in memory.
+    ///
+    /// A thread's repository holds every post in it and every parsed comment, so
+    /// a long session that wandered through thirty threads used to be holding
+    /// all thirty. Anything still open is held by its own view model, so
+    /// dropping one here only costs a refetch if the reader goes back to it.
+    static let cachedThreadLimit = 8
+
     /// The repository for one thread, reused while the thread stays open so a
     /// second visit does not refetch what is already held.
     public func threadRepository(for key: ThreadKey) -> ThreadRepository {
-        if let existing = threadRepositories[key] { return existing }
+        if let existing = threadRepositories[key] {
+            threadOrder.removeAll { $0 == key }
+            threadOrder.append(key)
+            return existing
+        }
         let repository = ThreadRepository(key: key, client: client)
         threadRepositories[key] = repository
+        threadOrder.append(key)
+
+        while threadOrder.count > Self.cachedThreadLimit, let oldest = threadOrder.first {
+            threadOrder.removeFirst()
+            threadRepositories[oldest] = nil
+        }
         return repository
+    }
+
+    /// Frees what can be freed. Called when the system says memory is short.
+    public func releaseMemory(keeping keys: Set<ThreadKey> = []) {
+        releaseThreads(keeping: keys)
     }
 
     /// Polls watched threads once and tells the reader about anything new.
@@ -168,7 +220,10 @@ public final class AppServices {
     /// Used by the foreground timer, by pull to refresh, and by the background
     /// task, so the three cannot drift apart.
     public func pollWatchedThreads() async {
-        let results = await watcher.pollOnce()
+        // Bounded: the system gives a background refresh a few seconds and kills
+        // it if it overruns. Whatever is not asked about now is asked about next
+        // time, oldest first.
+        let results = await watcher.pollDue(deadline: .now + .seconds(20))
         #if canImport(UserNotifications)
         guard results.contains(where: \.hasNews) else { return }
 
@@ -208,6 +263,7 @@ public final class AppServices {
     /// Drops cached threads. Called when the mirror changes or memory is tight.
     public func releaseThreads(keeping keys: Set<ThreadKey> = []) {
         threadRepositories = threadRepositories.filter { keys.contains($0.key) }
+        threadOrder = threadOrder.filter { keys.contains($0) }
     }
 
     /// Points the client at the mirror now selected and drops everything cached

@@ -6,7 +6,18 @@ import UIKit
 #endif
 
 /// One post in a thread.
+///
+/// Deliberately not `Equatable`, and deliberately not wrapped in `.equatable()`.
+/// It looks like an easy win — the cell is mostly values, and comparing them
+/// would let SwiftUI skip rebuilding a post that has not changed — but the
+/// comparison would have to ignore the closures below, and skipping the update
+/// then keeps the closures from the pass that built them. Those capture the
+/// thread view, and writing its `@State` through a stale copy is dropped
+/// silently: tapping a thumbnail stopped opening the gallery, and nothing said
+/// so. What that optimisation was for is covered instead by `PostBodyCache`,
+/// which makes a repeated render a dictionary lookup.
 struct PostCellView: View {
+
     let post: Post
     let content: PostContent
     let backlinks: [Int]
@@ -34,19 +45,18 @@ struct PostCellView: View {
     /// own text scale multiplies it.
     @ScaledMetric(relativeTo: .callout) private var bodyPointSize: CGFloat = 16
     @State private var isExpanded = false
-    /// Whether the line limit actually cut anything off.
-    ///
-    /// Without this the control was offered on every post, including one-word
-    /// replies, because a line limit gives no signal of its own.
-    @State private var isTruncated = false
 
-    private static let renderer = PostTextRenderer()
 
     /// Posts longer than this are collapsed, with a control to open them.
     private var collapsedLineLimit: Int { services.settings.collapsePostLineLimit }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // Rendered once. Building an `AttributedString` walks the whole post and
+        // coalesces runs, and this used to happen twice per body: once to draw,
+        // once inside the probe that measures whether the text was cut off.
+        let rendered = attributedBody
+
+        return VStack(alignment: .leading, spacing: 8) {
             PostHeaderView(
                 post: post,
                 indexInThread: indexInThread,
@@ -60,12 +70,12 @@ struct PostCellView: View {
 
             if !content.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(attributedBody)
+                    Text(rendered)
                         .font(bodyFont)
                         .textSelection(.enabled)
                         .lineLimit(isExpanded ? nil : collapsedLineLimit)
                         .fixedSize(horizontal: false, vertical: true)
-                        .background { truncationProbe }
+                        .background { truncationProbe(rendered) }
                         // Named so the text scale can be checked by measuring
                         // the thing it is supposed to resize.
                         .accessibilityIdentifier("post-body-\(post.num)")
@@ -165,8 +175,9 @@ struct PostCellView: View {
     }
 
     private var attributedBody: AttributedString {
-        Self.renderer.render(
-            content,
+        PostBodyCache.shared.body(
+            for: content,
+            board: post.board,
             options: .init(
                 postNum: post.num,
                 revealSpoilers: revealSpoilers,
@@ -199,32 +210,52 @@ struct PostCellView: View {
     ///
     /// SwiftUI does not report whether a line limit truncated anything, so the
     /// same text is laid out twice: once as drawn, once unconstrained.
-    private var truncationProbe: some View {
-        GeometryReader { clipped in
-            Text(attributedBody)
-                .font(bodyFont)
-                .fixedSize(horizontal: false, vertical: true)
-                .background {
-                    GeometryReader { natural in
-                        Color.clear
-                            .onAppear {
-                                updateTruncation(clipped: clipped.size, natural: natural.size)
-                            }
-                            .onChange(of: natural.size) { _, newValue in
-                                updateTruncation(clipped: clipped.size, natural: newValue)
-                            }
-                    }
+    @ViewBuilder
+    private func truncationProbe(_ rendered: AttributedString) -> some View {
+        // Mounted only for posts long enough that the limit could reach them,
+        // and only while they are collapsed. A board is mostly one-line replies,
+        // and laying each of those out a second time to discover it was never
+        // going to be cut off is the most wasted work in the thread.
+        if !isExpanded, couldTruncate {
+            // Two height readings rather than two nested `GeometryReader`s: a
+            // `GeometryReader` fills whatever it is offered and takes part in
+            // layout, so a pair of them per post was shaping the thread as well
+            // as measuring it. `onGeometryChange` only reports.
+            Color.clear
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                    clippedHeight = height
                 }
-                .hidden()
+                .overlay {
+                    Text(rendered)
+                        .font(bodyFont)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .hidden()
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                            naturalHeight = height
+                        }
+                }
         }
     }
 
-    private func updateTruncation(clipped: CGSize, natural: CGSize) {
-        // A point of slack, so rounding does not make a full post look clipped.
-        let truncated = natural.height > clipped.height + 1
-        if truncated != isTruncated {
-            isTruncated = truncated
-        }
+    /// Whether this post is long enough to be worth measuring.
+    private var couldTruncate: Bool {
+        CollapsePolicy.mayTruncate(
+            lineBreaks: content.lineBreakCount,
+            characters: content.plainText.count,
+            limit: collapsedLineLimit
+        )
+    }
+
+    /// Height of the body as drawn, with the line limit applied.
+    @State private var clippedHeight: CGFloat = 0
+    /// Height the same body would take unconstrained.
+    @State private var naturalHeight: CGFloat = 0
+
+    /// Whether the line limit actually cut this post off.
+    ///
+    /// A point of slack, so rounding does not make a full post look clipped.
+    private var isTruncated: Bool {
+        couldTruncate && clippedHeight > 0 && naturalHeight > clippedHeight + 1
     }
 }
 
@@ -271,7 +302,10 @@ struct PostHeaderView: View {
                 BadgeLabel(text: Text("OP", bundle: .module), tint: .accentColor)
             }
             if isOwn {
-                BadgeLabel(text: Text("You", bundle: .module), tint: .accentColor)
+                // Named rather than implied: the border around an own post is
+                // easy to miss in a thread that is mostly Аноним, and the only
+                // posts marked here are the ones sent from this device.
+                BadgeLabel(text: Text("(Me)", bundle: .module), tint: .accentColor)
             }
             if post.isSage {
                 BadgeLabel(text: Text(verbatim: "SAGE"), tint: .secondary)

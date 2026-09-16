@@ -52,4 +52,28 @@ struct EngineSelectionTests {
 
         #expect(currentEngine == "KSMEPlayer")
     }
+
+    /// The reader's autoplay preference is global to the engine and read when a
+    /// player is built, so it has to be set alongside the engine choice. It was
+    /// offered in settings and hardcoded on.
+    @Test("autoplay follows the reader's choice")
+    func autoplayFollowsTheOptions() {
+        KSPlayerBridge.selectEngine(
+            for: MediaPlayerOptions(kind: .mp4Video, autoplays: false)
+        )
+        #expect(KSOptions.isAutoPlay == false)
+
+        KSPlayerBridge.selectEngine(
+            for: MediaPlayerOptions(kind: .mp4Video, autoplays: true)
+        )
+        #expect(KSOptions.isAutoPlay)
+    }
+
+    @Test("a short clip is not handed to the lock screen")
+    func remoteControlIsOff() {
+        let options = KSPlayerBridge.makeOptions(
+            from: MediaPlayerOptions(kind: .webmVideo)
+        )
+        #expect(options.registerRemoteControll == false)
+    }
 }

@@ -16,12 +16,20 @@ SIM_OS      := 26.5
 # targets, and an immediate assignment here would bake the iPhone in and build
 # for the wrong device while installing on the right one.
 DESTINATION = platform=iOS Simulator,name=$(SIMULATOR),OS=$(SIM_OS)
-DERIVED     := .build/DerivedData
+# Debug by default; `make sim CONFIGURATION=Release` builds an optimised app,
+# which is the only kind worth measuring: Debug SwiftUI re-renders more and
+# unoptimised Swift distorts every CPU figure.
+CONFIGURATION ?= Debug
+# Recursively expanded, and only suffixed away from Debug, so the default paths
+# are unchanged and a Release build does not fight the Debug one over the same
+# module cache.
+DERIVED      = .build/DerivedData$(if $(filter-out Debug,$(CONFIGURATION)),-$(CONFIGURATION),)
 RESULTS     := .build/TestResults.xcresult
 # Shared SwiftPM clone cache: FFmpegKit alone is a multi-gigabyte checkout, so
 # it must not be re-cloned every time DerivedData is wiped.
 SPM_CACHE   := $(HOME)/Library/Caches/org.swift.swiftpm-neechan
 XCB          = xcodebuild -scheme $(SCHEME) -destination '$(DESTINATION)' \
+               -configuration $(CONFIGURATION) \
                -derivedDataPath $(DERIVED) \
                -clonedSourcePackagesDirPath $(SPM_CACHE) \
                -skipMacroValidation -quiet
@@ -43,7 +51,7 @@ gen:
 	@command -v xcodegen >/dev/null || { echo "xcodegen missing: brew install xcodegen"; exit 1; }
 	xcodegen generate --spec project.yml
 
-## Build the app for the simulator.
+## Build the app for the simulator. `make build CONFIGURATION=Release` to measure.
 build:
 	$(XCB) build
 

@@ -24,20 +24,21 @@ struct GalleryPage: View {
     @Binding var playbackControl: PlaybackControl
 
     @Environment(AppServices.self) private var services
+    @Environment(\.scenePhase) private var scenePhase
     @State private var loadState: PageLoadState = .idle
+    /// Set once a stream has failed and the clip has been fetched whole
+    /// instead, so one unplayable file cannot start that over and over.
+    @State private var hasFallenBackToDownload = false
 
     private enum PageLoadState {
         case idle
         case loading
         case still(PlatformImage)
-        case animated(AnimatedImageDecoder.Animation)
+        case animated(AnimatedFrameDecoder, AnimatedImageDecoder.Metadata)
         /// A video, already on the device: the engine plays a local file.
         case video(URL)
         case failed(String)
     }
-
-    /// How far a video download has got, for the spinner to say so.
-    @State private var downloadFraction: Double?
 
     var body: some View {
         ZStack {
@@ -49,6 +50,16 @@ struct GalleryPage: View {
         .task(id: isCurrent) {
             guard isCurrent else { return }
             await load()
+        }
+        // Streaming asks the server for pieces of a file. Most oblige, and 2ch
+        // does, but a host that will not would leave the reader watching a
+        // picture that never starts. A failure falls back to fetching the whole
+        // clip, which is what every video did until now.
+        .onChange(of: playbackState) { _, state in
+            guard case .failed = state, isCurrent, !hasFallenBackToDownload else { return }
+            guard case .video(let playing) = loadState, !playing.isFileURL else { return }
+            hasFallenBackToDownload = true
+            Task { await fetchWholeFile() }
         }
     }
 
@@ -105,16 +116,9 @@ struct GalleryPage: View {
     private var content: some View {
         switch loadState {
         case .idle, .loading:
-            VStack(spacing: 10) {
-                ProgressView()
-                    .tint(.white)
-                if let downloadFraction {
-                    Text(verbatim: "\(Int(downloadFraction * 100))%")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.white.opacity(0.8))
-                }
-            }
-            .onTapGesture(perform: onSingleTap)
+            ProgressView()
+                .tint(.white)
+                .onTapGesture(perform: onSingleTap)
 
         case .still(let image):
             #if os(iOS)
@@ -123,9 +127,16 @@ struct GalleryPage: View {
             Image(platformImage: image).resizable().scaledToFit()
             #endif
 
-        case .animated(let animation):
+        case .animated(let decoder, let metadata):
             #if os(iOS)
-            AnimatedImageView(animation: animation)
+            // Paused unless this is the page being looked at and the app is in
+            // front. A paged gallery keeps its neighbours alive, so without this
+            // every animation the reader had swiped past went on drawing.
+            AnimatedImageView(
+                decoder: decoder,
+                metadata: metadata,
+                isPaused: !isCurrent || scenePhase != .active
+            )
                 .onTapGesture(perform: onSingleTap)
             #else
             EmptyView()
@@ -156,6 +167,26 @@ struct GalleryPage: View {
         }
     }
 
+    /// Fetches the whole clip and plays it from disk.
+    ///
+    /// The fallback when streaming it did not work.
+    private func fetchWholeFile() async {
+        guard let url else { return }
+        loadState = .loading
+        do {
+            let file = try await LocalMediaFile.resolve(
+                url,
+                referer: services.settings.domain.baseURL,
+                downloader: services.downloader
+            )
+            guard !Task.isCancelled else { return }
+            loadState = .video(file)
+        } catch {
+            guard !Task.isCancelled else { return }
+            loadState = .failed(error.readableSaveMessage)
+        }
+    }
+
     private func load() async {
         guard let url else {
             loadState = .failed(String(localized: "This file has no address.", bundle: .module, locale: AppLocale.current))
@@ -165,46 +196,44 @@ struct GalleryPage: View {
         let referer = services.settings.domain.baseURL
 
         if item.isVideo {
-            // Fetched by the app, not by the player: the engine's own HTTP
-            // client is turned away by Cloudflare on one of the mirrors, and
-            // a file on the device plays the same from either.
-            do {
-                let file = try await LocalMediaFile.resolve(
-                    url, referer: referer, downloader: services.downloader
-                ) { progress in
-                    Task { @MainActor in downloadFraction = progress.fraction }
-                }
-                guard !Task.isCancelled else { return }
-                loadState = .video(file)
-            } catch {
-                guard !Task.isCancelled else { return }
-                loadState = .failed(error.readableSaveMessage)
+            // Played from the site, not fetched first. The engine reads through
+            // the app's own networking rather than its own HTTP client, which
+            // Cloudflare refuses, so the picture starts on the first frames
+            // instead of after the last byte. A clip already in the media cache
+            // is played from disk, which is faster still and works offline.
+            if let cached = await MediaCache.shared.cachedFile(for: url) {
+                loadState = .video(cached)
+            } else {
+                loadState = .video(url)
             }
             return
         }
         do {
-            // Full-size files are too large for URLCache to keep, so the gallery
-            // uses its own disk cache: paging back to an image is instant and
-            // costs no data.
-            let data: Data
-            if let cached = await MediaCache.shared.cachedFile(for: url),
-               let bytes = try? Data(contentsOf: cached) {
-                data = bytes
-            } else {
-                data = try await Downloader().data(url, referer: referer)
-                try? await MediaCache.shared.store(data, for: url)
-            }
-            // An animated PNG or WebP is only detectable from its bytes, so the
-            // decision is made here rather than from the file name.
-            if AnimatedImageDecoder.isAnimated(data) {
-                loadState = .animated(try AnimatedImageDecoder.decode(data))
-            } else if let image = PlatformImage(data: data) {
+            // Fetched and decoded away from the main actor: the app's own
+            // downloader rather than a fresh one, because building a
+            // `Downloader` builds a `URLSession` and this runs on every page
+            // the reader swipes to.
+            let loaded = try await GalleryMediaLoader.load(
+                url: url,
+                referer: referer,
+                fetcher: services.downloader
+            )
+            guard !Task.isCancelled else { return }
+            switch loaded {
+            case .still(let image):
                 loadState = .still(image)
-            } else {
-                loadState = .failed(
-                    String(localized: "This file is not an image.", bundle: .module, locale: AppLocale.current)
-                )
+            case .animated(let decoder, let metadata):
+                loadState = .animated(decoder, metadata)
             }
+        } catch is GalleryMediaLoader.LoadError {
+            guard !Task.isCancelled else { return }
+            loadState = .failed(
+                String(
+                    localized: "This file is not an image.",
+                    bundle: .module,
+                    locale: AppLocale.current
+                )
+            )
         } catch {
             guard !Task.isCancelled else { return }
             loadState = .failed(String(describing: error))

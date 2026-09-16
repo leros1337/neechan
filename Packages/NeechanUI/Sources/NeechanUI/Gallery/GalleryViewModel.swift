@@ -31,7 +31,33 @@ public final class GalleryViewModel {
     public var isMuted = false
     /// Repeat the clip when it ends. Starts from the preference, and the button
     /// in the transport changes it for this viewing only.
-    public var isLooping = false
+    public var isLooping = false {
+        // The cached options carry the loop flag, so they stop being right the
+        // moment the reader changes it.
+        didSet { cachedOptions.removeAll(keepingCapacity: true) }
+    }
+
+    /// How the most recent video save ended.
+    ///
+    /// Carries an id so that two saves which ended the same way are two separate
+    /// events rather than one value that never changes, which is what a feedback
+    /// trigger needs in order to fire twice. The same shape as the thread view's
+    /// refresh announcement, for the same reason.
+    public struct VideoSaveOutcome: Equatable, Sendable {
+        public let id = UUID()
+        public let succeeded: Bool
+
+        public init(succeeded: Bool) {
+            self.succeeded = succeeded
+        }
+    }
+
+    /// The outcome of the last video save, for the view to answer with a tap.
+    ///
+    /// Saving a video is the one action here with a long, quiet middle: it
+    /// downloads, often re-encodes, and only then lands in Photos, by which time
+    /// the reader has usually looked away. Nothing else in the app uses haptics.
+    public private(set) var lastVideoSave: VideoSaveOutcome?
 
     /// A save that did not work. A save that did is shown in the capsule.
     public struct SaveResult: Identifiable, Equatable {
@@ -70,17 +96,30 @@ public final class GalleryViewModel {
     /// a clip; redrawing that often costs more than the download does.
     private var lastProgressPublished = ContinuousClock.now
 
+    /// The cookies the media host expects, read once when the gallery opens.
+    ///
+    /// The jar does not change while a gallery is on screen, and asking it was
+    /// not free: the player options were rebuilt for every attachment in the
+    /// thread on every pass of the gallery's body, and the body ran whenever
+    /// playback reported progress, ten times a second.
+    private let sessionCookies: [String: String]
+    /// Player options per kind of file, built on demand and kept.
+    @ObservationIgnored private var cachedOptions: [MediaKind: MediaPlayerOptions] = [:]
+
     public init(
         items: [GalleryItem],
         startIndex: Int,
         services: AppServices,
-        downloader: (any MediaDownloading)? = nil
+        downloader: (any MediaDownloading)? = nil,
+        cookieProvider: ((DvachDomain) -> [String: String])? = nil
     ) {
         self.items = items
         self.currentIndex = min(max(0, startIndex), max(0, items.count - 1))
         self.services = services
         self.downloader = downloader ?? services.downloader
         self.isLooping = services.settings.videoLoops
+        let domain = services.settings.domain
+        self.sessionCookies = (cookieProvider ?? GalleryViewModel.storedCookies)(domain)
     }
 
     public var currentItem: GalleryItem? {
@@ -148,16 +187,23 @@ public final class GalleryViewModel {
     }
 
     /// Options for the video player, carrying the headers the site expects.
+    ///
+    /// Memoised per kind of file. Everything in here is fixed for the life of
+    /// the gallery except the loop flag, which clears the cache when it changes.
     public func playerOptions(for item: GalleryItem) -> MediaPlayerOptions {
+        if let cached = cachedOptions[item.kind] { return cached }
+
         let domain = services.settings.domain
-        return MediaPlayerOptions(
+        let options = MediaPlayerOptions(
             kind: item.kind,
             referer: domain.baseURL,
             userAgent: UserAgent.current,
-            cookies: cookies(for: domain),
+            cookies: sessionCookies,
             loops: isLooping,
             autoplays: services.settings.videoAutoplay
         )
+        cachedOptions[item.kind] = options
+        return options
     }
 
     /// Saves the current file, to Photos or to the folder the reader picked.
@@ -183,10 +229,21 @@ public final class GalleryViewModel {
         guard let item = currentItem, let url = url(for: item) else { return }
         let settings = services.settings
         transfer = Transfer(stage: .downloading, fraction: 0)
+
+        // Everything written to the temporary directory on the way to a save.
+        // A cancelled save used to leave both the download and a half-written
+        // conversion behind, and nothing ever came back for them.
+        var scratch: [URL] = []
+        defer {
+            for file in scratch { try? FileManager.default.removeItem(at: file) }
+        }
+
         do {
             let downloaded = try await download(url, referer: settings.domain.baseURL)
+            scratch.append(downloaded)
             guard !Task.isCancelled else { return }
             let file = try await converted(downloaded, of: item)
+            if file != downloaded { scratch.append(file) }
             guard !Task.isCancelled else { return }
             transfer = Transfer(stage: .saving, fraction: nil)
             if !settings.savesToPhotos, let bookmark = settings.downloadFolderBookmark {
@@ -205,21 +262,35 @@ public final class GalleryViewModel {
                     conflict: settings.downloadConflictAction
                 )
             } else {
-                defer { try? FileManager.default.removeItem(at: file) }
                 try await PhotosSaver.save(fileAt: file, isVideo: item.isVideo)
             }
             finish()
+            noteVideoSave(item, succeeded: true)
         } catch FileDownloadSaver.SaveError.skipped {
-            // Skipping is what the reader asked for, not a failure.
+            // Skipping is what the reader asked for, not a failure. The capsule
+            // says the transfer finished, so the tap agrees with the screen.
             finish()
+            noteVideoSave(item, succeeded: true)
         } catch is CancellationError {
+            // No tap for either of these: the reader stopped it and knows.
             transfer = nil
         } catch Downloader.DownloadError.cancelled {
             transfer = nil
         } catch {
             transfer = nil
             saveResult = .failed(error.readableSaveMessage)
+            noteVideoSave(item, succeeded: false)
         }
+    }
+
+    /// Notes how a save ended, for the view to answer with a haptic.
+    ///
+    /// Images are left out on purpose. They save in a moment, so a tap would say
+    /// nothing the screen had not already said, and the reader's thumb is still
+    /// on the button when it happens.
+    private func noteVideoSave(_ item: GalleryItem, succeeded: Bool) {
+        guard item.isVideo else { return }
+        lastVideoSave = VideoSaveOutcome(succeeded: succeeded)
     }
 
     /// Downloads the current file and returns it for the share sheet.
@@ -311,7 +382,7 @@ public final class GalleryViewModel {
         if transfer?.isFinished == true { transfer = nil }
     }
 
-    private func cookies(for domain: DvachDomain) -> [String: String] {
+    private static func storedCookies(for domain: DvachDomain) -> [String: String] {
         let jar = HTTPCookieStorage.shared
         let cookies = jar.cookies(for: domain.baseURL) ?? []
         return Dictionary(cookies.map { ($0.name, $0.value) }, uniquingKeysWith: { _, last in last })

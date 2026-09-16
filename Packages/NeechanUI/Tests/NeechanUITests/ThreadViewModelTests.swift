@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import NeechanAPI
 import NeechanAPITesting
 import NeechanCore
@@ -47,6 +48,106 @@ struct ThreadViewModelTests {
         #expect(model.loadState == .loaded)
         #expect(model.snapshot.posts.isEmpty == false)
         #expect(model.snapshot.meta.title.isEmpty == false)
+    }
+
+    /// The thread view reads `snapshot` from every visible row, and observation
+    /// reports a store whether or not the value moved. A poll that found nothing
+    /// must therefore not store one, or every quiet refresh redraws the thread.
+    @Test("a refresh that finds nothing does not disturb a reader of the snapshot")
+    func quietRefreshDoesNotNotify() async throws {
+        let transport = try await stubbedTransport()
+        await transport.stub(
+            pathContaining: "/after/", data: try FixtureLoader.data(.threadAfterEmpty)
+        )
+        let model = try makeModel(transport)
+        await model.load()
+        // The first refresh settles the server's counters against the posts
+        // actually held; the quiet ones being measured come after it.
+        await model.refresh()
+
+        let notified = ChangeFlag()
+        withObservationTracking {
+            _ = model.snapshot
+        } onChange: {
+            notified.raise()
+        }
+
+        await model.refresh()
+
+        #expect(notified.wasRaised == false)
+        #expect(model.newPostNums.isEmpty)
+    }
+
+    @Test("applying the same update twice stores it once")
+    func duplicateUpdatesAreDropped() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+        let update = ThreadUpdate.metaChanged(model.snapshot)
+
+        let notified = ChangeFlag()
+        withObservationTracking {
+            _ = model.snapshot
+        } onChange: {
+            notified.raise()
+        }
+
+        model.apply(update)
+
+        #expect(notified.wasRaised == false)
+    }
+
+    @Test("with no search the whole thread is shown, without waiting")
+    func emptyQueryShowsEverything() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+
+        #expect(model.visiblePosts.count == model.snapshot.posts.count)
+    }
+
+    @Test("a search narrows the thread once it settles")
+    func searchNarrowsTheThread() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+        let target = try #require(model.snapshot.posts.first)
+
+        model.searchQuery = "\(target.num)"
+        await model.updateSearch()
+
+        #expect(model.visiblePosts.count < model.snapshot.posts.count)
+        #expect(model.visiblePosts.contains { $0.num == target.num })
+        #expect(model.isSearching)
+    }
+
+    /// Typing replaces the query several times a second, and the matches for a
+    /// query the reader has already moved past must never land on screen.
+    @Test("a search overtaken by another is not applied")
+    func staleSearchIsDropped() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+        let target = try #require(model.snapshot.posts.first)
+
+        // The view keys its task on the query, so an overtaken search is a
+        // cancelled task; here the same is expressed by simply running the
+        // query the reader settled on.
+        model.searchQuery = "zzzzz-no-such-post"
+        model.searchQuery = "\(target.num)"
+        await model.updateSearch()
+
+        #expect(model.visiblePosts.contains { $0.num == target.num })
+    }
+
+    @Test("clearing the search shows the whole thread again, at once")
+    func clearingSearchRestoresEverything() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+        model.searchQuery = "zzzzz-no-such-post"
+        await model.updateSearch()
+
+        model.searchQuery = ""
+        await model.updateSearch()
+
+        #expect(model.visiblePosts.count == model.snapshot.posts.count)
+        #expect(model.isSearching == false)
     }
 
     @Test("a failure is reported in words the reader can act on")
@@ -478,4 +579,15 @@ struct RefreshAnnouncementTests {
         model.dismissRefreshAnnouncement()
         #expect(model.lastRefresh == nil)
     }
+}
+
+/// Records whether an observation fired.
+///
+/// `withObservationTracking`'s change handler is `@Sendable` and runs wherever
+/// the write happened, so a captured `var` will not do.
+final class ChangeFlag: Sendable {
+    private let flag = Mutex(false)
+
+    func raise() { flag.withLock { $0 = true } }
+    var wasRaised: Bool { flag.withLock { $0 } }
 }

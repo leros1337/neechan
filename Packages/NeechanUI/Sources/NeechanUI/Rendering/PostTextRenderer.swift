@@ -13,7 +13,7 @@ public struct PostTextRenderer: Sendable {
     ///
     /// Baked into the text at render time, because an `AttributedString` carries
     /// its own colours rather than inheriting them from the view.
-    public struct Palette: Sendable, Equatable {
+    public struct Palette: Sendable, Hashable {
         public var quote: Color
         public var link: Color
         public var spoilerHidden: Color
@@ -27,7 +27,7 @@ public struct PostTextRenderer: Sendable {
         }
     }
 
-    public struct Options: Sendable, Equatable {
+    public struct Options: Sendable, Hashable {
         /// Spoilers in this post are shown rather than blocked out.
         public var revealSpoilers: Bool
         /// The post this text belongs to, so spoiler taps know what to reveal.

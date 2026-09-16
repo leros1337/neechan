@@ -54,18 +54,30 @@ struct GalleryTransferTests {
         }
     }
 
-    private func makeModel(_ downloader: any MediaDownloading) throws -> GalleryViewModel {
-        let services = try AppServices.inMemory(
-            settings: AppSettings(
-                defaults: UserDefaults(suiteName: "gallery.\(UUID().uuidString)")!
-            ),
-            transport: StubTransport()
+    private func makeModel(
+        _ downloader: any MediaDownloading,
+        video: Bool = false,
+        savingTo folder: URL? = nil
+    ) throws -> GalleryViewModel {
+        let settings = AppSettings(
+            defaults: UserDefaults(suiteName: "gallery.\(UUID().uuidString)")!
         )
+        // Photos cannot be authorised under `swift test`, so a test that needs a
+        // save to actually finish sends it to a folder instead.
+        if let folder {
+            settings.savesToPhotos = false
+            settings.downloadFolderBookmark = try FileDownloadSaver.bookmark(for: folder)
+        }
+        let services = try AppServices.inMemory(settings: settings, transport: StubTransport())
+
         // `Attachment` is decoded from the site, so a test builds one the same
         // way rather than through an initialiser that exists only for tests.
-        let attachment = try JSONDecoder().decode(Attachment.self, from: Data(#"""
-        {"path": "/b/src/1/1.jpg", "thumbnail": "/b/thumb/1/1s.jpg", "name": "1.jpg", "type": 1}
-        """#.utf8))
+        // Type 10 is MP4: a video, and not the WebM that would pull in the
+        // converter.
+        let json = video
+            ? #"{"path": "/b/src/1/1.mp4", "thumbnail": "/b/thumb/1/1s.jpg", "name": "1.mp4", "type": 10}"#
+            : #"{"path": "/b/src/1/1.jpg", "thumbnail": "/b/thumb/1/1s.jpg", "name": "1.jpg", "type": 1}"#
+        let attachment = try JSONDecoder().decode(Attachment.self, from: Data(json.utf8))
         let item = GalleryItem(
             attachment: attachment,
             postNum: 7,
@@ -74,6 +86,13 @@ struct GalleryTransferTests {
         return GalleryViewModel(
             items: [item], startIndex: 0, services: services, downloader: downloader
         )
+    }
+
+    /// A folder of its own per test, since saving into one touches the disk.
+    private func makeFolder() throws -> URL {
+        let url = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
     }
 
     /// Waits for something to become true, so a test never sleeps longer than it
@@ -144,5 +163,62 @@ struct GalleryTransferTests {
 
         #expect(await waitFor { model.transfer == nil })
         #expect(model.saveResult == nil)
+    }
+
+    // MARK: A tap when a video is saved
+
+    /// Saving a video is the one action here the reader starts and then looks
+    /// away from, so it is the one worth announcing without the screen.
+    @Test("a video that saved asks for a success tap")
+    func savedVideoIsAnnounced() async throws {
+        let folder = try makeFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let model = try makeModel(StubDownloader(), video: true, savingTo: folder)
+
+        model.saveCurrentItem()
+
+        #expect(await waitFor { model.transfer?.stage == .finished })
+        #expect(model.lastVideoSave?.succeeded == true)
+    }
+
+    @Test("a video that failed to save asks for a different tap")
+    func failedVideoIsAnnounced() async throws {
+        let model = try makeModel(
+            StubDownloader(failure: Downloader.DownloadError.badStatus(503)),
+            video: true
+        )
+
+        model.saveCurrentItem()
+
+        #expect(await waitFor { model.saveResult != nil })
+        #expect(model.lastVideoSave?.succeeded == false)
+    }
+
+    /// An image saves in a moment, with the reader's thumb still on the button.
+    @Test("saving an image asks for no tap at all")
+    func savedImageIsSilent() async throws {
+        let folder = try makeFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let model = try makeModel(StubDownloader(), savingTo: folder)
+
+        model.saveCurrentItem()
+
+        #expect(await waitFor { model.transfer?.stage == .finished })
+        #expect(model.lastVideoSave == nil)
+    }
+
+    @Test("cancelling a video save asks for no tap")
+    func cancelledVideoIsSilent() async throws {
+        let model = try makeModel(
+            StubDownloader(fractions: [0.5], holdsOpen: true),
+            video: true
+        )
+        model.saveCurrentItem()
+        #expect(await waitFor { model.transfer != nil })
+
+        model.cancelTransfer()
+
+        #expect(await waitFor { model.transfer == nil })
+        #expect(model.lastVideoSave == nil)
     }
 }

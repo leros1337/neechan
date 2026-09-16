@@ -107,3 +107,28 @@ struct EndpointTests {
         #expect(try url(.boardPage(board: "b", page: -1)) == "https://2ch.org/b/index.json")
     }
 }
+
+@Suite("Polling requests")
+struct PollEndpointTests {
+    @Test("a polled endpoint gives up sooner than one the reader is waiting on")
+    func pollsTimeOutSooner() {
+        let poll = DvachEndpoint.threadInfo(board: "b", thread: 1).request(on: .org)
+        let incremental = DvachEndpoint.after(board: "b", thread: 1, sinceNum: 5).request(on: .org)
+        let reader = DvachEndpoint.thread(board: "b", thread: 1).request(on: .org)
+
+        #expect(poll.timeoutInterval == 15)
+        #expect(incremental.timeoutInterval == 15)
+        #expect(reader.timeoutInterval > 15)
+    }
+
+    /// Where the server sends validators this turns a repeated poll into a 304
+    /// and no body; where it does not, it costs nothing.
+    @Test("a polled endpoint asks the server to confirm rather than resend")
+    func pollsRevalidate() {
+        let poll = DvachEndpoint.threadInfo(board: "b", thread: 1).request(on: .org)
+        let reader = DvachEndpoint.thread(board: "b", thread: 1).request(on: .org)
+
+        #expect(poll.cachePolicy == .reloadRevalidatingCacheData)
+        #expect(reader.cachePolicy == .useProtocolCachePolicy)
+    }
+}

@@ -1,5 +1,6 @@
 import NeechanAPI
 import NeechanCore
+import NeechanMedia
 import SwiftUI
 
 /// The app shell, in whichever shape the window can hold.
@@ -40,6 +41,12 @@ public struct AdaptiveRootView: View {
                 // Before anything else asks the site who we are.
                 await NativeUserAgent.adopt()
                 services.observeChallenges()
+                // The reader's cache budget, applied at launch. It used to be
+                // read only when they touched the stepper, so every launch went
+                // back to the built-in half a gigabyte.
+                await MediaCache.shared.setByteLimit(
+                    services.settings.mediaCacheLimitMegabytes * 1024 * 1024
+                )
                 await services.startWatching()
             }
             .sheet(item: challengeItem) { challenge in
@@ -47,14 +54,45 @@ public struct AdaptiveRootView: View {
             }
             .onChange(of: scenePhase) { _, phase in
                 recordTime(for: phase)
-                Task {
-                    switch phase {
-                    case .active: await services.startWatching()
-                    case .background, .inactive: await services.stopWatching()
-                    @unknown default: break
+            }
+            // The one signal the system gives before it starts killing apps.
+            // Event-driven, so it costs nothing until it fires.
+            #if os(iOS)
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for: UIApplication.didReceiveMemoryWarningNotification
+                )
+            ) { _ in
+                releaseMemory()
+            }
+            #endif
+            // Keyed rather than fired from `onChange`, so the calls cannot land
+            // out of order: two loose tasks racing meant a quick trip to Control
+            // Center could stop the watcher after it had been started, or leave
+            // it running with the app in the background.
+            .task(id: scenePhase) {
+                switch scenePhase {
+                case .active:
+                    await services.startWatching()
+                case .background, .inactive:
+                    await services.stopWatching()
+                    // Going away is the one moment there is time to tidy up and
+                    // nobody is waiting on the disk.
+                    if scenePhase == .background {
+                        await MediaCache.shared.evictIfNeeded()
                     }
+                @unknown default:
+                    break
                 }
             }
+    }
+
+    /// Drops what can be rebuilt: decoded images, rendered post bodies, and the
+    /// posts of threads the reader is not currently in.
+    private func releaseMemory() {
+        PostBodyCache.shared.removeAll()
+        Task { await ImageLoader.shared.clearMemoryCache() }
+        services.releaseMemory(keeping: router.openThreadKeys)
     }
 
     @ViewBuilder

@@ -95,6 +95,14 @@ public struct GalleryView: View {
         )) { target in
             ShareSheet(items: [target.url])
         }
+        // A short tap when a video finishes saving, which is the one action here
+        // the reader starts and then looks away from. Nothing is played for an
+        // image, which saves too quickly to be worth announcing, nor for a save
+        // the reader cancelled. Cross-platform by construction: this does
+        // nothing where there is no Taptic Engine.
+        .sensoryFeedback(trigger: model.lastVideoSave) { _, outcome in
+            SaveHaptic.feedback(for: outcome)
+        }
         // Only failures interrupt: a save that worked says so in the capsule.
         .alert(item: $model.saveResult) { result in
             Alert(
@@ -166,42 +174,21 @@ public struct GalleryView: View {
                 GalleryCaption(item: item)
             }
 
+            // Each of these reads playback state, which the engine reports ten
+            // times a second. They are separate views so that those reports
+            // invalidate a button rather than the whole gallery: this body
+            // builds a page for every attachment in the thread, and a thread
+            // can hold eighty of them.
             if model.isShowingVideo {
-                PlaybackScrubber(
-                    fraction: model.playbackProgress.fraction,
-                    isSeekable: model.playbackProgress.isSeekable,
-                    timeLabel: model.timeLabel,
-                    isBusy: model.playbackState.isBusy,
-                    onSeek: { model.seek(toFraction: $0) }
-                )
+                ScrubberRow(model: model)
             }
 
             GlassEffectContainer(spacing: 14) {
                 HStack(spacing: 14) {
                     if model.isShowingVideo {
-                        Button { model.togglePlayback() } label: {
-                            Label {
-                                Text(model.playbackState.isPlaying ? "Pause" : "Play", bundle: .module)
-                            } icon: {
-                                Image(systemName: model.playbackState.isPlaying
-                                      ? "pause.fill" : "play.fill")
-                            }
-                            .labelStyle(.iconOnly)
-                        }
-                        .buttonStyle(.glass)
-
-                        Button { model.toggleMuted() } label: {
-                            Label {
-                                Text(model.isMuted ? "Unmute" : "Mute", bundle: .module)
-                            } icon: {
-                                Image(systemName: model.isMuted
-                                      ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                            }
-                            .labelStyle(.iconOnly)
-                        }
-                        .buttonStyle(.glass)
-
-                        LoopButton(isOn: model.isLooping) { model.toggleLooping() }
+                        PlayPauseButton(model: model)
+                        MuteButton(model: model)
+                        LoopControl(model: model)
                     }
 
                     Spacer(minLength: 0)
@@ -245,6 +232,62 @@ public struct GalleryView: View {
             .ignoresSafeArea(edges: .bottom)
             .allowsHitTesting(false)
         }
+    }
+}
+
+/// The scrubber, and nothing else that would be redrawn with it.
+private struct ScrubberRow: View {
+    let model: GalleryViewModel
+
+    var body: some View {
+        PlaybackScrubber(
+            fraction: model.playbackProgress.fraction,
+            isSeekable: model.playbackProgress.isSeekable,
+            timeLabel: model.timeLabel,
+            isBusy: model.playbackState.isBusy,
+            onSeek: { model.seek(toFraction: $0) }
+        )
+    }
+}
+
+private struct PlayPauseButton: View {
+    let model: GalleryViewModel
+
+    var body: some View {
+        Button { model.togglePlayback() } label: {
+            Label {
+                Text(model.playbackState.isPlaying ? "Pause" : "Play", bundle: .module)
+            } icon: {
+                Image(systemName: model.playbackState.isPlaying ? "pause.fill" : "play.fill")
+            }
+            .labelStyle(.iconOnly)
+        }
+        .buttonStyle(.glass)
+    }
+}
+
+private struct MuteButton: View {
+    let model: GalleryViewModel
+
+    var body: some View {
+        Button { model.toggleMuted() } label: {
+            Label {
+                Text(model.isMuted ? "Unmute" : "Mute", bundle: .module)
+            } icon: {
+                Image(systemName: model.isMuted
+                      ? "speaker.slash.fill" : "speaker.wave.2.fill")
+            }
+            .labelStyle(.iconOnly)
+        }
+        .buttonStyle(.glass)
+    }
+}
+
+private struct LoopControl: View {
+    let model: GalleryViewModel
+
+    var body: some View {
+        LoopButton(isOn: model.isLooping) { model.toggleLooping() }
     }
 }
 

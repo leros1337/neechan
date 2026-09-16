@@ -53,9 +53,11 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
+        # `fetch` alone: the app registers a `BGAppRefreshTask` for the
+        # watcher and no processing task, so declaring `processing` claimed a
+        # capability nothing used.
         UIBackgroundModes:
           - fetch
-          - processing
         BGTaskSchedulerPermittedIdentifiers:
           - com.lain.neechan.watcher
         NSPhotoLibraryAddUsageDescription: >-

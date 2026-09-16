@@ -15,6 +15,8 @@ public actor ThreadRepository {
     private var deletedPostNums: Set<Int> = []
     private var ownPostNums: Set<Int> = []
     private var keepDeletedPosts = true
+    /// Counts the snapshots built, so the view can recognise one it already has.
+    private var generation = 0
 
     private let stream: AsyncStream<ThreadUpdate>
     private let continuation: AsyncStream<ThreadUpdate>.Continuation
@@ -43,7 +45,12 @@ public actor ThreadRepository {
     }
 
     /// Marks which posts were written from this device.
+    ///
+    /// Does nothing when the set is unchanged. This is read from the store
+    /// before every refresh, and rebuilding the snapshot for an answer that had
+    /// not moved was one of the two redundant re-renders each refresh caused.
     public func setOwnPostNums(_ nums: Set<Int>) {
+        guard nums != ownPostNums else { return }
         ownPostNums = nums
         rebuildSnapshot()
         continuation.yield(.metaChanged(snapshot))
@@ -158,9 +165,10 @@ public actor ThreadRepository {
         _ result: ThreadMerger.Result,
         uniquePosters: Int
     ) -> ThreadUpdate {
-        index.append(result.posts.filter {
-            result.newPostNums.contains($0.num) || result.updatedPostNums.contains($0.num)
-        })
+        // A set, because both lists are a whole refresh long and this asks about
+        // every post in the thread.
+        let changed = Set(result.newPostNums).union(result.updatedPostNums)
+        index.append(result.posts.filter { changed.contains($0.num) })
 
         var meta = snapshot.meta
         meta.maxNum = result.posts.last?.num ?? meta.maxNum
@@ -171,23 +179,34 @@ public actor ThreadRepository {
             meta.isClosed = meta.isClosed || op.isClosed
             meta.isEndless = op.isEndless
         }
-        rebuildSnapshot(posts: result.posts, meta: meta)
 
-        let update: ThreadUpdate = result.newPostNums.isEmpty
-            ? .metaChanged(snapshot)
-            : .appended(snapshot, newPostNums: result.newPostNums)
+        // A poll that found nothing publishes the snapshot it already had.
+        // Building an identical one would hand the view a new generation, and
+        // the view would redraw every visible post for no change at all — which
+        // is exactly what an auto-refresh on a quiet thread does, repeatedly.
+        guard changed.isEmpty, meta == snapshot.meta else {
+            rebuildSnapshot(posts: result.posts, meta: meta)
+            let update: ThreadUpdate = result.newPostNums.isEmpty
+                ? .metaChanged(snapshot)
+                : .appended(snapshot, newPostNums: result.newPostNums)
+            continuation.yield(update)
+            return update
+        }
+        let update = ThreadUpdate.metaChanged(snapshot)
         continuation.yield(update)
         return update
     }
 
     private func rebuildSnapshot(posts: [Post]? = nil, meta: ThreadMeta? = nil) {
+        generation += 1
         snapshot = ThreadSnapshot(
             key: key,
             posts: posts ?? snapshot.posts,
             meta: meta ?? snapshot.meta,
             index: index,
             deletedPostNums: deletedPostNums,
-            ownPostNums: ownPostNums
+            ownPostNums: ownPostNums,
+            generation: generation
         )
     }
 

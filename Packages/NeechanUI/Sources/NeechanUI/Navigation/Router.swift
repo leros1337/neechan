@@ -58,6 +58,24 @@ public final class Router {
         activePath.append(route)
     }
 
+    /// Threads open on any tab's stack.
+    ///
+    /// What must survive a memory warning: a thread the reader can get back to
+    /// with the back button should not have to be fetched again. Every tab is
+    /// consulted, not just the one on screen, because the others keep their
+    /// stacks while hidden.
+    public var openThreadKeys: Set<ThreadKey> {
+        let everyPath = [boardsPath, favoritesPath, historyPath, settingsPath].joined()
+        return Set(
+            everyPath.compactMap { route in
+                switch route {
+                case .thread(let key, _), .savedThread(let key): key
+                default: nil
+                }
+            }
+        )
+    }
+
     /// Opens whatever the search box resolved to, in the tab that suits it.
     public func open(_ target: NavigationTarget) {
         switch target {

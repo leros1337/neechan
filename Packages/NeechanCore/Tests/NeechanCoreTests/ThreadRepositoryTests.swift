@@ -42,6 +42,60 @@ struct ThreadRepositoryTests {
         #expect(await transport.recordedRequests().count == 1)
     }
 
+    @Test("whether a thread has attachments is answered without walking it")
+    func attachments() async throws {
+        let transport = StubTransport()
+        await transport.stub(pathSuffix: threadPath, data: try FixtureLoader.data(.thread))
+
+        let repository = makeRepository(transport)
+        let snapshot = try await repository.load()
+
+        #expect(snapshot.hasAttachments == !snapshot.allAttachments.isEmpty)
+        #expect(snapshot.hasAttachments)
+        #expect(ThreadSnapshot.empty(key: key).hasAttachments == false)
+    }
+
+    @Test("setting the same own posts twice rebuilds the snapshot once")
+    func ownPostsAreSetOnce() async throws {
+        let transport = StubTransport()
+        await transport.stub(pathSuffix: threadPath, data: try FixtureLoader.data(.thread))
+
+        let repository = makeRepository(transport)
+        let loaded = try await repository.load()
+        let target = try #require(loaded.posts.first?.num)
+
+        await repository.setOwnPostNums([target])
+        let afterFirst = await repository.currentSnapshot.generation
+        await repository.setOwnPostNums([target])
+        let afterRepeat = await repository.currentSnapshot.generation
+
+        #expect(afterFirst > loaded.generation, "the first call is a real change")
+        #expect(afterRepeat == afterFirst, "the repeat rebuilds nothing")
+        #expect(await repository.currentSnapshot.isOwn(target))
+    }
+
+    /// What the auto-refresh timer does all day. The first refresh after a load
+    /// does settle the counters the server reported against the posts actually
+    /// held, so it is a real change; every empty one after that must not be.
+    @Test("repeated refreshes that bring nothing new keep the snapshot they had")
+    func quietRefreshKeepsTheSnapshot() async throws {
+        let transport = StubTransport()
+        await transport.stub(pathSuffix: threadPath, data: try FixtureLoader.data(.thread))
+        await transport.stub(
+            pathContaining: "/after/", data: try FixtureLoader.data(.threadAfterEmpty)
+        )
+
+        let repository = makeRepository(transport)
+        _ = try await repository.load()
+        _ = await repository.refresh()
+        let settled = await repository.currentSnapshot.generation
+
+        _ = await repository.refresh()
+        _ = await repository.refresh()
+
+        #expect(await repository.currentSnapshot.generation == settled)
+    }
+
     @Test("a refresh after a load asks only for the new posts")
     func refreshIsIncremental() async throws {
         let transport = StubTransport()

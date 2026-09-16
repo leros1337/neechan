@@ -23,6 +23,12 @@ public struct ThreadsListView: View {
     @State private var galleryStart: GalleryStart?
     @State private var hiddenThreadNums: Set<Int> = []
     @State private var autohideRules: [AutohideRuleValue] = []
+    /// Threads an autohide rule matches, worked out once per board rather than
+    /// per row. Answering it per row meant parsing the opening post's HTML on
+    /// the main actor several times for every thread on screen, on every pass.
+    @State private var ruleHiddenNums: Set<Int> = []
+    /// The threads the filter field leaves, recomputed when it settles.
+    @State private var filteredThreads: [ThreadSummary] = []
     @State private var isBoardFavorite = false
     /// Catalog, or the site's own paging. Starts from the preference; the menu
     /// changes it for this board only.
@@ -56,6 +62,21 @@ public struct ThreadsListView: View {
             .task(id: sort) { await load() }
             .task(id: pageIndex) { await load() }
             .task { await loadHidden() }
+            // Recomputed off the main actor whenever the board or the rules
+            // change, rather than per row while drawing.
+            .task(id: RuleInputs(threadNums: threads.map(\.num), rules: autohideRules)) {
+                ruleHiddenNums = await PostPreview.hiddenThreadNums(
+                    in: threads, onBoard: board, rules: autohideRules
+                )
+            }
+            // Debounced by the task's own cancellation: a keystroke replaces the
+            // one before it, so only the query the reader stopped on is run.
+            .task(id: FilterInputs(query: searchText, threadNums: threads.map(\.num))) {
+                guard !searchText.isEmpty else { return }
+                try? await Task.sleep(for: .milliseconds(200))
+                guard !Task.isCancelled else { return }
+                filteredThreads = await PostPreview.filter(threads, matching: searchText)
+            }
     }
 
     @ViewBuilder
@@ -149,7 +170,10 @@ public struct ThreadsListView: View {
     }
 
     private var visibleThreads: [ThreadSummary] {
-        let matching = CatalogRepository.filter(threads, matching: searchText)
+        // Unfiltered until there is something to filter by, so a board that has
+        // just loaded draws its threads on the same pass rather than flashing
+        // "no threads" while the filtering task starts.
+        let matching = searchText.isEmpty ? threads : filteredThreads
         guard !services.settings.showsHiddenThreads else { return matching }
         return matching.filter { !isHidden($0) }
     }
@@ -158,13 +182,10 @@ public struct ThreadsListView: View {
     ///
     /// Rules are applied here as well as inside a thread: a rule that matches an
     /// opening post is meant to keep the thread off the board, which is the
-    /// whole point of marking one "opening post only".
+    /// whole point of marking one "opening post only". Both answers are sets
+    /// worked out beforehand, so this is two lookups.
     private func isHidden(_ thread: ThreadSummary) -> Bool {
-        if hiddenThreadNums.contains(thread.num) { return true }
-        guard !autohideRules.isEmpty else { return false }
-        return FilterEngine.hidesThread(
-            openingPost: thread.opPost, onBoard: board, rules: autohideRules
-        )
+        hiddenThreadNums.contains(thread.num) || ruleHiddenNums.contains(thread.num)
     }
 
     /// Page back and forward, shown only when the board is being read page by
@@ -482,4 +503,16 @@ public struct ThreadsListView: View {
             loadState = .failed(error.readableMessage)
         }
     }
+}
+
+/// What the rule-hidden set depends on.
+private struct RuleInputs: Equatable {
+    let threadNums: [Int]
+    let rules: [AutohideRuleValue]
+}
+
+/// What the filtered list depends on.
+private struct FilterInputs: Equatable {
+    let query: String
+    let threadNums: [Int]
 }

@@ -103,40 +103,51 @@ struct MediaPlayerOptionsTests {
 
 @Suite("Animated image decoder")
 struct AnimatedImageDecoderTests {
-    @Test("a still image decodes to a single frame")
+    @Test("a still image reads as one frame")
     func stillImage() throws {
         let data = try FixtureLoader.data(.sampleStillPNG)
-        let animation = try AnimatedImageDecoder.decode(data)
+        let metadata = try AnimatedImageDecoder.metadata(data)
 
-        #expect(animation.frames.count == 1)
-        #expect(animation.isAnimated == false)
-        #expect(animation.pixelSize == CGSize(width: 4, height: 4))
+        #expect(metadata.frameCount == 1)
+        #expect(metadata.isAnimated == false)
+        #expect(metadata.pixelSize == CGSize(width: 4, height: 4))
         #expect(AnimatedImageDecoder.isAnimated(data) == false)
     }
 
-    @Test("an animated GIF decodes every frame with its delay")
+    @Test("an animated GIF reads every frame's delay")
     func animatedGIF() throws {
         let data = try FixtureLoader.data(.sampleAnimatedGIF)
-        let animation = try AnimatedImageDecoder.decode(data)
+        let metadata = try AnimatedImageDecoder.metadata(data)
 
-        #expect(animation.frames.count > 1)
-        #expect(animation.isAnimated)
-        #expect(animation.totalDuration > 0)
-        #expect(animation.frames.allSatisfy { $0.duration >= 0.02 })
+        #expect(metadata.frameCount > 1)
+        #expect(metadata.isAnimated)
+        #expect(metadata.totalDuration > 0)
+        #expect(metadata.durations.allSatisfy { $0 >= 0.02 })
         #expect(AnimatedImageDecoder.isAnimated(data))
     }
 
-    @Test("the frame limit caps how much is decoded")
+    @Test("the frame limit caps how much of a file is considered")
     func honoursFrameLimit() throws {
         let data = try FixtureLoader.data(.sampleAnimatedGIF)
-        let animation = try AnimatedImageDecoder.decode(data, frameLimit: 1)
-        #expect(animation.frames.count == 1)
+        let metadata = try AnimatedImageDecoder.metadata(data, frameLimit: 1)
+        #expect(metadata.frameCount == 1)
+    }
+
+    @Test("every frame of a real GIF can be produced on demand")
+    func framesArrive() async throws {
+        let data = try FixtureLoader.data(.sampleAnimatedGIF)
+        let decoder = try AnimatedFrameDecoder(data: data)
+        let count = await decoder.metadata.frameCount
+
+        for index in 0..<count {
+            #expect(await decoder.frame(at: index) != nil, "frame \(index) did not decode")
+        }
     }
 
     @Test("bytes that are not an image are reported, not crashed on")
     func rejectsGarbage() {
         #expect(throws: (any Error).self) {
-            _ = try AnimatedImageDecoder.decode(Data("not an image".utf8))
+            _ = try AnimatedImageDecoder.metadata(Data("not an image".utf8))
         }
         #expect(AnimatedImageDecoder.isAnimated(Data("not an image".utf8)) == false)
     }
@@ -144,7 +155,7 @@ struct AnimatedImageDecoderTests {
     @Test("an empty payload is rejected")
     func rejectsEmpty() {
         #expect(throws: (any Error).self) {
-            _ = try AnimatedImageDecoder.decode(Data())
+            _ = try AnimatedImageDecoder.metadata(Data())
         }
     }
 }

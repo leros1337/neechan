@@ -29,14 +29,94 @@ public final class AppSettings {
         return storedDefaults
     }
 
+    // MARK: Preferences read while drawing
+    //
+    // These eight are stored rather than computed, and they are the only ones
+    // that are. Everything else shares `revision`, which means a write to any
+    // preference is indistinguishable from a write to every other: the post
+    // cells and thumbnails that read these were being rebuilt whenever an
+    // unrelated setting moved, and the counters below moved on every thread
+    // opened and every trip to the background. Storing them also takes the
+    // `UserDefaults` lookup out of the render path, which is the other half of
+    // what made these expensive to read.
+
+    private var storedDomain: DvachDomain
+    private var storedTextScale: Double
+    private var storedThumbnailScale: Double
+    private var storedCollapsePostLineLimit: Int
+    private var storedSafeForWork: Bool
+    private var storedMediaLoadPolicy: MediaLoadPolicy
+    private var storedAutoRefreshIntervalSeconds: Int
+    private var storedShowsHiddenThreads: Bool
+
+    /// Bumped by the usage counters alone.
+    ///
+    /// Only the About screen reads them, and they are written while the reader
+    /// is reading: through the shared `revision` every thread opened redrew
+    /// every post on screen.
+    private var statisticsRevision = 0
+
     public init(defaults: UserDefaults = .standard) {
         self.storedDefaults = defaults
+        self.storedDomain = Self.readDomain(defaults)
+        self.storedTextScale = Self.clampScale(
+            Self.readDouble(defaults, Key.textScale, default: 1)
+        )
+        self.storedThumbnailScale = Self.clampScale(
+            Self.readDouble(defaults, Key.thumbnailScale, default: 1)
+        )
+        self.storedCollapsePostLineLimit = Self.readInt(
+            defaults, Key.collapseLines, default: 12
+        )
+        self.storedSafeForWork = Self.readBool(defaults, Key.safeForWork, default: false)
+        self.storedMediaLoadPolicy = defaults.string(forKey: Key.mediaLoadPolicy)
+            .flatMap(MediaLoadPolicy.init(rawValue:)) ?? .always
+        self.storedAutoRefreshIntervalSeconds = Self.readInt(
+            defaults, Key.autoRefresh, default: 0
+        )
+        self.storedShowsHiddenThreads = Self.readBool(
+            defaults, Key.showsHiddenThreads, default: true
+        )
     }
 
     /// Writes a preference and tells anyone observing it.
     private func write(_ value: Any?, forKey key: String) {
         revision &+= 1
         storedDefaults.set(value, forKey: key)
+    }
+
+    /// Writes a usage counter, which nothing on a reading screen observes.
+    private func writeStatistic(_ value: Any?, forKey key: String) {
+        statisticsRevision &+= 1
+        storedDefaults.set(value, forKey: key)
+    }
+
+    // Read as the stored type when there is one and coerced when there is not.
+    // A value pinned by a launch argument arrives as a string, and an `as?`
+    // cast drops it on the floor, so a test pinning a preference silently got
+    // the default instead.
+
+    private static func readBool(
+        _ defaults: UserDefaults, _ key: String, default fallback: Bool
+    ) -> Bool {
+        defaults.object(forKey: key) == nil ? fallback : defaults.bool(forKey: key)
+    }
+
+    private static func readInt(
+        _ defaults: UserDefaults, _ key: String, default fallback: Int
+    ) -> Int {
+        defaults.object(forKey: key) == nil ? fallback : defaults.integer(forKey: key)
+    }
+
+    private static func readDouble(
+        _ defaults: UserDefaults, _ key: String, default fallback: Double
+    ) -> Double {
+        defaults.object(forKey: key) == nil ? fallback : defaults.double(forKey: key)
+    }
+
+    private static func readDomain(_ defaults: UserDefaults) -> DvachDomain {
+        defaults.string(forKey: Key.domain)
+            .flatMap(DvachDomain.init(rawValue:)) ?? .default
     }
 
     /// A preference that is on unless something says otherwise.
@@ -50,11 +130,12 @@ public final class AppSettings {
 
     /// The 2ch mirror all requests go to.
     public var domain: DvachDomain {
-        get {
-            defaults.string(forKey: Key.domain)
-                .flatMap(DvachDomain.init(rawValue:)) ?? .default
+        get { storedDomain }
+        set {
+            guard newValue != storedDomain else { return }
+            storedDomain = newValue
+            storedDefaults.set(newValue.rawValue, forKey: Key.domain)
         }
-        set { write(newValue.rawValue, forKey: Key.domain) }
     }
 
     /// Board opened when the app launches, if any.
@@ -105,7 +186,7 @@ public final class AppSettings {
 
     /// How often the watcher polls while the app is in front, in seconds.
     public var watcherIntervalSeconds: Int {
-        get { defaults.object(forKey: Key.watcherInterval) as? Int ?? 60 }
+        get { Self.readInt(defaults, Key.watcherInterval, default: 60) }
         set { write(max(15, newValue), forKey: Key.watcherInterval) }
     }
 
@@ -125,8 +206,12 @@ public final class AppSettings {
     /// look at it rather than about never seeing it again, and a row that
     /// vanishes leaves no way back to it from the board.
     public var showsHiddenThreads: Bool {
-        get { bool(Key.showsHiddenThreads, default: true) }
-        set { write(newValue, forKey: Key.showsHiddenThreads) }
+        get { storedShowsHiddenThreads }
+        set {
+            guard newValue != storedShowsHiddenThreads else { return }
+            storedShowsHiddenThreads = newValue
+            storedDefaults.set(newValue, forKey: Key.showsHiddenThreads)
+        }
     }
 
 
@@ -149,26 +234,45 @@ public final class AppSettings {
 
     /// Multiplies post text on top of Dynamic Type.
     public var textScale: Double {
-        get { Self.clampScale(defaults.object(forKey: Key.textScale) as? Double ?? 1) }
-        set { write(Self.clampScale(newValue), forKey: Key.textScale) }
+        get { storedTextScale }
+        set {
+            let clamped = Self.clampScale(newValue)
+            guard clamped != storedTextScale else { return }
+            storedTextScale = clamped
+            storedDefaults.set(clamped, forKey: Key.textScale)
+        }
     }
 
     /// Multiplies attachment thumbnails.
     public var thumbnailScale: Double {
-        get { Self.clampScale(defaults.object(forKey: Key.thumbnailScale) as? Double ?? 1) }
-        set { write(Self.clampScale(newValue), forKey: Key.thumbnailScale) }
+        get { storedThumbnailScale }
+        set {
+            let clamped = Self.clampScale(newValue)
+            guard clamped != storedThumbnailScale else { return }
+            storedThumbnailScale = clamped
+            storedDefaults.set(clamped, forKey: Key.thumbnailScale)
+        }
     }
 
     /// How many lines a post shows before it offers to expand.
     public var collapsePostLineLimit: Int {
-        get { defaults.object(forKey: Key.collapseLines) as? Int ?? 12 }
-        set { write(max(3, min(60, newValue)), forKey: Key.collapseLines) }
+        get { storedCollapsePostLineLimit }
+        set {
+            let clamped = max(3, min(60, newValue))
+            guard clamped != storedCollapsePostLineLimit else { return }
+            storedCollapsePostLineLimit = clamped
+            storedDefaults.set(clamped, forKey: Key.collapseLines)
+        }
     }
 
     /// Hides attachments and blurs thumbnails, for reading in public.
     public var safeForWork: Bool {
-        get { defaults.bool(forKey: Key.safeForWork) }
-        set { write(newValue, forKey: Key.safeForWork) }
+        get { storedSafeForWork }
+        set {
+            guard newValue != storedSafeForWork else { return }
+            storedSafeForWork = newValue
+            storedDefaults.set(newValue, forKey: Key.safeForWork)
+        }
     }
 
     // MARK: General
@@ -200,8 +304,13 @@ public final class AppSettings {
 
     /// How often an open thread refreshes itself, or 0 for never.
     public var autoRefreshIntervalSeconds: Int {
-        get { defaults.object(forKey: Key.autoRefresh) as? Int ?? 0 }
-        set { write(newValue <= 0 ? 0 : max(15, newValue), forKey: Key.autoRefresh) }
+        get { storedAutoRefreshIntervalSeconds }
+        set {
+            let clamped = newValue <= 0 ? 0 : max(15, newValue)
+            guard clamped != storedAutoRefreshIntervalSeconds else { return }
+            storedAutoRefreshIntervalSeconds = clamped
+            storedDefaults.set(clamped, forKey: Key.autoRefresh)
+        }
     }
 
     /// How much of a long thread is loaded at once.
@@ -244,11 +353,12 @@ public final class AppSettings {
 
     /// When thumbnails and media may be fetched.
     public var mediaLoadPolicy: MediaLoadPolicy {
-        get {
-            defaults.string(forKey: Key.mediaLoadPolicy)
-                .flatMap(MediaLoadPolicy.init(rawValue:)) ?? .always
+        get { storedMediaLoadPolicy }
+        set {
+            guard newValue != storedMediaLoadPolicy else { return }
+            storedMediaLoadPolicy = newValue
+            storedDefaults.set(newValue.rawValue, forKey: Key.mediaLoadPolicy)
         }
-        set { write(newValue.rawValue, forKey: Key.mediaLoadPolicy) }
     }
 
     /// Whether a video restarts when it ends.
@@ -301,7 +411,7 @@ public final class AppSettings {
 
     /// Ceiling for the on-disk media cache, in megabytes.
     public var mediaCacheLimitMegabytes: Int {
-        get { defaults.object(forKey: Key.cacheLimit) as? Int ?? 512 }
+        get { Self.readInt(defaults, Key.cacheLimit, default: 512) }
         set { write(max(32, newValue), forKey: Key.cacheLimit) }
     }
 
@@ -331,10 +441,11 @@ public final class AppSettings {
 
     /// What the reader has done with the app, for the About screen.
     public var statistics: UsageStatistics {
-        UsageStatistics(
-            secondsInApp: defaults.double(forKey: Key.secondsInApp),
-            postsSent: defaults.integer(forKey: Key.postsSent),
-            threadsOpened: defaults.integer(forKey: Key.threadsOpened)
+        _ = statisticsRevision
+        return UsageStatistics(
+            secondsInApp: storedDefaults.double(forKey: Key.secondsInApp),
+            postsSent: storedDefaults.integer(forKey: Key.postsSent),
+            threadsOpened: storedDefaults.integer(forKey: Key.threadsOpened)
         )
     }
 
@@ -345,21 +456,21 @@ public final class AppSettings {
     ///   like.
     public func addTimeInApp(seconds: TimeInterval) {
         guard seconds > 0, seconds < 60 * 60 * 8 else { return }
-        write(statistics.secondsInApp + seconds, forKey: Key.secondsInApp)
+        writeStatistic(statistics.secondsInApp + seconds, forKey: Key.secondsInApp)
     }
 
     public func recordPostSent() {
-        write(statistics.postsSent + 1, forKey: Key.postsSent)
+        writeStatistic(statistics.postsSent + 1, forKey: Key.postsSent)
     }
 
     public func recordThreadOpened() {
-        write(statistics.threadsOpened + 1, forKey: Key.threadsOpened)
+        writeStatistic(statistics.threadsOpened + 1, forKey: Key.threadsOpened)
     }
 
     public func resetStatistics() {
-        write(0.0, forKey: Key.secondsInApp)
-        write(0, forKey: Key.postsSent)
-        write(0, forKey: Key.threadsOpened)
+        writeStatistic(0.0, forKey: Key.secondsInApp)
+        writeStatistic(0, forKey: Key.postsSent)
+        writeStatistic(0, forKey: Key.threadsOpened)
     }
 
     // MARK: Board layout

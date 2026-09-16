@@ -153,7 +153,8 @@ struct UnreadCountTests {
 @Suite("Thread watcher")
 struct ThreadWatcherTests {
     private func makeWatcher(
-        _ transport: StubTransport
+        _ transport: StubTransport,
+        conditions: PollConditions = .unrestricted
     ) throws -> (ThreadWatcher, FavoritesRepository, WatchedThreadStore) {
         let container = try NeechanStore.makeContainer(inMemory: true)
         let favorites = FavoritesRepository(modelContainer: container)
@@ -161,7 +162,8 @@ struct ThreadWatcherTests {
         let watcher = ThreadWatcher(
             client: DvachClient(transport: transport, domain: { .org }),
             favorites: favorites,
-            states: states
+            states: states,
+            conditions: { conditions }
         )
         return (watcher, favorites, states)
     }
@@ -303,5 +305,173 @@ struct ThreadWatcherTests {
 
         let item = try await favorites.favorites().first
         #expect(item?.unreadCount ?? 0 > 0)
+    }
+}
+
+@Suite("Watcher restraint")
+struct ThreadWatcherRestraintTests {
+    private let key = ThreadKey(board: "b", threadNum: 1)
+
+    private func makeWatcher(
+        _ transport: StubTransport,
+        conditions: PollConditions = .unrestricted
+    ) throws -> (ThreadWatcher, FavoritesRepository, WatchedThreadStore) {
+        let container = try NeechanStore.makeContainer(inMemory: true)
+        let favorites = FavoritesRepository(modelContainer: container)
+        let states = WatchedThreadStore(modelContainer: container)
+        let watcher = ThreadWatcher(
+            client: DvachClient(transport: transport, domain: { .org }),
+            favorites: favorites,
+            states: states,
+            conditions: { conditions }
+        )
+        return (watcher, favorites, states)
+    }
+
+    private func infoData(posts: Int) -> Data {
+        Data(#"{"result":1,"thread":{"num":1,"posts":\#(posts),"timestamp":1}}"#.utf8)
+    }
+
+    /// The loop is restarted every time the app comes to the front, and a
+    /// notification banner is enough to do it. Each restart used to be a
+    /// request per favourite.
+    @Test("restarting the loop does not re-ask about threads just polled")
+    func restartDoesNotRepoll() async throws {
+        let transport = StubTransport()
+        await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 10))
+        let (watcher, favorites, _) = try makeWatcher(transport)
+        try await favorites.add(key, title: "Тред")
+
+        _ = await watcher.pollOnce(skippingPolledWithin: .seconds(60))
+        _ = await watcher.pollOnce(skippingPolledWithin: .seconds(60))
+
+        #expect(await transport.recordedRequests().count == 1)
+    }
+
+    @Test("a thread the site has stopped serving is never asked about again")
+    func deletedThreadsAreDropped() async throws {
+        let transport = StubTransport()
+        await transport.stub(pathSuffix: "/info/b/1", data: Data(), statusCode: 404)
+        let (watcher, favorites, states) = try makeWatcher(transport)
+        try await favorites.add(key, title: "Тред")
+
+        let first = await watcher.pollOnce()
+        #expect(first.first?.isDeleted == true)
+        #expect(try await states.state(for: key)?.isDeleted == true)
+
+        _ = await watcher.pollOnce()
+        #expect(await transport.recordedRequests().count == 1)
+    }
+
+    /// A closed thread can gain no posts, so asking every minute buys nothing.
+    @Test("a closed thread is left alone until the long interval is up")
+    func closedThreadsWait() async throws {
+        let transport = StubTransport()
+        await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 10))
+        let (watcher, favorites, states) = try makeWatcher(transport)
+        try await favorites.add(key, title: "Тред")
+
+        _ = await watcher.pollOnce()
+        try await states.markRead(key, upTo: 10, totalPosts: 11, isClosed: true)
+
+        // A full poll, which asks about everything that is due.
+        _ = await watcher.pollOnce()
+
+        #expect(await transport.recordedRequests().count == 1)
+    }
+
+    @Test("nothing is polled on cellular when the reader asked for Wi-Fi only")
+    func conditionsCanForbidAPass() async throws {
+        let transport = StubTransport()
+        await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 10))
+        let (watcher, favorites, _) = try makeWatcher(
+            transport,
+            conditions: PollConditions(isExpensive: true, wifiOnly: true)
+        )
+        try await favorites.add(key, title: "Тред")
+
+        let results = await watcher.pollOnce()
+
+        #expect(results.isEmpty)
+        #expect(await transport.recordedRequests().isEmpty)
+    }
+
+    @Test("nothing is polled while the device is offline")
+    func offlineSendsNothing() async throws {
+        let transport = StubTransport()
+        await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 10))
+        let (watcher, favorites, _) = try makeWatcher(
+            transport,
+            conditions: PollConditions(isConnected: false)
+        )
+        try await favorites.add(key, title: "Тред")
+
+        _ = await watcher.pollOnce()
+
+        #expect(await transport.recordedRequests().isEmpty)
+    }
+
+    /// The loop asks only for what the schedule says is due, so restarting it
+    /// costs nothing at all once a pass has just run.
+    @Test("a due pass asks about every watched thread the first time")
+    func firstDuePassAsksAboutEverything() async throws {
+        let transport = StubTransport()
+        for num in 1...5 {
+            await transport.stub(pathSuffix: "/info/b/\(num)", data: infoData(posts: 10))
+        }
+        let (watcher, favorites, _) = try makeWatcher(transport)
+        for num in 1...5 {
+            try await favorites.add(ThreadKey(board: "b", threadNum: num), title: "Тред \(num)")
+        }
+
+        let results = await watcher.pollDue()
+
+        #expect(results.count == 5)
+        #expect(await transport.recordedRequests().count == 5)
+    }
+
+    @Test("a second due pass straight away asks about nothing")
+    func secondDuePassIsQuiet() async throws {
+        let transport = StubTransport()
+        await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 10))
+        let (watcher, favorites, _) = try makeWatcher(transport)
+        try await favorites.add(key, title: "Тред")
+
+        _ = await watcher.pollDue()
+        _ = await watcher.pollDue()
+
+        #expect(await transport.recordedRequests().count == 1)
+    }
+
+    /// The background task is given a few seconds and killed if it overruns.
+    @Test("a pass whose deadline has already gone sends nothing")
+    func passedDeadlineSendsNothing() async throws {
+        let transport = StubTransport()
+        await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 10))
+        let (watcher, favorites, _) = try makeWatcher(transport)
+        for num in 1...10 {
+            await transport.stub(pathSuffix: "/info/b/\(num)", data: infoData(posts: 10))
+            try await favorites.add(ThreadKey(board: "b", threadNum: num), title: "Тред")
+        }
+
+        _ = await watcher.pollDue(deadline: .now - .seconds(1))
+
+        // The first window is started before the deadline is consulted, so the
+        // pass stops after it rather than sending nothing at all.
+        #expect(await transport.recordedRequests().count <= ThreadWatcher.concurrentPolls)
+    }
+
+    @Test("a thread that answered is not due again until its interval is up")
+    func quietThreadsBackOff() async throws {
+        let transport = StubTransport()
+        await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 10))
+        let (watcher, favorites, _) = try makeWatcher(transport)
+        try await favorites.add(key, title: "Тред")
+
+        _ = await watcher.pollDue()
+        let wait = await watcher.timeUntilNextPoll()
+
+        #expect(wait > .zero)
+        #expect(wait <= .seconds(60), "the first quiet poll keeps the reader's interval")
     }
 }

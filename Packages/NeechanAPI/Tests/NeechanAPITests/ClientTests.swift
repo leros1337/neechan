@@ -375,3 +375,100 @@ struct BackoffFailureTests {
         }
     }
 }
+
+@Suite("Retry policy")
+struct RetryPolicyTests {
+    private let policy = RetryPolicy(
+        backoff: [.zero, .milliseconds(250), .milliseconds(500)],
+        jitter: .milliseconds(200),
+        retryAfterCap: .seconds(10)
+    )
+
+    @Test("the first attempt never waits")
+    func firstAttemptIsImmediate() {
+        #expect(policy.delay(beforeAttempt: 0, random: 0.5) == .zero)
+    }
+
+    @Test("there is no delay past the last attempt, which is how it gives up")
+    func pastTheEnd() {
+        #expect(policy.delay(beforeAttempt: 3, random: 0) == nil)
+    }
+
+    /// Without a spread every device that hit the same outage comes back at the
+    /// same four moments.
+    @Test("the spread stays inside the jitter it was given")
+    func jitterIsBounded() {
+        let lowest = policy.delay(beforeAttempt: 1, random: 0)
+        let highest = policy.delay(beforeAttempt: 1, random: 1)
+
+        #expect(lowest == .milliseconds(250))
+        #expect(highest == .milliseconds(450))
+    }
+
+    @Test("what the server asked for wins over the schedule")
+    func retryAfterIsHonoured() {
+        #expect(policy.delay(beforeAttempt: 1, retryAfter: 3, random: 0) == .seconds(3))
+    }
+
+    @Test("a wait longer than the ceiling is given up on instead")
+    func longRetryAfterGivesUp() {
+        #expect(policy.delay(beforeAttempt: 1, retryAfter: 120, random: 0) == nil)
+    }
+
+    @Test("the polling policy makes one attempt and no more")
+    func pollPolicyIsSingleShot() {
+        #expect(RetryPolicy.poll.maxAttempts == 1)
+        #expect(RetryPolicy.poll.delay(beforeAttempt: 1, random: 0) == nil)
+    }
+}
+
+@Suite("Retrying against a server")
+struct RetryBehaviourTests {
+    private func makeClient(_ transport: StubTransport) -> DvachClient {
+        DvachClient(
+            transport: transport,
+            domain: { .org },
+            retryPolicy: RetryPolicy(backoff: [.zero, .zero, .zero])
+        )
+    }
+
+    /// Answering "slow down" with three more requests is how a client gets
+    /// itself blocked.
+    @Test("being told to slow down is not answered with more requests")
+    func rateLimitIsNotRetried() async throws {
+        let transport = StubTransport()
+        await transport.stub(pathContaining: "/catalog", data: Data(), statusCode: 429)
+        let client = makeClient(transport)
+
+        await #expect(throws: DvachError.self) {
+            _ = try await client.catalog(board: "b")
+        }
+        #expect(await transport.recordedRequests().count == 1)
+    }
+
+    @Test("a server error is still retried")
+    func serverErrorsAreRetried() async throws {
+        let transport = StubTransport()
+        await transport.stub(pathContaining: "/catalog", data: Data(), statusCode: 503)
+        let client = makeClient(transport)
+
+        await #expect(throws: DvachError.self) {
+            _ = try await client.catalog(board: "b")
+        }
+        #expect(await transport.recordedRequests().count == 3)
+    }
+
+    /// The watcher runs on a timer, so a failed poll is better left to the next
+    /// pass than retried into a site that is already struggling.
+    @Test("a watcher poll makes one attempt whatever the client's policy")
+    func pollsAreNotRetried() async throws {
+        let transport = StubTransport()
+        await transport.stub(pathContaining: "/info/", data: Data(), statusCode: 503)
+        let client = makeClient(transport)
+
+        await #expect(throws: DvachError.self) {
+            _ = try await client.threadInfo(board: "b", thread: 1)
+        }
+        #expect(await transport.recordedRequests().count == 1)
+    }
+}

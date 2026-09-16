@@ -57,12 +57,26 @@ public actor WatchedThreadStore {
     }
 
     /// Records how far the reader has got, which clears the unread count.
-    public func markRead(_ key: ThreadKey, upTo postNum: Int, totalPosts: Int) throws {
+    ///
+    /// - Parameter isClosed: whether the thread is closed to new posts. Written
+    ///   here because leaving a thread is the only moment the app knows: the
+    ///   watcher's endpoint reports a count and nothing else. A closed thread
+    ///   will never have news, and the watcher uses this to stop asking about it
+    ///   at the reader's interval.
+    public func markRead(
+        _ key: ThreadKey,
+        upTo postNum: Int,
+        totalPosts: Int,
+        isClosed: Bool = false
+    ) throws {
         let state = try stored(key) ?? insert(key)
         state.lastReadPostNum = max(state.lastReadPostNum, postNum)
         state.lastKnownPostsCount = max(state.lastKnownPostsCount, totalPosts)
         state.readPostsCount = max(state.readPostsCount, totalPosts)
         state.unreadCount = max(0, state.lastKnownPostsCount - readCount(state))
+        // Only ever set: a thread that closed stays closed, and a stale false
+        // from an old snapshot must not reopen it.
+        if isClosed { state.isClosed = true }
         try modelContext.save()
     }
 

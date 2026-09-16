@@ -48,6 +48,18 @@ public enum DvachEndpoint: Sendable, Hashable {
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
+        if isPoll {
+            // Nobody is waiting on these, and another one is along in a minute.
+            // A poll left hanging on the default timeout holds a connection
+            // open across several of its own successors.
+            request.timeoutInterval = 15
+            // Asks the server to confirm rather than resend. It answers 304
+            // where it can, and the session serves the body from its own cache;
+            // where it sends no validators this costs nothing and changes
+            // nothing.
+            request.cachePolicy = .reloadRevalidatingCacheData
+        }
+
         if let json = jsonBody {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try? JSONSerialization.data(withJSONObject: json)
@@ -65,6 +77,15 @@ public enum DvachEndpoint: Sendable, Hashable {
     }
 
     // MARK: Shape
+
+    /// Whether this is a request the app makes on a timer rather than because
+    /// the reader asked for something.
+    var isPoll: Bool {
+        switch self {
+        case .threadInfo, .after: true
+        default: false
+        }
+    }
 
     var method: String {
         switch self {

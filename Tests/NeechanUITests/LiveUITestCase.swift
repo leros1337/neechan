@@ -45,6 +45,26 @@ class LiveUITestCase: XCTestCase {
         return app
     }
 
+    /// Answers the photo library prompt if one is on screen right now.
+    ///
+    /// Saving to Photos asks the first time on a fresh simulator, and the prompt
+    /// belongs to Springboard rather than to the app, so `app.alerts` never sees
+    /// it: the save simply appears to hang behind a dialog the test is not
+    /// looking at. Written as a single glance rather than a wait, so a caller
+    /// can fold it into a loop it is already running and never stall on it.
+    @discardableResult
+    func answerPhotoLibraryPromptIfPresent() -> Bool {
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        for label in ["Allow Full Access", "Allow Access to All Photos", "Allow", "OK"] {
+            let button = springboard.buttons[label]
+            if button.exists, button.isHittable {
+                button.tap()
+                return true
+            }
+        }
+        return false
+    }
+
     /// Opens /b/, which is always present and always busy.
     func openDefaultBoard(_ app: XCUIApplication) {
         let board = app.staticTexts["/b/"]

@@ -91,20 +91,34 @@ public actor CatalogRepository {
     /// Local filtering for boards that do not support server-side search.
     /// Matches the subject, the comment text and the attachment names.
     public static func filter(_ threads: [ThreadSummary], matching query: String) -> [ThreadSummary] {
+        let parser = CommentHTMLParser()
+        return filter(threads, matching: query) { post in
+            // The comment is HTML, so it is parsed before matching; otherwise a
+            // query such as "span" would match markup instead of text.
+            parser.parse(post.comment, inThread: post.num, onBoard: post.board).plainText
+        }
+    }
+
+    /// The same filter, with the comment text supplied.
+    ///
+    /// Typing in the board's filter field used to re-parse every opening post
+    /// on the board on every keystroke, on the main actor. Taking the text lets
+    /// the caller parse each one once and keep it.
+    public static func filter(
+        _ threads: [ThreadSummary],
+        matching query: String,
+        commentText: (Post) -> String
+    ) -> [ThreadSummary] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return threads }
 
-        let parser = CommentHTMLParser()
         return threads.filter { thread in
             let post = thread.opPost
             if post.subject.localizedCaseInsensitiveContains(trimmed) { return true }
             if post.files.contains(where: { $0.fullName.localizedCaseInsensitiveContains(trimmed) }) {
                 return true
             }
-            // The comment is HTML, so it is parsed before matching; otherwise a
-            // query such as "span" would match markup instead of text.
-            let text = parser.parse(post.comment, inThread: post.num, onBoard: post.board).plainText
-            return text.localizedCaseInsensitiveContains(trimmed)
+            return commentText(post).localizedCaseInsensitiveContains(trimmed)
         }
     }
 }

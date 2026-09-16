@@ -133,9 +133,15 @@ private struct PullUpToRefreshModifier: ViewModifier {
                 )
             } action: { _, reading in
                 guard !isRefreshing else { return }
-                if progress.update(reading) {
-                    refresh()
-                }
+                // Updated on a copy and stored only when it actually moved.
+                // This fires on every scrolled frame, and SwiftUI treats any
+                // store into `@State` as a change, so assigning unconditionally
+                // invalidated the whole thread on every frame of every scroll,
+                // not just while overscrolled.
+                var next = progress
+                let fires = next.update(reading)
+                if next != progress { progress = next }
+                if fires { refresh() }
             }
             .overlay(alignment: .bottom) { indicator }
     }

@@ -112,7 +112,13 @@ public actor MediaCache {
         }
     }
 
-    private func evictIfNeeded() {
+    /// Drops the oldest files until the cache is inside its budget.
+    ///
+    /// Public so the app can ask on the way to the background, which is the one
+    /// moment there is time to spare and the one moment the reader will not
+    /// notice. Until now eviction only ever ran while storing something, so a
+    /// cache that was over budget stayed over it until the next download.
+    public func evictIfNeeded() {
         var entries = contents()
         var total = entries.reduce(0) { $0 + $1.size }
         guard total > byteLimit else { return }
@@ -127,7 +133,18 @@ public actor MediaCache {
     }
 
     /// Records a read so eviction can tell hot files from cold ones.
+    ///
+    /// Both dates are written, because eviction sorts on the access date where
+    /// the file system reports one and falls back to the modification date where
+    /// it does not; setting only one of them left hot files looking cold.
     private func touch(_ file: URL) {
-        try? fileManager.setAttributes([.modificationDate: Date.now], ofItemAtPath: file.path)
+        let now = Date.now
+        try? fileManager.setAttributes(
+            [.modificationDate: now], ofItemAtPath: file.path
+        )
+        var values = URLResourceValues()
+        values.contentAccessDate = now
+        var url = file
+        try? url.setResourceValues(values)
     }
 }

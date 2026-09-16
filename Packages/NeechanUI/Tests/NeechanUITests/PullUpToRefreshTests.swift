@@ -25,6 +25,37 @@ struct PullUpProgressTests {
         #expect(progress.update(overscroll: 0) == false, "a flick to the end is not a refresh")
     }
 
+    /// The scroll view reports geometry on every frame, and the modifier stores
+    /// the progress in `@State`. A store of an unchanged value still invalidates
+    /// the view, so an unchanged reading has to leave the value equal for the
+    /// caller's equality guard to have anything to compare.
+    @Test("an unchanged reading leaves the value equal")
+    func steadyReadingsCompareEqual() {
+        var progress = PullUpProgress()
+        let resting = PullUpReading(overscroll: -100, contentHeight: 1000, isScrollable: true)
+
+        _ = progress.update(resting)
+        let afterFirst = progress
+        _ = progress.update(resting)
+
+        #expect(progress == afterFirst)
+    }
+
+    @Test("a changed reading is not equal to the one before it")
+    func changedReadingsDiffer() {
+        var progress = PullUpProgress(threshold: 100)
+        let settled = PullUpReading(overscroll: 0, contentHeight: 1000, isScrollable: true)
+
+        _ = progress.update(settled)
+        _ = progress.update(settled)
+        let atRest = progress
+        _ = progress.update(
+            PullUpReading(overscroll: 40, contentHeight: 1000, isScrollable: true)
+        )
+
+        #expect(progress != atRest)
+    }
+
     @Test("the indicator grows with the drag")
     func fractionGrows() {
         var progress = PullUpProgress(threshold: 100)

@@ -180,9 +180,107 @@ struct AppSettingsObservationTests {
     }
 }
 
+@MainActor
+@Suite("Preference isolation")
+struct PreferenceIsolationTests {
+    private func makeSettings() throws -> AppSettings {
+        let name = "neechan.tests.\(UUID().uuidString)"
+        return AppSettings(defaults: try #require(UserDefaults(suiteName: name)))
+    }
+
+    /// The counters are written while the reader is reading — every thread
+    /// opened, every trip to the background — and every post cell on screen
+    /// reads the text scale. Sharing one observation key between them meant
+    /// each of those writes redrew the whole thread.
+    @Test("counting a thread opened does not disturb a reader of the text scale")
+    func statisticsAreSeparate() throws {
+        let settings = try makeSettings()
+        let observed = ChangeFlag()
+
+        withObservationTracking {
+            _ = settings.textScale
+        } onChange: {
+            observed.raise()
+        }
+
+        settings.recordThreadOpened()
+        settings.addTimeInApp(seconds: 5)
+        settings.recordPostSent()
+
+        #expect(observed.wasRaised == false)
+    }
+
+    @Test("changing one preference does not disturb a reader of another")
+    func preferencesAreSeparate() throws {
+        let settings = try makeSettings()
+        let observed = ChangeFlag()
+
+        withObservationTracking {
+            _ = settings.textScale
+        } onChange: {
+            observed.raise()
+        }
+
+        settings.thumbnailScale = 1.5
+        settings.safeForWork = true
+        settings.collapsePostLineLimit = 20
+
+        #expect(observed.wasRaised == false)
+    }
+
+    @Test("writing a preference its current value disturbs nobody")
+    func unchangedWritesAreQuiet() throws {
+        let settings = try makeSettings()
+        settings.textScale = 1.5
+        let observed = ChangeFlag()
+
+        withObservationTracking {
+            _ = settings.textScale
+        } onChange: {
+            observed.raise()
+        }
+
+        settings.textScale = 1.5
+
+        #expect(observed.wasRaised == false)
+    }
+
+    @Test("a value already in the defaults is read when the settings are built")
+    func storedValuesSurviveConstruction() throws {
+        let name = "neechan.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defaults.set(1.5, forKey: "interface.textScale")
+        defaults.set(20, forKey: "interface.collapseLines")
+        defaults.set(true, forKey: "interface.safeForWork")
+
+        let settings = AppSettings(defaults: defaults)
+
+        #expect(settings.textScale == 1.5)
+        #expect(settings.collapsePostLineLimit == 20)
+        #expect(settings.safeForWork)
+    }
+
+    /// How a UI test pins a preference: launch arguments arrive as strings, and
+    /// an `as?` cast to the stored type drops them silently.
+    @Test("a numeric preference pinned as a string is still read")
+    func stringsAreCoerced() throws {
+        let name = "neechan.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defaults.set("1.5", forKey: "interface.textScale")
+        defaults.set("20", forKey: "interface.collapseLines")
+        defaults.set("30", forKey: "contents.autoRefresh")
+
+        let settings = AppSettings(defaults: defaults)
+
+        #expect(settings.textScale == 1.5)
+        #expect(settings.collapsePostLineLimit == 20)
+        #expect(settings.autoRefreshIntervalSeconds == 30)
+    }
+}
+
 /// `withObservationTracking`'s change handler runs outside the caller's
 /// isolation, so the flag it sets has to be one a closure can cross into.
-private final class ChangeFlag: @unchecked Sendable {
+final class ChangeFlag: @unchecked Sendable {
     private let lock = NSLock()
     private var raised = false
 

@@ -92,8 +92,13 @@ struct ContentsSettingsView: View {
         }
         .navigationTitle(Text("Contents", bundle: .module))
         .inlineNavigationTitle()
-        .onChange(of: services.settings.watcherIntervalSeconds) {
-            Task { await services.startWatching() }
+        // Debounced. The stepper fires on every tap, and restarting the watcher
+        // is not free; dragging from fifteen seconds to ten minutes used to
+        // restart it thirty-nine times.
+        .task(id: services.settings.watcherIntervalSeconds) {
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            await services.startWatching()
         }
     }
 

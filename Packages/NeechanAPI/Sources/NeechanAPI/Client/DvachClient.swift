@@ -82,11 +82,16 @@ public actor DvachClient {
         )
     }
 
+    /// The post count for one thread, which is all the watcher needs.
+    ///
+    /// One attempt: this runs on a timer, so a failure is better left to the
+    /// next pass than retried into a site that is already struggling.
     public func threadInfo(board: String, thread: Int) async throws(DvachError) -> InfoResponse {
         try await get(
             InfoResponse.self,
             .threadInfo(board: board, thread: thread),
-            envelope: \.error
+            envelope: \.error,
+            policy: .poll
         )
     }
 
@@ -182,9 +187,10 @@ public actor DvachClient {
     private func get<T: Decodable>(
         _ type: T.Type,
         _ endpoint: DvachEndpoint,
-        envelope: (@Sendable (T) -> DvachAPIError?)? = nil
+        envelope: (@Sendable (T) -> DvachAPIError?)? = nil,
+        policy: RetryPolicy? = nil
     ) async throws(DvachError) -> T {
-        let reply = try await send(endpoint)
+        let reply = try await send(endpoint, policy: policy)
         let value: T
         do {
             value = try decoder.decode(T.self, from: reply.data)
@@ -199,7 +205,10 @@ public actor DvachClient {
 
     /// Performs the request, retrying transient failures and turning anything
     /// that is not a usable 2xx into a `DvachError`.
-    private func send(_ endpoint: DvachEndpoint) async throws(DvachError) -> HTTPReply {
+    private func send(
+        _ endpoint: DvachEndpoint,
+        policy: RetryPolicy? = nil
+    ) async throws(DvachError) -> HTTPReply {
         // The retry loop lives in a function with an untyped `throws`.
         //
         // Written with `throws(DvachError)` it crashed the app on any dropped
@@ -208,7 +217,7 @@ public actor DvachClient {
         // allocation"). Converting the error at this boundary keeps the typed
         // error the callers rely on.
         do {
-            return try await attemptSend(endpoint)
+            return try await attemptSend(endpoint, policy: policy ?? retryPolicy)
         } catch let error as DvachError {
             throw error
         } catch {
@@ -216,12 +225,20 @@ public actor DvachClient {
         }
     }
 
-    private func attemptSend(_ endpoint: DvachEndpoint) async throws -> HTTPReply {
+    private func attemptSend(
+        _ endpoint: DvachEndpoint,
+        policy: RetryPolicy
+    ) async throws -> HTTPReply {
         let request = endpoint.request(on: domain())
         var lastError: DvachError?
+        /// What the server asked for on the previous attempt, in seconds.
+        var retryAfter: Double?
 
-        for (attempt, delay) in retryPolicy.backoff.enumerated() {
-            if attempt > 0 {
+        for attempt in 0..<policy.maxAttempts {
+            guard let delay = policy.delay(beforeAttempt: attempt, retryAfter: retryAfter) else {
+                break
+            }
+            if delay > .zero {
                 // `Task.sleep` is called directly rather than through an
                 // injected closure. Awaiting a stored `async` closure inside
                 // this loop corrupts the task allocator, which crashed the app
@@ -232,6 +249,7 @@ public actor DvachClient {
                     throw DvachError.transport(underlying: CancellationError())
                 }
             }
+            retryAfter = nil
 
             let reply: HTTPReply
             do {
@@ -253,11 +271,19 @@ public actor DvachClient {
 
             if reply.isSuccess { return reply }
 
+            // Being told to slow down and answering with three more requests is
+            // how a client gets itself blocked. The caller decides what to do
+            // with it; the watcher backs the thread off to its longest wait.
+            if reply.statusCode == 429 {
+                throw DvachError.http(status: 429, url: reply.url)
+            }
+
             // The server's own errors arrive as a 200 with an envelope, so a 4xx
             // here is a genuine client error and will not change on a retry.
-            guard reply.statusCode >= 500 || reply.statusCode == 429 else {
+            guard reply.statusCode >= 500 else {
                 throw DvachError.http(status: reply.statusCode, url: reply.url)
             }
+            retryAfter = reply.header("retry-after").flatMap(Double.init)
             lastError = .http(status: reply.statusCode, url: reply.url)
         }
 

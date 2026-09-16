@@ -21,6 +21,12 @@ public struct MediaPlayerView: View {
     /// is read when a clip is opened, so turning looping on part-way through
     /// one did nothing. This restarts it by hand when it reaches the end.
     @State private var isLooping = false
+    /// The engine's options, built once for this player.
+    ///
+    /// Built in `body` until now, which meant a fresh `KSOptions` and a fresh
+    /// write to KSPlayer's global engine choice on every pass — and `body` runs
+    /// on every playback progress report, ten times a second.
+    @State private var engine = EngineOptionsBox()
 
     public init(
         url: URL,
@@ -43,13 +49,17 @@ public struct MediaPlayerView: View {
         KSVideoPlayer(
             coordinator: coordinator,
             url: url,
-            options: KSPlayerBridge.playerOptions(for: options)
+            options: engine.options(for: options)
         )
         .onStateChanged { _, newState in
             let mapped = KSPlayerBridge.playbackState(from: newState)
             state = mapped
             if LoopPolicy.shouldRestart(state: mapped, isLooping: isLooping) {
                 restart()
+            } else if mapped == .finished {
+                // Nothing is playing any more, so the screen may sleep. The
+                // engine only gives the idle timer back on a pause or a stop.
+                KSPlayerBridge.allowScreenToSleep()
             }
         }
         .onPlay { current, total in
@@ -67,6 +77,8 @@ public struct MediaPlayerView: View {
             // pages through clips must let each one go.
             coordinator.playerLayer?.pause()
             coordinator.resetPlayer()
+            KSPlayerBridge.allowScreenToSleep()
+            KSPlayerBridge.releaseAudioSession()
         }
     }
 
@@ -135,5 +147,27 @@ public struct PlaybackControl: Sendable, Equatable {
     public mutating func send(_ command: Command) {
         self.command = command
         generation += 1
+    }
+}
+
+/// Holds one player's engine options.
+///
+/// A reference so that `body` can ask for them without building them, and so
+/// that the engine selection those options depend on happens once per player
+/// rather than once per redraw.
+@MainActor
+final class EngineOptionsBox {
+    private var built: KSOptions?
+
+    func options(for options: MediaPlayerOptions) -> KSOptions {
+        // The engine choice is global to KSPlayer and read when a player is
+        // built, so it is re-stated on every pass even though the options
+        // themselves are kept. It is two assignments; the options were an
+        // allocation and several dictionaries.
+        KSPlayerBridge.selectEngine(for: options)
+        if let built { return built }
+        let made = KSPlayerBridge.makeOptions(from: options)
+        built = made
+        return made
     }
 }

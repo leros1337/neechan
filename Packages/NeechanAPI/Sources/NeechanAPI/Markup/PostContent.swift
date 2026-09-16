@@ -1,31 +1,57 @@
 import Foundation
 
 /// A parsed post body.
+///
+/// The three derived values below are walked once, here, rather than on every
+/// read: the thread view, the search, the autohide rules and the reply index all
+/// ask for `plainText` or `references`, several of them per row per render, and
+/// each ask used to rebuild the string from the tree.
 public struct PostContent: Sendable, Hashable {
     public let nodes: [PostNode]
 
+    /// The body with all markup removed, for search, previews and accessibility.
+    public let plainText: String
+
+    /// Every `>>N` this post makes, in the order they appear.
+    public let references: [PostReference]
+
+    public let isEmpty: Bool
+
+    /// Newlines in `plainText`.
+    ///
+    /// Counted from the text rather than from `.lineBreak` nodes, because a text
+    /// node can carry a newline of its own. Backs the cheap check for whether a
+    /// post is long enough to be worth measuring for truncation.
+    public let lineBreakCount: Int
+
     public init(nodes: [PostNode]) {
         self.nodes = nodes
+
+        var text = ""
+        PostContent.appendText(of: nodes, to: &text)
+        self.plainText = text
+
+        var found: [PostReference] = []
+        PostContent.collectReferences(in: nodes, into: &found)
+        self.references = found
+
+        self.isEmpty = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        self.lineBreakCount = text.reduce(into: 0) { count, character in
+            if character == "\n" { count += 1 }
+        }
     }
 
     public static let empty = PostContent(nodes: [])
 
-    public var isEmpty: Bool {
-        plainText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    // The derived values are pure functions of `nodes`, so identity is decided
+    // by the tree alone. Hashing the text as well would walk it a second time
+    // for no more precision.
+    public static func == (lhs: PostContent, rhs: PostContent) -> Bool {
+        lhs.nodes == rhs.nodes
     }
 
-    /// The body with all markup removed, for search, previews and accessibility.
-    public var plainText: String {
-        var text = ""
-        PostContent.appendText(of: nodes, to: &text)
-        return text
-    }
-
-    /// Every `>>N` this post makes, in the order they appear.
-    public var references: [PostReference] {
-        var found: [PostReference] = []
-        PostContent.collectReferences(in: nodes, into: &found)
-        return found
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(nodes)
     }
 
     /// Addresses of ordinary links in the post.
