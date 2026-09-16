@@ -1,0 +1,2 @@
+/* Shown when the app first asks to write to the photo library. */
+"NSPhotoLibraryAddUsageDescription" = "Neechan needs permission to add images and videos you save to your photo library.";

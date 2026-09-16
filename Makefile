@@ -1,0 +1,137 @@
+# Neechan build tasks.
+#
+# `make gen` regenerates Neechan.xcodeproj from project.yml (the project file is
+# not committed). Everything else assumes it exists.
+
+SHELL := /bin/bash
+
+SCHEME      := Neechan
+SIMULATOR   := iPhone 17 Pro
+IPAD        := iPad Pro 13-inch (M5)
+# Pinned to one runtime: several Xcode versions can be installed side by side,
+# and a bare device name then matches one simulator per runtime, which
+# xcodebuild refuses as ambiguous.
+SIM_OS      := 26.5
+DESTINATION := platform=iOS Simulator,name=$(SIMULATOR),OS=$(SIM_OS)
+DERIVED     := .build/DerivedData
+RESULTS     := .build/TestResults.xcresult
+# Shared SwiftPM clone cache: FFmpegKit alone is a multi-gigabyte checkout, so
+# it must not be re-cloned every time DerivedData is wiped.
+SPM_CACHE   := $(HOME)/Library/Caches/org.swift.swiftpm-neechan
+XCB         := xcodebuild -scheme $(SCHEME) -destination '$(DESTINATION)' \
+               -derivedDataPath $(DERIVED) \
+               -clonedSourcePackagesDirPath $(SPM_CACHE) \
+               -skipMacroValidation -quiet
+PACKAGES    := NeechanTestSupport NeechanAPI NeechanSettings NeechanCore NeechanMedia NeechanUI
+BUNDLE_ID   := com.lain.neechan
+# A release build keeps its own DerivedData so it does not fight the debug one
+# over the same module cache every time the two are run in turn.
+DERIVED_REL := .build/DerivedDataRelease
+ARCHIVE     := .build/Neechan.xcarchive
+# The version the built app reports. The release workflow passes the tag.
+VERSION     := $(shell awk '/MARKETING_VERSION:/ { gsub(/["[:space:]]/, "", $$2); print $$2; exit }' project.yml)
+
+.PHONY: all gen build ipa test test-packages test-pkg test-app test-one test-report sim ipad screenshot fixtures clean clean-all
+
+all: gen test
+
+## Regenerate the Xcode project from project.yml.
+gen:
+	@command -v xcodegen >/dev/null || { echo "xcodegen missing: brew install xcodegen"; exit 1; }
+	xcodegen generate --spec project.yml
+
+## Build the app for the simulator.
+build:
+	$(XCB) build
+
+## Build an unsigned .ipa for a device, the way the release workflow does.
+##
+## Unsigned on purpose: there is no certificate in the repo and none should be.
+## That also rules out `xcodebuild -exportArchive`, which refuses without a
+## signing method, so the archive's app is wrapped in a Payload/ folder by hand,
+## which is all an .ipa is.
+ipa: gen
+	xcodebuild -scheme $(SCHEME) -configuration Release \
+		-destination 'generic/platform=iOS' \
+		-archivePath $(ARCHIVE) \
+		-derivedDataPath $(DERIVED_REL) \
+		-clonedSourcePackagesDirPath $(SPM_CACHE) \
+		-skipMacroValidation -quiet \
+		CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= \
+		MARKETING_VERSION=$(VERSION) \
+		archive
+	@rm -rf .build/Payload .build/Neechan-$(VERSION).ipa
+	@mkdir -p .build/Payload
+	@cp -R $(ARCHIVE)/Products/Applications/Neechan.app .build/Payload/
+	@cd .build && zip -qry9 Neechan-$(VERSION).ipa Payload && rm -rf Payload
+	@ls -lh .build/Neechan-$(VERSION).ipa | awk '{ print "built .build/Neechan-$(VERSION).ipa (" $$5 ")" }'
+
+## Run every package test suite, then the app test bundles.
+test: test-packages test-app
+
+## Fast loop: pure Swift packages, no simulator, no Xcode project needed.
+test-packages:
+	@set -e; for pkg in $(PACKAGES); do \
+		if ls Packages/$$pkg/Tests/*/*.swift >/dev/null 2>&1; then \
+			echo "==> $$pkg"; \
+			swift test --package-path Packages/$$pkg --cache-path $(SPM_CACHE); \
+		else \
+			echo "==> $$pkg (no tests yet)"; \
+		fi; \
+	done
+
+## Run the app-level unit and UI test bundles on the simulator.
+## xcodebuild's own summary is unreadable under -quiet, so the result bundle is
+## parsed afterwards for a one-line verdict.
+test-app:
+	@rm -rf $(RESULTS)
+	$(XCB) -resultBundlePath $(RESULTS) test
+	@./Tools/test-summary.py $(RESULTS)
+
+## Run one package's tests: `make test-pkg PKG=NeechanAPI`
+## Optionally narrow further: `make test-pkg PKG=NeechanAPI FILTER=Captcha`
+test-pkg:
+	@test -n "$(PKG)" || { echo "usage: make test-pkg PKG=NeechanAPI [FILTER=Suite]"; exit 1; }
+	swift test --package-path Packages/$(PKG) --cache-path $(SPM_CACHE) \
+		$(if $(FILTER),--filter "$(FILTER)",)
+
+## Run one app or UI test class or method:
+## `make test-one ONLY=NeechanUITests/PostingUITests`
+test-one:
+	@test -n "$(ONLY)" || { echo "usage: make test-one ONLY=Target/Class[/method]"; exit 1; }
+	@rm -rf $(RESULTS)
+	$(XCB) -resultBundlePath $(RESULTS) -only-testing:$(ONLY) test
+	@./Tools/test-summary.py $(RESULTS)
+
+## Re-print the verdict and failures from the last app test run.
+test-report:
+	@./Tools/test-summary.py $(RESULTS)
+
+## Build, install and launch on the simulator.
+sim: build
+	@xcrun simctl boot "$(SIMULATOR)" 2>/dev/null || true
+	@open -a Simulator
+	xcrun simctl install booted "$$(find $(DERIVED)/Build/Products -name 'Neechan.app' -maxdepth 3 | head -1)"
+	xcrun simctl launch booted $(BUNDLE_ID)
+
+## Same, on iPad.
+ipad: SIMULATOR := $(IPAD)
+ipad: sim
+
+## Capture the booted simulator screen.
+screenshot:
+	@mkdir -p .build/screenshots
+	xcrun simctl io booted screenshot .build/screenshots/$$(date +%Y%m%d-%H%M%S).png
+	@ls -t .build/screenshots | head -1
+
+## Re-record API fixtures from the live site.
+fixtures:
+	./Tools/record-fixtures.sh
+
+clean:
+	rm -rf $(DERIVED) $(RESULTS)
+	@for pkg in $(PACKAGES); do rm -rf Packages/$$pkg/.build; done
+
+## Also drops the shared SwiftPM clone cache (re-cloning FFmpegKit takes minutes).
+clean-all: clean
+	rm -rf $(SPM_CACHE)

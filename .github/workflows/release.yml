@@ -1,0 +1,112 @@
+name: Release
+
+# Builds an unsigned .ipa and publishes it.
+#
+# A version tag makes a release; the manual run is for trying the build without
+# committing to a version, and leaves the .ipa as a workflow artifact instead.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version the build reports, e.g. 0.2.0"
+        required: false
+        default: ""
+
+permissions:
+  # Creating the release is the only thing this needs beyond reading the code.
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # macOS 26, not merely Xcode 26: every package declares `.macOS(.v26)`, so
+    # `swift test` will not run on an older image. This one also still ships the
+    # Metal compiler that KSPlayer's shaders need, which Xcode 27 dropped.
+    runs-on: macos-26
+    # A resolve of FFmpegKit that hangs would otherwise burn macOS minutes,
+    # which bill at ten times the Linux rate.
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Pick the version
+        id: version
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "push" ]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="${{ inputs.version }}"
+          fi
+          # Falls back to whatever project.yml already says, so a manual run
+          # with no input still produces a sensibly named file.
+          if [ -z "$version" ]; then
+            version=$(awk '/MARKETING_VERSION:/ { gsub(/["[:space:]]/, "", $2); print $2; exit }' project.yml)
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building $version"
+
+      - name: Pin the toolchain
+        # Named rather than inherited: the image's default Xcode moves, and a
+        # release should not change compiler under us without anyone saying so.
+        run: sudo xcode-select -s /Applications/Xcode_26.6.app
+
+      - name: Install XcodeGen
+        # Neechan.xcodeproj and Info.plist are generated, not committed.
+        run: brew install xcodegen
+
+      - name: Restore the SwiftPM cache
+        uses: actions/cache@v6
+        with:
+          # KSPlayer and FFmpegKit come to some gigabytes, most of it FFmpeg's
+          # prebuilt xcframeworks. Both are pinned, so the key is the pins.
+          path: ~/Library/Caches/org.swift.swiftpm-neechan
+          key: spm-${{ runner.os }}-${{ hashFiles('Packages/*/Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Generate the Xcode project
+        run: make gen
+
+      - name: Run the package tests
+        # The offline suites only. The XCUITests drive the app against the live
+        # site, which is not something a release should depend on.
+        run: make test-packages
+
+      - name: Build the ipa
+        run: make ipa VERSION=${{ steps.version.outputs.version }}
+
+      - name: Keep the build
+        uses: actions/upload-artifact@v7
+        with:
+          name: Neechan-${{ steps.version.outputs.version }}
+          path: .build/Neechan-${{ steps.version.outputs.version }}.ipa
+          if-no-files-found: error
+
+      - name: Publish the release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Written to a file rather than piped in: gh appends its generated
+          # notes to whatever body it is given, and a heredoc inside YAML is one
+          # indentation slip away from being part of the release notes.
+          cat > .build/notes.md <<'NOTES'
+          The `.ipa` below is **unsigned**. There is no signing certificate in this
+          repository and there should not be one, so it cannot be installed by
+          tapping it: use AltStore, Sideloadly, or your own developer account.
+
+          Requires iOS 26 or newer, on iPhone or iPad.
+          NOTES
+          gh release create "$GITHUB_REF_NAME" \
+            ".build/Neechan-$VERSION.ipa" \
+            --title "Neechan $VERSION" \
+            --notes-file .build/notes.md \
+            --generate-notes

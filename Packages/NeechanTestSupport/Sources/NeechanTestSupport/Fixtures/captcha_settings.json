@@ -1,0 +1,10 @@
+{
+    "enabled": 1,
+    "result": 1,
+    "types": [
+        {
+            "expires": 300,
+            "id": "2chcaptcha"
+        }
+    ]
+}

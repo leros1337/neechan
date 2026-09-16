@@ -1,0 +1,11 @@
+{
+    "challenge": {
+        "hash": "b2482d8ae0f92cf5ee463646e2ad71dd0ce70aa333f4b1ee6aeff8f996a1960fc35bbec4b37accf4c44250847229baa5ee63e8d0f2b462645211a74bc0615747",
+        "limit": 20000,
+        "template": "iZjzHG2sP3lu1w03%d7DYSeHLTuLKbjVj9"
+    },
+    "id": "eyJhbGciOiJkaXIiLCJjdHkiOiJhcHBsaWNhdGlvbi9wcm90b2J1ZiIsImVuYyI6IkEyNTZHQ00iLCJraWQiOiJ2NCIsInR5cCI6IkpXRSJ9..xpIrVmjTWootY26h.N6WNjwy-yJ-r1B8PKsh509izsNvdxa0YXjjB_N5K16Jcnps.-ydXxbWKXZE6KtWVNV9htw",
+    "input": "emoji",
+    "result": 1,
+    "type": "emoji"
+}

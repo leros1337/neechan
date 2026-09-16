@@ -1,0 +1,28 @@
+{
+ "result": 1,
+ "unique_posters": 71,
+ "posts": [
+  {
+   "banned": 0,
+   "board": "po",
+   "closed": 0,
+   "comment": "<a href=\"/po/res/63459413.html#63461258\" class=\"post-reply-link\" data-thread=\"63459413\" data-num=\"63461258\">>>63461258</a><br>По делу есть что сказать? ",
+   "date": "11/09/26 Птн 20:55:58",
+   "email": "",
+   "endless": 0,
+   "files": null,
+   "icon": "<img hspace=\"3\" src=\"/flags/RU.png\" border=\"0\" />",
+   "lasthit": 1789456600,
+   "name": "Аноним&nbsp;ID:&nbsp;<span id=\"id_tag_94f423bf\" style=\"color:rgb(187,231,111);\">Темпераментный&nbsp;Пончик</span>&nbsp;",
+   "num": 63461278,
+   "number": 12,
+   "op": 0,
+   "parent": 63459413,
+   "sticky": 0,
+   "subject": "",
+   "timestamp": 1789149358,
+   "trip": "",
+   "views": 0
+  }
+ ]
+}

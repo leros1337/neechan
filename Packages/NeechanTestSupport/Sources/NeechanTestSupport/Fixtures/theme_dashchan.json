@@ -1,0 +1,18 @@
+{
+  "name": "Neechan Night",
+  "author": "anon",
+  "window": "#ff11171d",
+  "primary": "#ff1b232c",
+  "accent": "#ff4fa3ff",
+  "card": "#ff1b232c",
+  "post": "#ffe6edf3",
+  "meta": "#ff8b98a5",
+  "spoiler": "#ff2d3742",
+  "link": "#ff4fa3ff",
+  "quote": "#ff7fc37f",
+  "tripcode": "#ffd29922",
+  "capcode": "#ffff6b6b",
+  "notice": "#ffff9f43",
+  "highlightText": "#ffffffff",
+  "highlightBackground": "#ff264f78"
+}

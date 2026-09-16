@@ -1,0 +1,2 @@
+/* Shown when the app first asks to write to the photo library. */
+"NSPhotoLibraryAddUsageDescription" = "Neechan нужно разрешение, чтобы добавлять сохраняемые изображения и видео в медиатеку «Фото».";

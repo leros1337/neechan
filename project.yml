@@ -1,0 +1,135 @@
+name: Neechan
+options:
+  bundleIdPrefix: com.lain
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+  groupSortPosition: top
+
+settings:
+  base:
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+    CODE_SIGN_STYLE: Automatic
+    # Unsigned simulator builds: no team is configured in the repo.
+    CODE_SIGNING_ALLOWED: NO
+    CODE_SIGNING_REQUIRED: NO
+
+packages:
+  NeechanAPI:
+    path: Packages/NeechanAPI
+  NeechanSettings:
+    path: Packages/NeechanSettings
+  NeechanCore:
+    path: Packages/NeechanCore
+  NeechanMedia:
+    path: Packages/NeechanMedia
+  NeechanUI:
+    path: Packages/NeechanUI
+  NeechanTestSupport:
+    path: Packages/NeechanTestSupport
+
+targets:
+  Neechan:
+    type: application
+    platform: iOS
+    supportedDestinations: [iOS, iPadOS]
+    sources:
+      - path: Neechan
+    # XcodeGen generates Info.plist from these properties, so this is the source
+    # of truth; editing the generated file directly is overwritten by `make gen`.
+    info:
+      path: Neechan/Info.plist
+      properties:
+        CFBundleDisplayName: Neechan
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations: [en, ru]
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
+        UIBackgroundModes:
+          - fetch
+          - processing
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.lain.neechan.watcher
+        NSPhotoLibraryAddUsageDescription: >-
+          Neechan needs permission to add images and videos you save to your
+          photo library.
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lain.neechan
+        PRODUCT_NAME: Neechan
+        INFOPLIST_KEY_CFBundleDisplayName: Neechan
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ENABLE_PREVIEWS: YES
+        SWIFT_EMIT_LOC_STRINGS: YES
+    dependencies:
+      - package: NeechanUI
+      - package: NeechanCore
+      - package: NeechanMedia
+      - package: NeechanSettings
+      - package: NeechanAPI
+
+  NeechanTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/NeechanTests
+    dependencies:
+      - target: Neechan
+      - package: NeechanTestSupport
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lain.neechan.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+  NeechanUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: Tests/NeechanUITests
+    dependencies:
+      - target: Neechan
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lain.neechan.uitests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Neechan:
+    build:
+      targets:
+        Neechan: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - NeechanTests
+        - NeechanUITests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
