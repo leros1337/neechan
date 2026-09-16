@@ -13,7 +13,8 @@ struct MediaSettingsView: View {
     @State private var folderMessage: AlertMessage?
     @State private var savedThreadBytes = 0
 
-    private let cacheChoices = [128, 256, 512, 1024, 2048]
+    private var cacheChoices: [Int] { AppSettings.cacheLimitChoicesMegabytes }
+    private var ageChoices: [Int] { AppSettings.cacheAgeChoicesDays }
 
     var body: some View {
         @Bindable var settings = services.settings
@@ -118,12 +119,65 @@ struct MediaSettingsView: View {
             }
 
             Section {
-                Picker(selection: cacheLimitBinding) {
-                    ForEach(cacheChoices, id: \.self) { megabytes in
-                        Text(byteCount(megabytes * 1024 * 1024)).tag(megabytes)
+                VStack(alignment: .leading, spacing: 4) {
+                    LabeledContent {
+                        Text(byteCount(settings.mediaCacheLimitMegabytes * 1024 * 1024))
+                            .monospacedDigit()
+                    } label: {
+                        Text("Limit", bundle: .module)
                     }
-                } label: {
-                    Text("Limit", bundle: .module)
+
+                    // Dragged rather than picked from a list: there are only
+                    // four sizes and they are far apart, so the slider shows
+                    // where this one sits between them at a glance.
+                    Slider(
+                        value: cacheLimitBinding,
+                        in: 0...Double(max(1, cacheChoices.count - 1)),
+                        step: 1
+                    ) {
+                        Text("Limit", bundle: .module)
+                    } minimumValueLabel: {
+                        Text(byteCount((cacheChoices.first ?? 0) * 1024 * 1024))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    } maximumValueLabel: {
+                        Text(byteCount((cacheChoices.last ?? 0) * 1024 * 1024))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityIdentifier("cache-limit")
+                    .accessibilityValue(
+                        Text(byteCount(settings.mediaCacheLimitMegabytes * 1024 * 1024))
+                    )
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    LabeledContent {
+                        ageLabel(settings.mediaCacheMaxAgeDays).monospacedDigit()
+                    } label: {
+                        Text("Keep for", bundle: .module)
+                    }
+
+                    // Counted from when a file was last opened, not from when it
+                    // arrived: a clip watched again this morning is not old
+                    // because it was fetched last month.
+                    Slider(
+                        value: cacheAgeBinding,
+                        in: 0...Double(max(1, ageChoices.count - 1)),
+                        step: 1
+                    ) {
+                        Text("Keep for", bundle: .module)
+                    } minimumValueLabel: {
+                        ageLabel(ageChoices.first ?? 1)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    } maximumValueLabel: {
+                        ageLabel(ageChoices.last ?? 0)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityIdentifier("cache-age")
+                    .accessibilityValue(ageLabel(settings.mediaCacheMaxAgeDays))
                 }
 
                 LabeledContent {
@@ -172,10 +226,20 @@ struct MediaSettingsView: View {
         }
     }
 
-    private var cacheLimitBinding: Binding<Int> {
+    /// The slider's position, which is an index into the sizes on offer rather
+    /// than a size: the four are not evenly spaced, so dragging moves between
+    /// them a step at a time instead of through the gigabytes in between.
+    private var cacheLimitBinding: Binding<Double> {
         Binding(
-            get: { services.settings.mediaCacheLimitMegabytes },
-            set: { megabytes in
+            get: {
+                let current = services.settings.mediaCacheLimitMegabytes
+                return Double(cacheChoices.firstIndex(of: current) ?? 0)
+            },
+            set: { position in
+                let index = min(max(0, Int(position.rounded())), cacheChoices.count - 1)
+                let megabytes = cacheChoices[index]
+                guard megabytes != services.settings.mediaCacheLimitMegabytes else { return }
+
                 services.settings.mediaCacheLimitMegabytes = megabytes
                 Task {
                     await MediaCache.shared.setByteLimit(megabytes * 1024 * 1024)
@@ -185,12 +249,56 @@ struct MediaSettingsView: View {
         )
     }
 
+    /// The keep-for slider's position, an index like the size one above: a day
+    /// and forever are not two points on the same scale.
+    private var cacheAgeBinding: Binding<Double> {
+        Binding(
+            get: {
+                let current = services.settings.mediaCacheMaxAgeDays
+                // The stored length is always one of the stops, so the fallback
+                // is only ever reached if the two lists drift apart.
+                let fallback = ageChoices.firstIndex(of: AppSettings.defaultCacheAgeDays) ?? 0
+                return Double(ageChoices.firstIndex(of: current) ?? fallback)
+            },
+            set: { position in
+                let index = min(max(0, Int(position.rounded())), ageChoices.count - 1)
+                let days = ageChoices[index]
+                guard days != services.settings.mediaCacheMaxAgeDays else { return }
+                services.settings.mediaCacheMaxAgeDays = days
+                Task {
+                    // Applied at once, so a reader who shortens this sees the
+                    // size below drop rather than wondering whether it took.
+                    await MediaCache.shared.setMaxAge(days: days)
+                    await refreshSizes()
+                }
+            }
+        )
+    }
+
+    /// What one of the lengths on offer is called.
+    ///
+    /// Four written-out strings rather than a number and a unit: Russian needs
+    /// different forms for one day and thirty days, and forever is not a number
+    /// at all.
+    private func ageLabel(_ days: Int) -> Text {
+        switch days {
+        case 1: Text("1 day", bundle: .module)
+        case 7: Text("7 days", bundle: .module)
+        case 30: Text("30 days", bundle: .module)
+        default: Text("Forever", bundle: .module)
+        }
+    }
+
     private func refreshSizes() async {
         cacheBytes = await MediaCache.shared.currentSize()
         savedThreadBytes = (try? await services.savedThreads.totalBytesOnDisk()) ?? 0
     }
 
+    /// Counted in 1024s, so a limit of five gigabytes reads as "5 GB" rather
+    /// than as the 5.37 that dividing by a thousand gives. Disk sizes in this
+    /// app are powers of two, and the number on the slider should be the number
+    /// the reader chose.
     private func byteCount(_ bytes: Int) -> String {
-        Int64(bytes).formatted(.byteCount(style: .file))
+        Int64(bytes).formatted(.byteCount(style: .binary))
     }
 }

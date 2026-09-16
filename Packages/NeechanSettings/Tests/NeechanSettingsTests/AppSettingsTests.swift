@@ -19,7 +19,7 @@ struct AppSettingsTests {
         #expect(settings.mediaLoadPolicy == .always)
         #expect(settings.appearance == .system)
         #expect(settings.textScale == 1)
-        #expect(settings.thumbnailScale == 1)
+        #expect(settings.thumbnailScale == 0.8, "thumbnails start a little under full size")
         #expect(settings.remembersHistory)
         #expect(settings.catalogByDefault, "a board opens as the catalog until told otherwise")
         #expect(settings.convertsWebMOnSave, "Photos cannot play a WebM, so it is converted by default")
@@ -275,6 +275,111 @@ struct PreferenceIsolationTests {
         #expect(settings.textScale == 1.5)
         #expect(settings.collapsePostLineLimit == 20)
         #expect(settings.autoRefreshIntervalSeconds == 30)
+    }
+}
+
+@MainActor
+@Suite("Media cache limit")
+struct MediaCacheLimitTests {
+    private func makeSettings() throws -> AppSettings {
+        let name = "neechan.tests.\(UUID().uuidString)"
+        return AppSettings(defaults: try #require(UserDefaults(suiteName: name)))
+    }
+
+    @Test("a fresh install starts on the smallest of the sizes on offer")
+    func startsSmall() throws {
+        #expect(try makeSettings().mediaCacheLimitMegabytes == 5 * 1024)
+    }
+
+    @Test("every size on offer is kept exactly as chosen")
+    func choicesRoundTrip() throws {
+        let settings = try makeSettings()
+        for choice in AppSettings.cacheLimitChoicesMegabytes {
+            settings.mediaCacheLimitMegabytes = choice
+            #expect(settings.mediaCacheLimitMegabytes == choice)
+        }
+    }
+
+    /// The settings screen shows one of four sizes and the cache enforces what
+    /// is stored. If those could differ, the screen would be lying.
+    @Test("anything else becomes the nearest size on offer")
+    func othersSnap() throws {
+        let settings = try makeSettings()
+
+        settings.mediaCacheLimitMegabytes = 6 * 1024
+        #expect(settings.mediaCacheLimitMegabytes == 5 * 1024)
+
+        settings.mediaCacheLimitMegabytes = 16 * 1024
+        #expect(settings.mediaCacheLimitMegabytes == 20 * 1024)
+
+        settings.mediaCacheLimitMegabytes = 1_000 * 1024
+        #expect(settings.mediaCacheLimitMegabytes == 50 * 1024)
+
+        settings.mediaCacheLimitMegabytes = 0
+        #expect(settings.mediaCacheLimitMegabytes == 5 * 1024)
+    }
+
+    /// What an install from before these sizes existed has stored.
+    @Test("a size left by an older version reads as the nearest one")
+    func oldValuesAreRead() throws {
+        let name = "neechan.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defaults.set(512, forKey: "media.cacheLimit")
+
+        #expect(AppSettings(defaults: defaults).mediaCacheLimitMegabytes == 5 * 1024)
+    }
+}
+
+@MainActor
+@Suite("Media cache age")
+struct MediaCacheAgeTests {
+    private func makeSettings() throws -> AppSettings {
+        let name = "neechan.tests.\(UUID().uuidString)"
+        return AppSettings(defaults: try #require(UserDefaults(suiteName: name)))
+    }
+
+    /// Long enough for a thread followed over weeks, short enough that a phone
+    /// is not carrying last spring's clips around.
+    @Test("a fresh install keeps cached media for a month")
+    func startsAtAMonth() throws {
+        #expect(try makeSettings().mediaCacheMaxAgeDays == 30)
+    }
+
+    @Test("every length on offer is kept exactly as chosen")
+    func choicesRoundTrip() throws {
+        let settings = try makeSettings()
+        for choice in AppSettings.cacheAgeChoicesDays {
+            settings.mediaCacheMaxAgeDays = choice
+            #expect(settings.mediaCacheMaxAgeDays == choice)
+        }
+    }
+
+    /// Snapped by membership rather than to the nearest number: forever is
+    /// stored as zero, and zero is not close to one day, it is the opposite.
+    @Test("anything else falls back to the length a fresh install has")
+    func othersFallBack() throws {
+        let settings = try makeSettings()
+        settings.mediaCacheMaxAgeDays = 7
+        #expect(settings.mediaCacheMaxAgeDays == 7)
+
+        // Forever is a stop on the slider, not a stray value.
+        settings.mediaCacheMaxAgeDays = 0
+        #expect(settings.mediaCacheMaxAgeDays == 0)
+
+        settings.mediaCacheMaxAgeDays = 3
+        #expect(settings.mediaCacheMaxAgeDays == 30)
+
+        settings.mediaCacheMaxAgeDays = -5
+        #expect(settings.mediaCacheMaxAgeDays == 30)
+    }
+
+    @Test("a length left by an older version is not trusted")
+    func oldValuesAreRead() throws {
+        let name = "neechan.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defaults.set(90, forKey: "media.cacheMaxAge")
+
+        #expect(AppSettings(defaults: defaults).mediaCacheMaxAgeDays == 30)
     }
 }
 

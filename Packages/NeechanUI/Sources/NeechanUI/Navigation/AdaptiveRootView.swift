@@ -47,6 +47,12 @@ public struct AdaptiveRootView: View {
                 await MediaCache.shared.setByteLimit(
                     services.settings.mediaCacheLimitMegabytes * 1024 * 1024
                 )
+                // And how long they asked to keep it. Applying this at launch is
+                // what actually clears out what has gone stale: eviction other-
+                // wise only runs on the way to the background.
+                await MediaCache.shared.setMaxAge(
+                    days: services.settings.mediaCacheMaxAgeDays
+                )
                 await services.startWatching()
             }
             .sheet(item: challengeItem) { challenge in

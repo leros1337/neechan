@@ -63,7 +63,7 @@ public final class AppSettings {
             Self.readDouble(defaults, Key.textScale, default: 1)
         )
         self.storedThumbnailScale = Self.clampScale(
-            Self.readDouble(defaults, Key.thumbnailScale, default: 1)
+            Self.readDouble(defaults, Key.thumbnailScale, default: Self.defaultThumbnailScale)
         )
         self.storedCollapsePostLineLimit = Self.readInt(
             defaults, Key.collapseLines, default: 12
@@ -243,6 +243,13 @@ public final class AppSettings {
         }
     }
 
+    /// How large attachment thumbnails are unless the reader says otherwise.
+    ///
+    /// A little under full size: the thumbnails the site serves are bigger than
+    /// a post needs, and at full size they crowd out the text that was the
+    /// reason for opening the thread.
+    public static let defaultThumbnailScale = 0.8
+
     /// Multiplies attachment thumbnails.
     public var thumbnailScale: Double {
         get { storedThumbnailScale }
@@ -409,10 +416,72 @@ public final class AppSettings {
         set { write(newValue, forKey: Key.downloadBookmark) }
     }
 
+    /// The sizes the media cache may be set to, in megabytes.
+    ///
+    /// Four, far apart, because the choice is "roughly how much of this phone am
+    /// I willing to give a board" and nobody wants to pick between 512 MB and
+    /// 1 GB. Video is what fills this: one clip can be 60 MB, so the smallest
+    /// here still holds a evening's worth.
+    public static let cacheLimitChoicesMegabytes = [5 * 1024, 10 * 1024, 20 * 1024, 50 * 1024]
+
     /// Ceiling for the on-disk media cache, in megabytes.
+    ///
+    /// Always one of `cacheLimitChoicesMegabytes`, on the way in and on the way
+    /// out, so what settings shows and what the cache enforces cannot disagree.
+    /// A value stored by an older version is read as the nearest of them.
     public var mediaCacheLimitMegabytes: Int {
-        get { Self.readInt(defaults, Key.cacheLimit, default: 512) }
-        set { write(max(32, newValue), forKey: Key.cacheLimit) }
+        get {
+            Self.nearestCacheLimit(
+                Self.readInt(
+                    defaults, Key.cacheLimit, default: Self.cacheLimitChoicesMegabytes[0]
+                )
+            )
+        }
+        set { write(Self.nearestCacheLimit(newValue), forKey: Key.cacheLimit) }
+    }
+
+    /// How long cached media may go unused before it is dropped, in days.
+    ///
+    /// Zero is forever, and is last on purpose: the slider runs from the
+    /// shortest keep to no limit at all.
+    public static let cacheAgeChoicesDays = [1, 7, 30, 0]
+
+    /// How long media is kept unless the reader says otherwise.
+    ///
+    /// A month is long enough that a thread followed over several weeks still
+    /// opens from disk, and short enough that a phone is not carrying last
+    /// spring's webms around. Forever is one drag away for anyone who wants it.
+    public static let defaultCacheAgeDays = 30
+
+    /// Drop cached media untouched for this many days, or zero to keep it.
+    ///
+    /// Measured from when a file was last used rather than from when it
+    /// arrived, so a clip watched again this morning is not thrown away for
+    /// having been fetched last month.
+    public var mediaCacheMaxAgeDays: Int {
+        get {
+            let stored = Self.readInt(
+                defaults, Key.cacheMaxAge, default: Self.defaultCacheAgeDays
+            )
+            return Self.cacheAgeChoicesDays.contains(stored)
+                ? stored
+                : Self.defaultCacheAgeDays
+        }
+        set {
+            write(
+                Self.cacheAgeChoicesDays.contains(newValue)
+                    ? newValue
+                    : Self.defaultCacheAgeDays,
+                forKey: Key.cacheMaxAge
+            )
+        }
+    }
+
+    /// The allowed size closest to what was asked for.
+    public static func nearestCacheLimit(_ megabytes: Int) -> Int {
+        cacheLimitChoicesMegabytes.min {
+            abs($0 - megabytes) < abs($1 - megabytes)
+        } ?? cacheLimitChoicesMegabytes[0]
     }
 
     /// Clamps a scale to what the layout can absorb without breaking.
@@ -536,6 +605,7 @@ public final class AppSettings {
         static let savesToPhotos = "media.savesToPhotos"
         static let downloadBookmark = "media.downloadBookmark"
         static let cacheLimit = "media.cacheLimit"
+        static let cacheMaxAge = "media.cacheMaxAge"
         static let boardViewModes = "board.viewModes"
         static let lastViewMode = "board.lastViewMode"
         static let language = "general.language"
