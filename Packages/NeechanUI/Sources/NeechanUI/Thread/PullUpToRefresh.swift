@@ -21,6 +21,14 @@ struct PullUpProgress: Equatable {
     /// Whether the reader has dragged far enough that letting go will refresh.
     private(set) var isArmed = false
 
+    /// Spelled out rather than left to the memberwise initialiser: a private
+    /// stored property makes that one private too on Swift 6.2, so the tests
+    /// could not build it. Swift 6.3 is happy either way, which is why this
+    /// only showed up on CI.
+    init(threshold: CGFloat = 72) {
+        self.threshold = threshold
+    }
+
     /// Whether the indicator is worth showing at all.
     ///
     /// A few points of rubber-banding happen on any flick to the end, and an
