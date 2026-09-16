@@ -5,11 +5,23 @@ import NeechanSettings
 
 @Suite("Unread tracker")
 struct UnreadTrackerTests {
-    @Test("a thread never opened has everything unread")
+    /// Everything is unread, and that is exactly why there is no divider: a
+    /// line above the opening post separates the thread from nothing.
+    @Test("a thread never opened has everything unread and no divider")
     func neverOpened() {
         let tracker = UnreadTracker(lastReadPostNum: 0, mode: .automatic)
-        #expect(tracker.firstUnreadPostNum(in: [1, 2, 3]) == 1)
+        #expect(tracker.firstUnreadPostNum(in: [1, 2, 3]) == nil)
+        #expect(tracker.showsDivider(before: 1, in: [1, 2, 3]) == false)
         #expect(tracker.unreadCount(in: [1, 2, 3]) == 3)
+    }
+
+    /// The same rule where the reader did read something, but every post they
+    /// read has since been deleted: there is still nothing above the line.
+    @Test("nothing read that still exists means no divider")
+    func everythingReadWasDeleted() {
+        let tracker = UnreadTracker(lastReadPostNum: 2, mode: .automatic)
+        #expect(tracker.firstUnreadPostNum(in: [7, 8]) == nil)
+        #expect(tracker.unreadCount(in: [7, 8]) == 2)
     }
 
     @Test("posts up to the last read one are read")

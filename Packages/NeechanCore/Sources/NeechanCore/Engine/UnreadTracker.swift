@@ -17,8 +17,14 @@ public struct UnreadTracker: Sendable, Equatable {
     }
 
     /// The post the "new posts" divider goes above, if there is one.
+    ///
+    /// The divider marks a border, so it needs something on both sides of it. A
+    /// thread being opened for the first time has every post unread, and a line
+    /// above the opening post said "new posts" about the whole thread, with
+    /// nothing above it that was old.
     public func firstUnreadPostNum(in postNums: [Int]) -> Int? {
         guard mode != .never else { return nil }
+        guard let first = postNums.first, first <= lastReadPostNum else { return nil }
         return postNums.first { $0 > lastReadPostNum }
     }
 
