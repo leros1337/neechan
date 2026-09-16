@@ -37,7 +37,9 @@ struct MediaKindTests {
     @Test("only WebM needs the bundled FFmpeg build")
     func onlyWebMNeedsFFmpeg() {
         #expect(MediaKind.webmVideo.requiresFFmpeg)
-        #expect(MediaKind.mp4Video.requiresFFmpeg == false)
+        // MP4 too: the board serves HEVC tagged `hev1`, which AVFoundation
+        // refuses to open, so nothing played and nothing said why.
+        #expect(MediaKind.mp4Video.requiresFFmpeg)
         #expect(MediaKind.stillImage.requiresFFmpeg == false)
         #expect(MediaKind.webmVideo.isVideo)
         #expect(MediaKind.mp4Video.isVideo)
@@ -72,7 +74,8 @@ struct MediaPlayerOptionsTests {
     @Test("WebM asks for software decoding, MP4 does not")
     func decodingRoute() {
         #expect(MediaPlayerOptions(kind: .webmVideo).requiresSoftwareDecoding)
-        #expect(MediaPlayerOptions(kind: .mp4Video).requiresSoftwareDecoding == false)
+        #expect(MediaPlayerOptions(kind: .mp4Video).requiresSoftwareDecoding)
+        #expect(MediaPlayerOptions(kind: .stillImage).requiresSoftwareDecoding == false)
     }
 
     @Test("a video plays once by default; looping is something the reader turns on")

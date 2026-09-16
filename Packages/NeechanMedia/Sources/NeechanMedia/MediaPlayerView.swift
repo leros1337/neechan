@@ -3,8 +3,9 @@ import SwiftUI
 
 /// Plays a video.
 ///
-/// The engine underneath is chosen from `options.kind`: WebM goes to FFmpeg,
-/// MP4 to AVFoundation. Callers see only this view and `PlaybackState`.
+/// Video is decoded by FFmpeg whatever the container: AVFoundation cannot open
+/// VP8 or VP9 at all, and refuses the `hev1`-tagged HEVC the board serves in
+/// MP4. Callers see only this view and `PlaybackState`.
 public struct MediaPlayerView: View {
     private let url: URL
     private let options: MediaPlayerOptions
@@ -36,10 +37,13 @@ public struct MediaPlayerView: View {
     }
 
     public var body: some View {
+        // The engine is chosen here rather than when the options are built: the
+        // choice is global to KSPlayer, and a gallery builds options for every
+        // page it holds. This view exists only for the file being played.
         KSVideoPlayer(
             coordinator: coordinator,
             url: url,
-            options: KSPlayerBridge.makeOptions(from: options)
+            options: KSPlayerBridge.playerOptions(for: options)
         )
         .onStateChanged { _, newState in
             let mapped = KSPlayerBridge.playbackState(from: newState)

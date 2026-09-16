@@ -31,9 +31,13 @@ struct GalleryPage: View {
         case loading
         case still(PlatformImage)
         case animated(AnimatedImageDecoder.Animation)
-        case video
+        /// A video, already on the device: the engine plays a local file.
+        case video(URL)
         case failed(String)
     }
+
+    /// How far a video download has got, for the spinner to say so.
+    @State private var downloadFraction: Double?
 
     var body: some View {
         ZStack {
@@ -101,9 +105,16 @@ struct GalleryPage: View {
     private var content: some View {
         switch loadState {
         case .idle, .loading:
-            ProgressView()
-                .tint(.white)
-                .onTapGesture(perform: onSingleTap)
+            VStack(spacing: 10) {
+                ProgressView()
+                    .tint(.white)
+                if let downloadFraction {
+                    Text(verbatim: "\(Int(downloadFraction * 100))%")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.8))
+                }
+            }
+            .onTapGesture(perform: onSingleTap)
 
         case .still(let image):
             #if os(iOS)
@@ -120,17 +131,15 @@ struct GalleryPage: View {
             EmptyView()
             #endif
 
-        case .video:
-            if let url {
-                VideoPage(
-                    url: url,
-                    options: playerOptions,
-                    onSingleTap: onSingleTap,
-                    state: $playbackState,
-                    progress: $playbackProgress,
-                    control: $playbackControl
-                )
-            }
+        case .video(let file):
+            VideoPage(
+                url: file,
+                options: playerOptions,
+                onSingleTap: onSingleTap,
+                state: $playbackState,
+                progress: $playbackProgress,
+                control: $playbackControl
+            )
 
         case .failed(let message):
             ContentUnavailableView {
@@ -152,13 +161,27 @@ struct GalleryPage: View {
             loadState = .failed(String(localized: "This file has no address.", bundle: .module, locale: AppLocale.current))
             return
         }
-        if item.isVideo {
-            loadState = .video
-            return
-        }
-
         loadState = .loading
         let referer = services.settings.domain.baseURL
+
+        if item.isVideo {
+            // Fetched by the app, not by the player: the engine's own HTTP
+            // client is turned away by Cloudflare on one of the mirrors, and
+            // a file on the device plays the same from either.
+            do {
+                let file = try await LocalMediaFile.resolve(
+                    url, referer: referer, downloader: services.downloader
+                ) { progress in
+                    Task { @MainActor in downloadFraction = progress.fraction }
+                }
+                guard !Task.isCancelled else { return }
+                loadState = .video(file)
+            } catch {
+                guard !Task.isCancelled else { return }
+                loadState = .failed(error.readableSaveMessage)
+            }
+            return
+        }
         do {
             // Full-size files are too large for URLCache to keep, so the gallery
             // uses its own disk cache: paging back to an image is instant and

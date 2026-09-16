@@ -12,15 +12,23 @@ public enum MediaKind: Sendable, Equatable {
     case animatedImage
     /// VP8/VP9 in a Matroska container. Requires the FFmpeg player.
     case webmVideo
-    /// H.264/HEVC in MP4. AVFoundation can decode this in hardware.
+    /// H.264 or HEVC in MP4.
     case mp4Video
 
     public var isVideo: Bool {
         self == .webmVideo || self == .mp4Video
     }
 
-    /// True when AVFoundation cannot open the file and FFmpeg must be used.
+    /// True when the file must be played by FFmpeg rather than AVFoundation.
+    ///
+    /// Every video, not only WebM. AVFoundation plays HEVC in an MP4 only when
+    /// the track is tagged `hvc1`, and the board serves `hev1` — the same
+    /// stream with its parameter sets carried in-band — which it refuses to
+    /// open at all, silently. It is equally unhappy with the MP3 audio these
+    /// files sometimes carry under an `mp4a` tag. FFmpeg plays both without
+    /// complaint, and still decodes H.264 and HEVC through VideoToolbox, so
+    /// this costs the hardware path nothing.
     public var requiresFFmpeg: Bool {
-        self == .webmVideo
+        isVideo
     }
 }
