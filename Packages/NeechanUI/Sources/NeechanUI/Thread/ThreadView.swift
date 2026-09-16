@@ -18,6 +18,8 @@ public struct ThreadView: View {
     @State private var isShowingHiddenPosts = false
     @State private var isSaving = false
     @State private var isShowingGalleryGrid = false
+    /// Whether the favorites are open over the thread.
+    @State private var isShowingFavorites = false
     @State private var browserLink: BrowserLink?
     /// The post at the top of the screen, which is what gets remembered.
     ///
@@ -146,9 +148,15 @@ public struct ThreadView: View {
             topPost.num = visible.first
         }
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .refreshable { await model.refresh(userInitiated: true) }
         // New posts land at the bottom, which is where the reader already is,
-        // so the thread also refreshes by pulling up past its end.
+        // so the thread refreshes by pulling up past its end.
+        //
+        // Pulling *down* deliberately does not, even though that is the usual
+        // gesture. The top of a thread is where the search field is tucked
+        // away, and a refresh control in the same place fought it for the same
+        // drag: pulling down far enough left the field pushed halfway down an
+        // empty screen, with the posts below it. The reader who wants a reload
+        // without scrolling to the end has it in the thread's menu.
         .pullUpToRefresh { await model.refresh(userInitiated: true) }
         // Searching a thread belongs in the thread. Sending the reader to the
         // search tab lost their place and their way back.
@@ -188,10 +196,17 @@ public struct ThreadView: View {
                 Task { await model.refresh() }
             }
         }
+        .sheet(isPresented: $isShowingFavorites) {
+            FavoritesWindow().presentationDetents([.large])
+        }
         .toolbar { toolbar(model, matchCount: posts.count) }
         // Reading is a full-screen job: the tab bar under a thread only offers
         // ways out of it, and while scrolling it shrinks to a pill in the
         // corner that is easy to hit by accident. It comes back on the way out.
+        //
+        // Set here, by the thread itself, and not from the shell: hiding it
+        // there, from the navigation stack, does not take at all — the bar
+        // stays up over the thread.
         .hidesTabBar()
         // Inset rather than overlaid, so the buttons always clear the edge of
         // the screen, and with no spacing so they sit as low as they can.
@@ -237,12 +252,20 @@ public struct ThreadView: View {
         })
     }
 
+    /// Whether the reader is actually looking at this thread.
+    ///
+    /// A window is presented over the thread rather than in place of it, so the
+    /// view never disappears and `isVisible` stays true underneath it. Without
+    /// this, a thread read in the window and the thread behind it would both
+    /// poll, which is two threads' worth of requests for one reader.
+    private var isReading: Bool { isVisible && !isShowingFavorites }
+
     /// What the auto-refresh loop depends on. A change to any of it restarts it.
     private var autoRefreshKey: AutoRefreshKey {
         AutoRefreshKey(
             seconds: services.settings.autoRefreshIntervalSeconds,
             isActive: scenePhase == .active,
-            isVisible: isVisible
+            isVisible: isReading
         )
     }
 
@@ -255,7 +278,7 @@ public struct ThreadView: View {
     /// and one new post puts it straight back to the chosen rate.
     private func autoRefresh() async {
         let seconds = services.settings.autoRefreshIntervalSeconds
-        guard seconds > 0, !isOfflineSource, scenePhase == .active, isVisible else { return }
+        guard seconds > 0, !isOfflineSource, scenePhase == .active, isReading else { return }
 
         let base = Duration.seconds(seconds)
         var quietPolls = 0
@@ -366,18 +389,23 @@ public struct ThreadView: View {
 
     @ToolbarContentBuilder
     private func toolbar(_ model: ThreadViewModel, matchCount: Int) -> some ToolbarContent {
-        // Sharing is its own capsule: it is the action readers reach for most
-        // after reading, and burying it in a menu costs a tap every time.
-        if let url = threadURL {
-            ToolbarItem(placement: .trailingBar) {
-                ShareLink(item: url, subject: Text(model.snapshot.meta.title)) {
-                    Label {
-                        Text("Share link", bundle: .module)
-                    } icon: {
-                        Image(systemName: "square.and.arrow.up")
-                    }
+        // The favorites, over the thread rather than instead of it. This used
+        // to be a share button, which was a second way to reach what the menu
+        // below already offers; getting to another kept thread meant backing
+        // out of this one to go looking, which nothing offered at all.
+        ToolbarItem(placement: .trailingBar) {
+            Button {
+                isShowingFavorites = true
+            } label: {
+                Label {
+                    Text("Favorites", bundle: .module)
+                } icon: {
+                    // A drawn symbol rather than an emoji, so it takes the
+                    // tint and the weight of everything else on the bar.
+                    Image(systemName: "paperplane")
                 }
             }
+            .accessibilityIdentifier("favorites-window")
         }
         ToolbarItem(placement: .trailingBar) {
             ThreadToolbarMenu(

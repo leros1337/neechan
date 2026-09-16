@@ -2,6 +2,10 @@ import XCTest
 
 /// Checks the two things readers noticed: short posts must not be collapsed,
 /// and a thread must be shareable.
+///
+/// Sharing lives in the thread's menu. It was also a button of its own on the
+/// toolbar until the favorites took that place; the menu had carried it all
+/// along, so nothing was lost but the duplicate.
 @MainActor
 final class PostPresentationUITests: LiveUITestCase {
     func testShortPostsAreNotCollapsed() throws {
@@ -31,6 +35,10 @@ final class PostPresentationUITests: LiveUITestCase {
         launchApp()
         openDefaultBoard(app)
         openThreadWithReplies(app)
+
+        let menu = app.navigationBars.buttons["Thread actions"].firstMatch
+        XCTAssertTrue(menu.waitForExistence(timeout: Self.networkTimeout), "no thread menu")
+        menu.tap()
 
         let share = app.buttons["Share link"].firstMatch
         XCTAssertTrue(

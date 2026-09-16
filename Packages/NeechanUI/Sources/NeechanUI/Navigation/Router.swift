@@ -32,6 +32,13 @@ public final class Router {
     public var historyPath: [AppRoute] = []
     public var settingsPath: [AppRoute] = []
 
+    /// Whether a window is on screen over the current screen, such as the
+    /// favorites a thread can show without the reader leaving it.
+    ///
+    /// A window is a way of looking something up, not a place to be: what is
+    /// chosen in one opens on the stack underneath, and the window goes.
+    public private(set) var isWindowOpen = false
+
     public init() {}
 
     /// The stack belonging to the tab currently on screen.
@@ -54,8 +61,40 @@ public final class Router {
         }
     }
 
+    public func openWindow() {
+        isWindowOpen = true
+    }
+
+    public func closeWindow() {
+        isWindowOpen = false
+    }
+
+    /// Opens a screen on the stack the reader is in.
+    ///
+    /// A push from inside a window closes it on the way. Screens in this app
+    /// never push themselves — they all call this — so a window can show the
+    /// favorites list unchanged and still hand the reader over to the thread
+    /// they chose, rather than showing it inside a card they then have to
+    /// close.
     public func push(_ route: AppRoute) {
-        activePath.append(route)
+        guard isWindowOpen else {
+            activePath.append(route)
+            return
+        }
+        closeWindow()
+
+        switch route {
+        case .thread, .savedThread:
+            // Kept on top of what the reader was reading, so Back returns to
+            // the thread they opened the window from.
+            activePath.append(route)
+        default:
+            // A board starts a fresh line of travel rather than landing on top
+            // of a thread. A thread hides the tab bar for everything above it
+            // as well as for itself, so a board opened there arrived with no
+            // way back to the rest of the app.
+            activePath = [route]
+        }
     }
 
     /// Threads open on any tab's stack.

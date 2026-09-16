@@ -29,6 +29,9 @@ public struct FavoritesView: View {
                             FavoriteBoardRow(item: board)
                         }
                         .buttonStyle(.plain)
+                        // Named so a test can open one row on purpose rather
+                        // than by counting: the two sections share a list.
+                        .accessibilityIdentifier("favorite-board-\(board.board)")
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
                                 Task { await removeBoard(board.board) }
@@ -55,6 +58,7 @@ public struct FavoritesView: View {
                             FavoriteRow(item: item)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("favorite-thread-\(item.key.threadNum)")
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
                                 Task { await remove(item) }
