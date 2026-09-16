@@ -40,11 +40,15 @@ final class AppearanceAndGalleryUITests: LiveUITestCase {
             app.navigationBars["Theme"].waitForExistence(timeout: 5),
             "the theme screen did not open"
         )
-        for scheme in ["System", "Crimson", "Forest", "Midnight"] {
+        for scheme in ["System", "Crimson", "Forest", "Amber"] {
             XCTAssertTrue(
                 app.staticTexts[scheme].exists,
                 "\(scheme) is not offered"
             )
+        }
+        // Midnight became the System scheme, and Solarized went with it.
+        for gone in ["Midnight", "Solarized"] {
+            XCTAssertFalse(app.staticTexts[gone].exists, "\(gone) should no longer be offered")
         }
 
         // From a known scheme: a failed run stops before its own reset, so the

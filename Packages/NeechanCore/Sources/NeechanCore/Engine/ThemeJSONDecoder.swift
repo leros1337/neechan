@@ -91,20 +91,26 @@ public struct NeechanTheme: Sendable, Hashable, Codable, Identifiable {
         self.isDark = isDark
     }
 
-    /// The look the app ships with: the system's own colours, which is what lets
-    /// it follow light and dark mode without a theme being chosen at all.
+    /// The look the app ships with, and the one every unknown theme id falls
+    /// back to.
+    ///
+    /// This is the palette that used to ship as "Midnight": a cool light-blue
+    /// accent and the post colours that suit a dark board, which is how the app
+    /// is mostly read. Light and dark mode are still the reader's Appearance
+    /// setting — a theme here is only the accent and the colours inside a post,
+    /// since Liquid Glass supplies the chrome.
     public static let builtIn = NeechanTheme(
         id: "neechan.system",
         name: "System",
-        accent: ThemeColor(red: 0, green: 0.48, blue: 1),
-        background: ThemeColor(red: 0.95, green: 0.95, blue: 0.97),
-        card: ThemeColor(red: 1, green: 1, blue: 1),
-        postText: ThemeColor(red: 0, green: 0, blue: 0),
-        secondaryText: ThemeColor(red: 0.42, green: 0.42, blue: 0.45),
-        link: ThemeColor(red: 0, green: 0.48, blue: 1),
-        quote: ThemeColor(red: 0.30, green: 0.56, blue: 0.30),
-        spoiler: ThemeColor(red: 0.85, green: 0.85, blue: 0.87),
-        isDark: false
+        accent: ThemeColor(red: 0.30, green: 0.68, blue: 0.95),
+        background: ThemeColor(red: 0.07, green: 0.09, blue: 0.11),
+        card: ThemeColor(red: 0.11, green: 0.14, blue: 0.17),
+        postText: ThemeColor(red: 0.90, green: 0.93, blue: 0.95),
+        secondaryText: ThemeColor(red: 0.55, green: 0.60, blue: 0.65),
+        link: ThemeColor(red: 0.30, green: 0.68, blue: 0.95),
+        quote: ThemeColor(red: 0.50, green: 0.76, blue: 0.50),
+        spoiler: ThemeColor(red: 0.18, green: 0.22, blue: 0.26),
+        isDark: true
     )
 
     /// Whether this is one of the shipped looks, which cannot be deleted.
@@ -146,32 +152,6 @@ public struct NeechanTheme: Sendable, Hashable, Codable, Identifiable {
             name: "Amber",
             accent: ThemeColor(red: 0.85, green: 0.58, blue: 0.13),
             quote: ThemeColor(red: 0.38, green: 0.53, blue: 0.28)
-        ),
-        NeechanTheme(
-            id: "neechan.midnight",
-            name: "Midnight",
-            accent: ThemeColor(red: 0.30, green: 0.68, blue: 0.95),
-            background: ThemeColor(red: 0.07, green: 0.09, blue: 0.11),
-            card: ThemeColor(red: 0.11, green: 0.14, blue: 0.17),
-            postText: ThemeColor(red: 0.90, green: 0.93, blue: 0.95),
-            secondaryText: ThemeColor(red: 0.55, green: 0.60, blue: 0.65),
-            link: ThemeColor(red: 0.30, green: 0.68, blue: 0.95),
-            quote: ThemeColor(red: 0.50, green: 0.76, blue: 0.50),
-            spoiler: ThemeColor(red: 0.18, green: 0.22, blue: 0.26),
-            isDark: true
-        ),
-        NeechanTheme(
-            id: "neechan.solarized",
-            name: "Solarized",
-            accent: ThemeColor(red: 0.15, green: 0.55, blue: 0.82),
-            background: ThemeColor(red: 0.00, green: 0.17, blue: 0.21),
-            card: ThemeColor(red: 0.03, green: 0.21, blue: 0.26),
-            postText: ThemeColor(red: 0.51, green: 0.58, blue: 0.59),
-            secondaryText: ThemeColor(red: 0.40, green: 0.48, blue: 0.51),
-            link: ThemeColor(red: 0.15, green: 0.55, blue: 0.82),
-            quote: ThemeColor(red: 0.52, green: 0.60, blue: 0.00),
-            spoiler: ThemeColor(red: 0.03, green: 0.21, blue: 0.26),
-            isDark: true
         ),
     ]
 
