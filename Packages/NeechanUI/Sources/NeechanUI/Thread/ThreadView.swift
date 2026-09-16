@@ -532,7 +532,8 @@ public struct ThreadView: View {
                     },
                     onDismissAll: {
                         withAnimation(.snappy(duration: 0.2)) { model.dismissAllQuotes() }
-                    }
+                    },
+                    onOpenAttachment: { attachment in openGallery(at: attachment, in: model) }
                 )
                 .padding(.horizontal, 12)
                 .padding(.bottom, 12)

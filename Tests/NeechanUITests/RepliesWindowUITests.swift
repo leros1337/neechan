@@ -54,6 +54,30 @@ final class RepliesWindowUITests: LiveUITestCase {
         )
     }
 
+    /// A picture or a clip in a reply opens in the viewer, as it does in the
+    /// thread. The cards here used to be built with no way to open their files.
+    func testAFileInAReplyOpensTheViewer() throws {
+        let app = XCUIApplication()
+        _ = try openRepliesWindow(app)
+
+        let thumbnail = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "attachment-"))
+            .firstMatch
+        var scrolls = 0
+        while !thumbnail.exists, scrolls < 4 {
+            app.swipeUp()
+            scrolls += 1
+        }
+        try XCTSkipUnless(thumbnail.exists, "no reply in this window carried a file")
+        thumbnail.tap()
+
+        XCTAssertTrue(
+            galleryCounter(app).waitForExistence(timeout: Self.networkTimeout),
+            "tapping a file in a reply did not open the viewer"
+        )
+        attach(app, name: "24-reply-attachment")
+    }
+
     func testTheRepliesWindowCanBeSwipedAway() throws {
         let app = XCUIApplication()
         let done = try openRepliesWindow(app)

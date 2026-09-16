@@ -12,6 +12,8 @@ struct QuotePopupView: View {
     let depth: Int
     var onDismiss: () -> Void
     var onDismissAll: () -> Void
+    /// A file in the quoted post was tapped.
+    var onOpenAttachment: (NeechanAPI.Attachment) -> Void = { _ in }
 
     @Environment(\.neechanTheme) private var theme
     @State private var revealSpoilers = false
@@ -28,7 +30,7 @@ struct QuotePopupView: View {
             if !quoted.post.files.isEmpty {
                 // Smaller than in the thread: a preview is about the text, and a
                 // full-size thumbnail pushed the quote off the screen.
-                QuotedAttachmentsRow(attachments: quoted.post.files)
+                QuotedAttachmentsRow(attachments: quoted.post.files, onSelect: onOpenAttachment)
             }
             quotedBody
         }
@@ -123,12 +125,18 @@ struct QuotePopupView: View {
     /// Attachments at preview size.
     private struct QuotedAttachmentsRow: View {
         let attachments: [NeechanAPI.Attachment]
+        var onSelect: (NeechanAPI.Attachment) -> Void
 
         var body: some View {
             ScrollView(.horizontal) {
                 HStack(spacing: 8) {
                     ForEach(attachments) { attachment in
-                        ThumbnailView(attachment: attachment, side: 88)
+                        Button {
+                            onSelect(attachment)
+                        } label: {
+                            ThumbnailView(attachment: attachment, side: 88)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -184,9 +192,15 @@ struct RepliesSheet: View {
     var onOpenOutside: (NeechanURL.Action) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppServices.self) private var services
     /// Post numbers pushed on top of the root list.
     @State private var path: [Int] = []
     @State private var revealedSpoilers: Set<Int> = []
+    /// A file tapped in one of the cards, shown in the viewer over this window.
+    ///
+    /// The cards here used to be built without a way to open their files, so a
+    /// picture or a clip in a reply did nothing when tapped.
+    @State private var galleryStart: GalleryStart?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -204,6 +218,19 @@ struct RepliesSheet: View {
                         .toolbar { doneButton }
                 }
                 .toolbar { doneButton }
+        }
+        .fullScreenCoverCompat(item: $galleryStart) { start in
+            GalleryView(
+                items: start.items,
+                startIndex: start.index,
+                services: services,
+                onGoToPost: { postNum in
+                    // Within this window: the post is pushed the way a quote
+                    // is, so Back returns to the list it came from.
+                    galleryStart = nil
+                    if snapshot.post(num: postNum) != nil { path.append(postNum) }
+                }
+            )
         }
         .environment(\.openURL, OpenURLAction { url in
             handle(NeechanURL.action(for: url))
@@ -279,8 +306,17 @@ struct RepliesSheet: View {
             isNew: false,
             revealSpoilers: revealedSpoilers.contains(post.num),
             indexInThread: snapshot.indexInThread(of: post),
-            onOpenReplies: {}
+            onOpenReplies: {},
+            onOpenAttachment: { attachment in openGallery(at: attachment) }
         )
+    }
+
+    /// Opens the viewer on a file, with the whole thread's files behind it so
+    /// the reader can page on from there, as they can from the thread.
+    private func openGallery(at attachment: NeechanAPI.Attachment) {
+        let items = snapshot.galleryItems
+        guard let index = items.firstIndex(where: { $0.attachment.path == attachment.path }) else { return }
+        galleryStart = GalleryStart(items: items, index: index)
     }
 
     private func replies(to postNum: Int) -> [Post] {
