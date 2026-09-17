@@ -1,3 +1,4 @@
+import NeechanAPI
 import NeechanCore
 import SwiftUI
 
@@ -9,6 +10,8 @@ import SwiftUI
 /// of its parent's body, so every one of those reads used to invalidate the
 /// whole thread. Here they invalidate a menu nobody is looking at.
 struct ThreadToolbarMenu: View {
+    @Environment(AppServices.self) private var services
+
     let model: ThreadViewModel
     /// The thread's own address, when the mirror could produce one.
     let threadURL: URL?
@@ -17,6 +20,7 @@ struct ThreadToolbarMenu: View {
 
     var onSearch: () -> Void
     var onShowGallery: () -> Void
+    var onShowDoomscroll: () -> Void
     var onShowHiddenPosts: () -> Void
     var onReload: () -> Void
     /// Saves the thread; true also downloads the files.
@@ -52,6 +56,16 @@ struct ThreadToolbarMenu: View {
             }
             .disabled(!model.snapshot.hasAttachments)
 
+            Button(action: onShowDoomscroll) {
+                Label {
+                    Text("Doomscroll", bundle: .module)
+                } icon: {
+                    Image(systemName: "play.square.stack")
+                }
+            }
+            .disabled(!model.snapshot.hasVideos)
+            .accessibilityIdentifier("doomscroll")
+
             if !model.isOffline {
                 Button(action: onReload) {
                     Label {
@@ -60,24 +74,30 @@ struct ThreadToolbarMenu: View {
                         Image(systemName: "arrow.clockwise")
                     }
                 }
-                Menu {
-                    Button { onSave(false) } label: {
-                        Text("Text and thumbnails", bundle: .module)
-                    }
-                    Button { onSave(true) } label: {
-                        Text("Everything, including files", bundle: .module)
-                    }
-                } label: {
-                    Label {
-                        Text(
-                            model.isSaved ? "Update saved copy" : "Save for offline",
-                            bundle: .module
-                        )
-                    } icon: {
-                        Image(
-                            systemName: model.isSaved
-                                ? "arrow.down.circle.fill" : "arrow.down.circle"
-                        )
+                // Offered only where the saved copy can be read back. The
+                // archiver keeps the server's own bytes and re-reads them as
+                // 2ch's thread shape, so saving a 4chan thread would write a
+                // file nothing could open — better no button than a broken one.
+                if services.capabilities.savingThreads {
+                    Menu {
+                        Button { onSave(false) } label: {
+                            Text("Text and thumbnails", bundle: .module)
+                        }
+                        Button { onSave(true) } label: {
+                            Text("Everything, including files", bundle: .module)
+                        }
+                    } label: {
+                        Label {
+                            Text(
+                                model.isSaved ? "Update saved copy" : "Save for offline",
+                                bundle: .module
+                            )
+                        } icon: {
+                            Image(
+                                systemName: model.isSaved
+                                    ? "arrow.down.circle.fill" : "arrow.down.circle"
+                            )
+                        }
                     }
                 }
             }

@@ -19,11 +19,19 @@ public struct AdaptiveRootView: View {
     /// When the app last came to the front, for the usage total.
     @State private var becameActiveAt: Date?
 
-    /// - Parameter defaultBoard: the board the reader asked the app to open
-    ///   on, if any. Taken here rather than read from settings inside, because
-    ///   the stack has to hold it before the first frame is drawn.
-    public init(defaultBoard: String? = nil) {
-        _router = State(initialValue: Router(defaultBoard: defaultBoard))
+    /// - Parameters:
+    ///   - defaultBoard: the board the reader asked the app to open on, if any.
+    ///     Taken here rather than read from settings inside, because the stack
+    ///     has to hold it before the first frame is drawn.
+    ///   - site: the imageboard that board is on, for the same reason.
+    ///   - policy: the reader's restrictions, for the same reason again: the
+    ///     board in settings may be one they have since decided not to see.
+    public init(
+        defaultBoard: String? = nil,
+        site: Imageboard = .default,
+        policy: ContentPolicy = .unrestricted
+    ) {
+        _router = State(initialValue: Router(defaultBoard: defaultBoard, site: site, policy: policy))
     }
 
     public var body: some View {
@@ -32,6 +40,30 @@ public struct AdaptiveRootView: View {
             // gallery cannot be left showing through it.
             .appLockCover(lock)
             .environment(router)
+            // Both site switches are handled here rather than on the controls
+            // that fire them: the imageboard can be changed from the board
+            // list, from the forum settings or by opening a pasted link from
+            // the other site, and one handler is the only way those cannot
+            // drift. The mirror handler was on a leaf view and so never ran
+            // when the mirror was changed from anywhere else.
+            .onChange(of: services.settings.imageboard) {
+                router.resetForSiteChange(
+                    defaultBoard: services.settings.defaultBoard,
+                    site: services.settings.imageboard
+                )
+                Task { await services.handleSiteChange() }
+            }
+            // Same reasoning as the two above: a restriction can be turned on
+            // from the Restrictions screen while the reader is standing inside
+            // a board it covers, and there is one shell to walk them out of it.
+            .onChange(of: services.settings.allowsMatureBoards) {
+                services.refreshContentPolicy()
+                router.policy = services.contentPolicy
+                router.pruneBlocked()
+            }
+            .onChange(of: services.settings.domain) {
+                Task { await services.handleDomainChange() }
+            }
             .tint(Color(theme.accent))
             .environment(\.neechanTheme, theme)
             .environment(\.locale, appLocale)
@@ -64,9 +96,11 @@ public struct AdaptiveRootView: View {
                 )
                 await services.startWatching()
             }
-            .sheet(item: challengeItem) { challenge in
-                CloudflareChallengeSheet(url: challenge.url)
-            }
+            // In a window of its own rather than a sheet here: the request a
+            // gate refuses first is the captcha, which is asked for from inside
+            // the reply form — itself a sheet — and SwiftUI will not present a
+            // second sheet over one already up.
+            .browserCheckCover(services)
             .onChange(of: scenePhase) { _, phase in
                 recordTime(for: phase)
             }
@@ -156,15 +190,6 @@ public struct AdaptiveRootView: View {
         services.settings.languageCode.map(Locale.init(identifier:)) ?? .autoupdatingCurrent
     }
 
-    /// The gate page to show, as an identifiable value so the sheet can be
-    /// driven by it and cleared when it is dismissed.
-    private var challengeItem: Binding<ChallengeItem?> {
-        Binding(
-            get: { services.pendingChallengeURL.map(ChallengeItem.init) },
-            set: { if $0 == nil { services.clearPendingChallenge() } }
-        )
-    }
-
     /// The appearance the reader pinned, or nil to follow the system.
     private var preferredColorScheme: ColorScheme? {
         switch services.settings.appearance {
@@ -175,20 +200,28 @@ public struct AdaptiveRootView: View {
     }
 }
 
-/// The gate page the shell is showing.
-struct ChallengeItem: Identifiable {
-    let url: URL
-    var id: String { url.absoluteString }
-}
-
 /// The screen a route leads to.
 ///
 /// One place, so the tab shell and the split shell can never drift apart on
 /// what a route means.
 struct RouteDestinationView: View {
+    @Environment(Router.self) private var router
+
     let route: AppRoute
 
     var body: some View {
+        // The belt behind `Router`'s guards: a route can already be on a stack
+        // at the moment a restriction is turned on, and this is drawn before
+        // the shell has walked the reader out of it.
+        if !router.allows(route) {
+            RestrictedRouteView()
+        } else {
+            destination
+        }
+    }
+
+    @ViewBuilder
+    private var destination: some View {
         switch route {
         case .board(let board):
             ThreadsListView(board: board)
@@ -205,6 +238,25 @@ struct RouteDestinationView: View {
         case .statistics:
             StatisticsView()
         }
+    }
+}
+
+/// Shown in place of a screen the reader's restrictions cover.
+///
+/// Says which setting is responsible, because a screen that simply refuses to
+/// appear reads as a broken app rather than as a choice the reader made.
+struct RestrictedRouteView: View {
+    var body: some View {
+        ContentUnavailableView {
+            Label {
+                Text("Not available", bundle: .module)
+            } icon: {
+                Image(systemName: "hand.raised")
+            }
+        } description: {
+            Text("This board is turned off in Settings, under Restrictions.", bundle: .module)
+        }
+        .accessibilityIdentifier("restricted-route")
     }
 }
 

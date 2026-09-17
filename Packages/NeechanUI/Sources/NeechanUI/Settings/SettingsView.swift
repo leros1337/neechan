@@ -16,6 +16,7 @@ public struct SettingsView: View {
                 row("Appearance", systemImage: "paintpalette") { InterfaceSettingsView() }
                 row("Contents", systemImage: "text.book.closed") { ContentsSettingsView() }
                 row("Media", systemImage: "photo.on.rectangle") { MediaSettingsView() }
+                row("Restrictions", systemImage: "hand.raised") { RestrictionsSettingsView() }
             }
 
             Section {

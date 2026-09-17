@@ -88,6 +88,10 @@ public final class ThreadViewModel {
     public enum QuoteStatus: Equatable, Sendable {
         case loading(postNum: Int)
         case missing(postNum: Int)
+        /// The post is on a board the reader's restrictions cover. Distinct
+        /// from `missing` on purpose: the post is very likely there, and saying
+        /// it is gone would be a lie about something the reader can change.
+        case restricted(postNum: Int)
     }
     /// Post whose replies are listed in a sheet.
     public var repliesSheetPostNum: Int?
@@ -191,7 +195,7 @@ public final class ThreadViewModel {
             response,
             rawJSON: rawJSON,
             key: key,
-            domain: services.settings.domain,
+            endpoints: services.settings.siteSelection.endpoints,
             policy: includingFiles ? .fullFiles : .thumbnails,
             downloader: services.downloader
         )
@@ -326,12 +330,10 @@ public final class ThreadViewModel {
         loadState = state
     }
 
-    /// Marks the posts this device wrote, which 2ch does not report.
+    /// Marks the posts this device wrote, which neither site reports.
     public func loadOwnPosts() async {
         guard
-            let nums = try? await services.ownPosts.postNums(
-                board: key.board, threadNum: key.threadNum
-            )
+            let nums = try? await services.ownPosts.postNums(in: key)
         else {
             return
         }
@@ -511,12 +513,20 @@ public final class ThreadViewModel {
     public func showQuote(board: String, threadNum: Int?, postNum: Int) async {
         quoteStatus = nil
 
+        // Checked before the fetch, and after the local look-up below would be
+        // too late: this is the one way into another board that never builds a
+        // route, so `Router` cannot refuse it.
         if let local = snapshot.post(num: postNum) {
             withAnimation(.snappy(duration: 0.2)) {
                 quotePopups.append(
                     QuotedPost(post: local, content: snapshot.content(of: postNum), isRemote: false)
                 )
             }
+            return
+        }
+
+        guard services.contentPolicy.allows(code: board, on: services.site) else {
+            quoteStatus = .restricted(postNum: postNum)
             return
         }
 

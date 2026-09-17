@@ -1,3 +1,4 @@
+import NeechanAPI
 import NeechanCore
 import Observation
 import SwiftUI
@@ -39,6 +40,14 @@ public final class Router {
     /// chosen in one opens on the stack underneath, and the window goes.
     public private(set) var isWindowOpen = false
 
+    /// What the reader is willing to be shown, and the imageboard they are on.
+    ///
+    /// Held here rather than reached for through `AppServices` so this stays a
+    /// plain value type its tests can drive directly. The shell keeps both in
+    /// step; nothing else writes them.
+    public var policy: ContentPolicy = .unrestricted
+    public var site: Imageboard = .default
+
     public init() {}
 
     /// Starts on the board the reader asked to open on.
@@ -50,10 +59,42 @@ public final class Router {
     /// - Parameter defaultBoard: whatever is stored in settings, in whatever
     ///   shape the reader typed it. Anything that cannot be a board code opens
     ///   the board list, which is what the app did before there was a choice.
-    public convenience init(defaultBoard: String?) {
+    public convenience init(
+        defaultBoard: String?,
+        site: Imageboard = .default,
+        policy: ContentPolicy = .unrestricted
+    ) {
         self.init()
-        guard let code = defaultBoard.flatMap(BoardCode.normalized) else { return }
+        self.site = site
+        self.policy = policy
+        guard let code = defaultBoard.flatMap({ BoardCode.normalized($0, for: site) }) else {
+            return
+        }
+        // A restricted board can be sitting in settings from before the reader
+        // closed the gate, and this is the one push that happens before any
+        // screen exists to refuse it.
+        guard policy.allows(code: code, on: site) else { return }
         boardsPath = [.board(code)]
+    }
+
+    /// Empties every stack after the imageboard changes.
+    ///
+    /// A route on any of them names a board or a thread on the site the reader
+    /// has just left, and the client can no longer fetch it. `selectedTab` is
+    /// deliberately left alone: the reader switched from somewhere, and moving
+    /// them to another tab as well would be a second surprise.
+    public func resetForSiteChange(defaultBoard: String?, site: Imageboard) {
+        closeWindow()
+        self.site = site
+        if let code = defaultBoard.flatMap({ BoardCode.normalized($0, for: site) }),
+            policy.allows(code: code, on: site) {
+            boardsPath = [.board(code)]
+        } else {
+            boardsPath = []
+        }
+        favoritesPath = []
+        historyPath = []
+        settingsPath = []
     }
 
     /// The stack belonging to the tab currently on screen.
@@ -92,6 +133,7 @@ public final class Router {
     /// they chose, rather than showing it inside a card they then have to
     /// close.
     public func push(_ route: AppRoute) {
+        guard allows(route) else { return }
         guard isWindowOpen else {
             activePath.append(route)
             return
@@ -132,24 +174,62 @@ public final class Router {
 
     /// Opens whatever the search box resolved to, in the tab that suits it.
     public func open(_ target: NavigationTarget) {
+        guard policy.allows(target) else { return }
+        selectedTab = .boards
         switch target {
         case .board(let board):
-            selectedTab = .boards
-            boardsPath = [.board(board)]
-        case .thread(let board, let threadNum):
-            selectedTab = .boards
-            boardsPath = [.board(board), .thread(ThreadKey(board: board, threadNum: threadNum))]
-        case .threadAtPost(let board, let threadNum, let postNum):
-            selectedTab = .boards
-            boardsPath = [
-                .board(board),
-                .thread(ThreadKey(board: board, threadNum: threadNum), scrollTo: postNum),
-            ]
+            boardsPath = [.board(board.code)]
+        case .thread(let key):
+            boardsPath = [.board(key.board), .thread(key)]
+        case .threadAtPost(let key, let postNum):
+            boardsPath = [.board(key.board), .thread(key, scrollTo: postNum)]
         case .post(let board, let num):
             // The thread is unknown until the post is looked up; the search
             // screen resolves it before pushing.
-            selectedTab = .boards
-            boardsPath = [.board(board), .thread(ThreadKey(board: board, threadNum: num), scrollTo: num)]
+            let key = ThreadKey(site: board.site, board: board.code, threadNum: num)
+            boardsPath = [.board(board.code), .thread(key, scrollTo: num)]
+        }
+    }
+
+    // MARK: Restrictions
+
+    /// Whether the reader's restrictions let this screen be opened.
+    ///
+    /// A thread is judged on *its own* imageboard rather than the selected one:
+    /// a route can outlive a switch, and a pasted link resolves to whichever
+    /// site its host names.
+    public func allows(_ route: AppRoute) -> Bool {
+        switch route {
+        case .board(let code), .archive(let code), .serverSearch(let code):
+            policy.allows(code: code, on: site)
+        case .thread(let key, _), .savedThread(let key):
+            policy.allows(key)
+        case .userBoards:
+            // Every board a 2ch reader made is restricted, so the screen behind
+            // this has nothing on it to show.
+            policy.allowsMatureBoards
+        case .statistics:
+            true
+        }
+    }
+
+    /// Walks the reader out of anything they may no longer see.
+    ///
+    /// Called when a restriction is turned on, because a reader can be standing
+    /// inside a board at the moment it becomes restricted. Each stack is cut at
+    /// the first route that is now refused, since everything above it was
+    /// reached through it.
+    ///
+    /// Turning the restriction back off does not put the stacks back, and
+    /// should not: the reader has been returned to somewhere real, and
+    /// resurrecting a screen they were walked out of minutes ago would be a
+    /// surprise.
+    public func pruneBlocked() {
+        closeWindow()
+        for path in [\Router.boardsPath, \.favoritesPath, \.historyPath, \.settingsPath] {
+            if let cut = self[keyPath: path].firstIndex(where: { !allows($0) }) {
+                self[keyPath: path].removeSubrange(cut...)
+            }
         }
     }
 }

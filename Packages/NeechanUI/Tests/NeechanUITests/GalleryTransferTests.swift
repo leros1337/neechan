@@ -82,7 +82,7 @@ struct GalleryTransferTests {
         let item = GalleryItem(
             attachment: attachment,
             postNum: 7,
-            threadKey: ThreadKey(board: "b", threadNum: 1)
+            threadKey: ThreadKey(site: .dvach, board: "b", threadNum: 1)
         )
         // A cache and a block store of this test's own, so a save neither
         // reads what another run left behind nor writes into the real one.

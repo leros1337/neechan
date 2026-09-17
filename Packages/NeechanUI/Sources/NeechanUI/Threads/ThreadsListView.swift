@@ -65,7 +65,7 @@ public struct ThreadsListView: View {
             .sheet(isPresented: $isComposingThread) {
                 ReplyFormView(board: board, thread: nil) { outcome in
                     if case .threadCreated(let num) = outcome {
-                        router.push(.thread(ThreadKey(board: board, threadNum: num)))
+                        router.push(.thread(ThreadKey(site: services.site, board: board, threadNum: num)))
                     }
                 }
             }
@@ -103,7 +103,7 @@ public struct ThreadsListView: View {
             // change, rather than per row while drawing.
             .task(id: RuleInputs(threadNums: threads.map(\.num), rules: autohideRules)) {
                 ruleHiddenNums = await PostPreview.hiddenThreadNums(
-                    in: threads, onBoard: board, rules: autohideRules
+                    in: threads, onBoard: boardRef, rules: autohideRules
                 )
             }
             // Debounced by the task's own cancellation: a keystroke replaces the
@@ -112,7 +112,7 @@ public struct ThreadsListView: View {
                 guard !searchText.isEmpty else { return }
                 try? await Task.sleep(for: .milliseconds(200))
                 guard !Task.isCancelled else { return }
-                filteredThreads = await PostPreview.filter(threads, matching: searchText)
+                filteredThreads = await PostPreview.filter(threads, matching: searchText, site: services.site)
             }
     }
 
@@ -192,9 +192,12 @@ public struct ThreadsListView: View {
         )
     }
 
+    /// This board, with the imageboard it is on.
+    private var boardRef: BoardRef { BoardRef(site: services.site, code: board) }
+
     private func toggleBoardFavorite() async {
         isBoardFavorite = (try? await services.favorites.toggleBoard(
-            board, name: boardInfo?.name ?? board
+            boardRef, name: boardInfo?.name ?? board
         )) ?? isBoardFavorite
     }
 
@@ -284,7 +287,7 @@ public struct ThreadsListView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        if boardInfo?.allowsPosting ?? false {
+        if services.allowsPosting, boardInfo?.allowsPosting ?? false {
             ToolbarItem(placement: .trailingBar) {
                 Button {
                     isComposingThread = true
@@ -309,22 +312,28 @@ public struct ThreadsListView: View {
                     }
                 }
                 Section {
-                    Button {
-                        router.push(.serverSearch(board))
-                    } label: {
-                        Label {
-                            Text("Search this board", bundle: .module)
-                        } icon: {
-                            Image(systemName: "magnifyingglass")
+                    if services.capabilities.serverSearch {
+                        Button {
+                            router.push(.serverSearch(board))
+                        } label: {
+                            Label {
+                                Text("Search this board", bundle: .module)
+                            } icon: {
+                                Image(systemName: "magnifyingglass")
+                            }
                         }
                     }
-                    Button {
-                        router.push(.archive(board))
-                    } label: {
-                        Label {
-                            Text("Archive", bundle: .module)
-                        } icon: {
-                            Image(systemName: "archivebox")
+                    // Offered where the site keeps one, and where this board
+                    // is one of the boards it keeps it for.
+                    if services.capabilities.archive, boardInfo?.hasArchive != false {
+                        Button {
+                            router.push(.archive(board))
+                        } label: {
+                            Label {
+                                Text("Archive", bundle: .module)
+                            } icon: {
+                                Image(systemName: "archivebox")
+                            }
                         }
                     }
                 }
@@ -440,8 +449,8 @@ public struct ThreadsListView: View {
                 Image(systemName: "star")
             }
         }
-        if let url = DvachLinks.thread(
-            board: board, threadNum: thread.num, on: services.settings.domain
+        if let url = SiteLinks.thread(
+            board: board, threadNum: thread.num, on: services.settings.siteSelection
         ) {
             Section {
                 LinkActionsMenu(url: url, title: threadTitle(thread))
@@ -450,7 +459,7 @@ public struct ThreadsListView: View {
     }
 
     private func toggleHidden(_ thread: ThreadSummary) async {
-        let key = ThreadKey(board: board, threadNum: thread.num)
+        let key = ThreadKey(site: services.site, board: board, threadNum: thread.num)
         if hiddenThreadNums.contains(thread.num) {
             try? await services.hidden.unhideThread(key)
         } else {
@@ -461,16 +470,16 @@ public struct ThreadsListView: View {
 
     private func addFavorite(_ thread: ThreadSummary) async {
         try? await services.favorites.add(
-            ThreadKey(board: board, threadNum: thread.num),
+            ThreadKey(site: services.site, board: board, threadNum: thread.num),
             title: threadTitle(thread),
             thumbnailPath: thread.opPost.files.first?.thumbnail
         )
     }
 
     private func loadHidden() async {
-        hiddenThreadNums = (try? await services.hidden.hiddenThreadNums(on: board)) ?? []
+        hiddenThreadNums = (try? await services.hidden.hiddenThreadNums(on: boardRef)) ?? []
         autohideRules = (try? await services.hidden.rules()) ?? []
-        isBoardFavorite = (try? await services.favorites.isFavoriteBoard(board)) ?? false
+        isBoardFavorite = (try? await services.favorites.isFavoriteBoard(boardRef)) ?? false
     }
 
     private func threadTitle(_ thread: ThreadSummary) -> String {
@@ -484,7 +493,7 @@ public struct ThreadsListView: View {
     /// gallery shows; the rest of the thread's media is a tap away inside it.
     private func openMedia(_ attachment: NeechanAPI.Attachment, in thread: ThreadSummary) {
         let items = thread.opPost.files.map {
-            GalleryItem(attachment: $0, post: thread.opPost)
+            GalleryItem(attachment: $0, post: thread.opPost, site: services.site)
         }
         guard let index = items.firstIndex(where: { $0.attachment.path == attachment.path })
         else {
@@ -494,7 +503,7 @@ public struct ThreadsListView: View {
     }
 
     private func open(_ thread: ThreadSummary) {
-        router.push(.thread(ThreadKey(board: board, threadNum: thread.num)))
+        router.push(.thread(ThreadKey(site: services.site, board: board, threadNum: thread.num)))
     }
 
     private var viewModeBinding: Binding<ThreadsViewMode> {

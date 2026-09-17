@@ -73,7 +73,7 @@ struct ServerSearchView: View {
     private func open(_ post: Post) {
         let threadNum = post.parent == 0 ? post.num : post.parent
         router.push(
-            .thread(ThreadKey(board: board, threadNum: threadNum), scrollTo: post.num)
+            .thread(ThreadKey(site: services.site, board: board, threadNum: threadNum), scrollTo: post.num)
         )
     }
 

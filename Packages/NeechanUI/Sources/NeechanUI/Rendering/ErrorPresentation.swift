@@ -32,6 +32,12 @@ extension DvachError {
             String(localized: "The site wants to check your browser.", bundle: .neechanUI, locale: AppLocale.current)
         case .transport:
             String(localized: "No connection.", bundle: .neechanUI, locale: AppLocale.current)
+        case .unsupported:
+            String(
+                localized: "This imageboard does not offer that.",
+                bundle: .neechanUI,
+                locale: AppLocale.current
+            )
         }
     }
 
@@ -41,7 +47,7 @@ extension DvachError {
         case .transport, .decoding: true
         case .http(let status, _): status >= 500 || status == 429
         case .api(let error): error.code.isTransient
-        case .cloudflareChallenge: false
+        case .cloudflareChallenge, .unsupported: false
         }
     }
 }

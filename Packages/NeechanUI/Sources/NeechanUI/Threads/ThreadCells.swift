@@ -141,6 +141,8 @@ private struct MediaTapTarget: View {
 // MARK: Pieces
 
 private struct ThreadTitle: View {
+    @Environment(AppServices.self) private var services
+
     let thread: ThreadSummary
 
     /// True once the comment has been read and turned out to start with the
@@ -166,7 +168,7 @@ private struct ThreadTitle: View {
         // asking this question costs nothing beyond the comparison.
         .task(id: thread.num) {
             guard !subject.isEmpty else { return }
-            let comment = await PostPreview.text(for: thread.opPost)
+            let comment = await PostPreview.text(for: thread.opPost, site: services.site)
             echoesComment = ThreadSubject.echoes(subject, comment: comment)
         }
     }
@@ -174,6 +176,8 @@ private struct ThreadTitle: View {
 
 /// The opening post's text, parsed off the main actor so scrolling stays smooth.
 private struct ThreadPreviewText: View {
+    @Environment(AppServices.self) private var services
+
     let post: Post
     let lineLimit: Int
 
@@ -193,7 +197,7 @@ private struct ThreadPreviewText: View {
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
             .task(id: post.num) {
-                text = await PostPreview.text(for: post)
+                text = await PostPreview.text(for: post, site: services.site)
             }
     }
 }
@@ -267,15 +271,15 @@ private struct PinBadge: View {
 enum PostPreview {
     private static let cache = PreviewCache()
 
-    static func text(for post: Post) async -> String {
-        await cache.text(for: post)
+    static func text(for post: Post, site: Imageboard) async -> String {
+        await cache.text(for: post, site: site)
     }
 
     /// Which of these threads the rules hide, parsing each opening post at most
     /// once.
     static func hiddenThreadNums(
         in threads: [ThreadSummary],
-        onBoard board: String,
+        onBoard board: BoardRef,
         rules: [AutohideRuleValue]
     ) async -> Set<Int> {
         await cache.hiddenThreadNums(in: threads, onBoard: board, rules: rules)
@@ -284,18 +288,20 @@ enum PostPreview {
     /// The threads matching a filter, parsing each opening post at most once.
     static func filter(
         _ threads: [ThreadSummary],
-        matching query: String
+        matching query: String,
+        site: Imageboard
     ) async -> [ThreadSummary] {
-        await cache.filter(threads, matching: query)
+        await cache.filter(threads, matching: query, site: site)
     }
 
     private actor PreviewCache {
         private var entries: [Int: String] = [:]
-        private let parser = CommentHTMLParser()
 
-        func text(for post: Post) -> String {
+        func text(for post: Post, site: Imageboard) -> String {
             if let cached = entries[post.num] { return cached }
-            let parsed = parser
+            // Built per call rather than held: it is one stored field, and the
+            // board being previewed can change imageboard under this cache.
+            let parsed = CommentHTMLParser(site: site)
                 .parse(post.comment, inThread: post.threadNum, onBoard: post.board)
                 .plainText
                 .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -308,19 +314,23 @@ enum PostPreview {
 
         func hiddenThreadNums(
             in threads: [ThreadSummary],
-            onBoard board: String,
+            onBoard board: BoardRef,
             rules: [AutohideRuleValue]
         ) -> Set<Int> {
             FilterEngine.hiddenThreadNums(
                 in: threads.map(\.opPost),
                 onBoard: board,
                 rules: rules,
-                commentText: { self.text(for: $0) }
+                commentText: { self.text(for: $0, site: board.site) }
             )
         }
 
-        func filter(_ threads: [ThreadSummary], matching query: String) -> [ThreadSummary] {
-            CatalogRepository.filter(threads, matching: query) { self.text(for: $0) }
+        func filter(
+            _ threads: [ThreadSummary],
+            matching query: String,
+            site: Imageboard
+        ) -> [ThreadSummary] {
+            CatalogRepository.filter(threads, matching: query) { self.text(for: $0, site: site) }
         }
     }
 }

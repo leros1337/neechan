@@ -16,7 +16,7 @@ struct ThreadViewModelTests {
 
     init() throws {
         recorded = try FixtureLoader.decode(ThreadResponse.self, from: .thread)
-        key = ThreadKey(board: "po", threadNum: recorded.currentThread)
+        key = ThreadKey(site: .dvach, board: "po", threadNum: recorded.currentThread)
     }
 
     private func makeModel(_ transport: StubTransport) throws -> ThreadViewModel {
@@ -387,7 +387,7 @@ struct RefreshAnnouncementTests {
 
     init() throws {
         recorded = try FixtureLoader.decode(ThreadResponse.self, from: .thread)
-        key = ThreadKey(board: "po", threadNum: recorded.currentThread)
+        key = ThreadKey(site: .dvach, board: "po", threadNum: recorded.currentThread)
     }
 
     private func makeModel(_ transport: StubTransport) throws -> (ThreadViewModel, AppServices) {
@@ -515,9 +515,7 @@ struct RefreshAnnouncementTests {
 
         // Mark the post the incoming replies quote as the reader's own.
         let quoted = try #require(try firstQuotedPostNum())
-        try await services.ownPosts.record(
-            board: key.board, threadNum: key.threadNum, postNum: quoted
-        )
+        try await services.ownPosts.record(key, postNum: quoted)
         await model.refresh()
 
         let announcement = try #require(model.lastRefresh)

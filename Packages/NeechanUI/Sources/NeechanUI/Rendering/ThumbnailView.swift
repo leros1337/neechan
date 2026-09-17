@@ -189,9 +189,10 @@ public struct ThumbnailView: View {
         !services.allowsMediaLoading && !isForced
     }
 
-    /// Thumbnails are blurred in safe-for-work mode until tapped.
+    /// Thumbnails are blurred until tapped unless the reader asked for NSFW
+    /// material as it comes.
     private var isBlurred: Bool {
-        services.settings.safeForWork && !isRevealed && image != nil
+        !services.settings.nsfwMode && !isRevealed && image != nil
     }
 
     /// The longest side this thumbnail will actually be drawn at, in pixels.

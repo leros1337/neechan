@@ -49,6 +49,13 @@ public struct ReplyFormView: View {
             .inlineNavigationTitle()
             .toolbar { toolbar }
         }
+        // Asked for again once a browser check has been passed: the captcha is
+        // the request a gate refuses first, and the reader has just done the
+        // one thing that would let it through.
+        .task(id: services.challengesPassed) {
+            guard let model, services.challengesPassed > 0 else { return }
+            await model.loadCaptcha()
+        }
         .task {
             guard model == nil else { return }
             let model = ReplyFormViewModel(board: board, thread: thread, services: services)
@@ -178,9 +185,11 @@ public struct ReplyFormView: View {
 
     @ViewBuilder
     private func captchaSection(_ model: ReplyFormViewModel) -> some View {
+        @Bindable var model = model
         Section {
             EmojiCaptchaView(
                 state: model.captcha,
+                sliderResponse: $model.sliderResponse,
                 secondsRemaining: model.captchaSecondsRemaining,
                 chosenKeys: model.chosenCaptchaKeys,
                 onSelect: { await model.selectEmoji(at: $0) },

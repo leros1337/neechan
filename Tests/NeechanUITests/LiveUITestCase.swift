@@ -30,10 +30,16 @@ class LiveUITestCase: XCTestCase {
     ///     also pin to English. The app has a language of its own that outlives
     ///     a run, so without this one test switching it leaves every later test
     ///     reading Russian. The test that exercises the switch opts out.
+    ///   - pinsRestrictions: keeps the content gates open. They outlive a run
+    ///     like everything else here, so a test that closed one would leave
+    ///     every later test looking at a directory with boards missing from it.
+    ///     The tests about the gates opt out and pin their own.
     @discardableResult
     func launchApp(
         extraArguments: [String] = [],
-        pinsLanguage: Bool = true
+        pinsLanguage: Bool = true,
+        pinsImageboard: Bool = true,
+        pinsRestrictions: Bool = true
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += extraArguments
@@ -41,9 +47,18 @@ class LiveUITestCase: XCTestCase {
         // left it on would face every later test with a lock screen it cannot
         // answer: the device's prompt belongs to another process.
         app.launchArguments += ["-general.appLock", "NO"]
-        // And on the board list rather than on somebody's default board: these
-        // tests open /b/ by tapping it, and the preference outlives a run.
-        app.launchArguments += ["-defaultBoard", ""]
+        // The imageboard outlives a run the way the language and the lock do.
+        // Without this, one test that switched to 4chan would leave every later
+        // test reading a different site's board directory. A test about 4chan
+        // itself opts out and pins its own.
+        if pinsImageboard {
+            app.launchArguments += ["-imageboard", "dvach"]
+            app.launchArguments += ["-defaultBoard", ""]
+        }
+        if pinsRestrictions {
+            app.launchArguments += ["-restrictions.allowsMature", "YES"]
+            app.launchArguments += ["-posting.enabled", "YES"]
+        }
         if pinsLanguage {
             app.launchArguments += ["-general.language", "system"]
         }

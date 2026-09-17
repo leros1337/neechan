@@ -80,7 +80,7 @@ struct CookiesManagerView: View {
         ) {
             Button(role: .destructive) {
                 Task {
-                    await services.cookies.removeAll()
+                    await services.cookies.removeAll(for: nil)
                     await reload()
                 }
             } label: {

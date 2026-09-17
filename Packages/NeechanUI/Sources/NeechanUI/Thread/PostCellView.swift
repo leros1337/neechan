@@ -33,7 +33,9 @@ struct PostCellView: View {
     /// Opens the gallery at the tapped attachment.
     var onOpenAttachment: (NeechanAPI.Attachment) -> Void = { _ in }
     /// Opens the reply form quoting this post.
-    var onReply: () -> Void = {}
+    /// Nil where the site takes no posts from this app; the action is then
+    /// not offered rather than offered and refused.
+    var onReply: (() -> Void)? = nil
     /// Hides posts by a rule made from this one.
     var onHide: (LocalHideRule) -> Void = { _ in }
     /// This post's own address on the site, for copying and sharing.
@@ -104,13 +106,15 @@ struct PostCellView: View {
         }
         .opacity(isDeleted ? 0.55 : 1)
         .contextMenu {
-            Button {
-                onReply()
-            } label: {
-                Label {
-                    Text("Reply to this post", bundle: .module)
-                } icon: {
-                    Image(systemName: "arrowshape.turn.up.left")
+            if let onReply {
+                Button {
+                    onReply()
+                } label: {
+                    Label {
+                        Text("Reply to this post", bundle: .module)
+                    } icon: {
+                        Image(systemName: "arrowshape.turn.up.left")
+                    }
                 }
             }
             Button {

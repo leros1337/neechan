@@ -85,7 +85,7 @@ struct SavedThreadsView: View {
         ) {
             Button(role: .destructive) {
                 Task {
-                    try? await services.savedThreads.removeAll()
+                    try? await services.savedThreads.removeAll(site: services.site)
                     await reload()
                 }
             } label: {
@@ -96,7 +96,7 @@ struct SavedThreadsView: View {
     }
 
     private func reload() async {
-        items = (try? await services.savedThreads.saved()) ?? []
+        items = (try? await services.savedThreads.saved(site: services.site)) ?? []
     }
 
     private func remove(_ item: SavedThreadItem) async {

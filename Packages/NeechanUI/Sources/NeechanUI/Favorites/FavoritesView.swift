@@ -181,8 +181,8 @@ public struct FavoritesView: View {
     }
 
     private func load() async {
-        items = (try? await services.favorites.favorites(order: order)) ?? []
-        boards = ((try? await services.favorites.favoriteBoards()) ?? [])
+        items = (try? await services.favorites.favorites(site: services.site, order: order)) ?? []
+        boards = ((try? await services.favorites.favoriteBoards(site: services.site)) ?? [])
             .map { FavoriteBoardItem(board: $0.board, name: $0.name) }
     }
 
@@ -215,7 +215,7 @@ public struct FavoritesView: View {
     }
 
     private func removeBoard(_ board: String) async {
-        try? await services.favorites.removeBoard(board)
+        try? await services.favorites.removeBoard(BoardRef(site: services.site, code: board))
         await load()
     }
 
@@ -225,7 +225,7 @@ public struct FavoritesView: View {
     }
 
     private func clearDeleted() async {
-        try? await services.favorites.removeDeleted()
+        try? await services.favorites.removeDeleted(site: services.site)
         await load()
     }
 }

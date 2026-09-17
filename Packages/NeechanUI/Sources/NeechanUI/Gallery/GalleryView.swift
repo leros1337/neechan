@@ -515,7 +515,7 @@ private struct ShareTarget: Identifiable {
 #if os(iOS)
 /// Bridges `UIActivityViewController`, which SwiftUI's ShareLink cannot replace
 /// here because the file is downloaded only when the reader asks to share.
-private struct ShareSheet: UIViewControllerRepresentable {
+struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
@@ -525,7 +525,7 @@ private struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 #else
-private struct ShareSheet: View {
+struct ShareSheet: View {
     let items: [Any]
     var body: some View { EmptyView() }
 }

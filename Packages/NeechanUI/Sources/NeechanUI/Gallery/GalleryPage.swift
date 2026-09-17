@@ -144,11 +144,11 @@ struct GalleryPage: View {
 
     /// The post this file was attached to, on the site.
     private var postURL: URL? {
-        DvachLinks.post(
+        SiteLinks.post(
             board: item.threadKey.board,
             threadNum: item.threadKey.threadNum,
             postNum: item.postNum,
-            on: services.settings.domain
+            on: services.settings.siteSelection
         )
     }
 

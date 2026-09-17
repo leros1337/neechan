@@ -97,4 +97,18 @@ extension ToolbarItemPlacement {
         .automatic
         #endif
     }
+
+    /// The large title's own row, beside the title rather than in the bar above
+    /// it.
+    ///
+    /// An item here rides the large title: level with it while the title is
+    /// expanded, and away with it once the list is scrolled and the title
+    /// collapses into the bar.
+    static var largeTitleBar: ToolbarItemPlacement {
+        #if os(iOS)
+        .largeTitle
+        #else
+        .automatic
+        #endif
+    }
 }

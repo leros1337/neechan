@@ -1,5 +1,6 @@
 import Foundation
 import NeechanAPI
+import os
 import NeechanCore
 import NeechanMedia
 import Observation
@@ -10,6 +11,9 @@ import SwiftUI
 @Observable
 public final class ReplyFormViewModel {
     public let board: String
+
+    /// The board and the imageboard it is on, for the stores keyed by both.
+    private var boardRef: BoardRef { BoardRef(site: services.site, code: board) }
     /// The thread being replied to; nil when creating one.
     public let thread: Int?
     /// Board rules, which decide which fields the form may show.
@@ -49,6 +53,12 @@ public final class ReplyFormViewModel {
         case loading
         /// A keyboard to answer, with the images already decoded.
         case challenge(image: PlatformImage?, keys: [PlatformImage?])
+        /// A slider puzzle for the reader to align and read out.
+        ///
+        /// Both images are handed over as they came. Nothing here works out
+        /// the offset or the characters: a person looks at it and types what
+        /// they see, which is the only way this is ever answered.
+        case slider(image: PlatformImage?, background: PlatformImage?, backgroundWidth: Int)
         case solved(token: String)
         /// The site waived it, for a passcode or because the board has it off.
         case notRequired
@@ -57,6 +67,8 @@ public final class ReplyFormViewModel {
         var isSolvedOrWaived: Bool {
             switch self {
             case .solved, .notRequired: true
+            // A slider puzzle is answered by the reader typing what they read,
+            // so whether it is solved is a question about the text field.
             default: false
             }
         }
@@ -69,10 +81,16 @@ public final class ReplyFormViewModel {
         case failed(message: String, needsNewCaptcha: Bool)
     }
 
+    private static let log = Logger(subsystem: Signposts.subsystem, category: "browser-check")
+
     private let services: AppServices
     private var session: EmojiCaptchaSession?
     private var solvedToken: String?
     private var proofOfWork: Int?
+    /// The token 4chan issued with the puzzle, sent back beside the answer.
+    private var sliderChallenge: String?
+    /// What the reader typed off the puzzle. Theirs alone.
+    public var sliderResponse = ""
     private var usesPasscode = false
     private var autosaveTask: Task<Void, Never>?
     private var countdownTask: Task<Void, Never>?
@@ -86,7 +104,7 @@ public final class ReplyFormViewModel {
     // MARK: Lifecycle
 
     public func start() async {
-        draft = (try? await services.drafts.draft(for: board, thread: thread)) ?? DraftState()
+        draft = (try? await services.drafts.draft(for: boardRef, thread: thread)) ?? DraftState()
         boardInfo = try? await services.boards.board(id: board)
         await loadCaptcha()
     }
@@ -95,10 +113,10 @@ public final class ReplyFormViewModel {
     public func scheduleAutosave() {
         autosaveTask?.cancel()
         let snapshot = draft
-        autosaveTask = Task { [weak self, board, thread, services] in
+        autosaveTask = Task { [weak self, boardRef, thread, services] in
             try? await Task.sleep(for: .milliseconds(700))
             guard !Task.isCancelled else { return }
-            try? await services.drafts.save(snapshot, board: board, thread: thread)
+            try? await services.drafts.save(snapshot, board: boardRef, thread: thread)
             _ = self
         }
     }
@@ -106,23 +124,44 @@ public final class ReplyFormViewModel {
     /// Saves immediately, for when the form closes.
     public func saveNow() async {
         autosaveTask?.cancel()
-        try? await services.drafts.save(draft, board: board, thread: thread)
+        try? await services.drafts.save(draft, board: boardRef, thread: thread)
     }
 
     public func discardDraft() async {
         autosaveTask?.cancel()
         draft = DraftState()
-        try? await services.drafts.discard(board: board, thread: thread)
+        try? await services.drafts.discard(board: boardRef, thread: thread)
+    }
+
+    /// The reader's answer, once they have written one.
+    private var sliderAnswer: (challenge: String, response: String)? {
+        guard let sliderChallenge else { return nil }
+        let typed = sliderResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+        return typed.isEmpty ? nil : (sliderChallenge, typed)
     }
 
     // MARK: Captcha
 
     public func loadCaptcha() async {
+        Self.log.notice("loading captcha for /\(self.board, privacy: .public)/")
         countdownTask?.cancel()
         captcha = .loading
         solvedToken = nil
         proofOfWork = nil
         chosenCaptchaKeys = []
+        sliderChallenge = nil
+        sliderResponse = ""
+
+        switch services.capabilities.captcha {
+        case .slider:
+            await loadSliderCaptcha()
+            return
+        case .none:
+            captcha = .notRequired
+            return
+        case .emoji:
+            break
+        }
 
         let session = services.makeCaptchaSession()
         self.session = session
@@ -131,6 +170,77 @@ public final class ReplyFormViewModel {
             await apply(state)
         } catch {
             captcha = .failed(String(describing: error))
+        }
+    }
+
+    /// Fetches 4chan's puzzle and shows it.
+    ///
+    /// A browser check reaches the reader through the same sheet every other
+    /// gated request uses, so there is nothing to do about it here beyond
+    /// saying why the captcha has not appeared.
+    private func loadSliderCaptcha() async {
+        do {
+            let captcha = try await services.client.fourchanCaptcha(board: board, thread: thread)
+            if captcha.isNotRequired {
+                self.captcha = .notRequired
+                return
+            }
+            sliderChallenge = captcha.challenge
+            self.captcha = .slider(
+                image: captcha.image.flatMap(Self.decode),
+                background: captcha.background.flatMap(Self.decode),
+                backgroundWidth: captcha.backgroundWidth ?? 0
+            )
+            startSliderCountdown(seconds: captcha.ttl)
+        } catch let error as DvachError {
+            self.captcha = .failed(error.readableMessage)
+            // A gate is the one failure the reader can do something about, and
+            // the app is about to put the check in front of them. Rather than
+            // leaving the error on screen once they have passed it, wait for
+            // that and ask again.
+            if case .cloudflareChallenge = error, !isWaitingForCheck {
+                await waitForCheckThenReload()
+            }
+        } catch {
+            self.captcha = .failed(error.readableMessage)
+        }
+    }
+
+    /// True while a reload is already queued behind a check.
+    ///
+    /// One waiter, not one per attempt: each failed reload used to queue
+    /// another, every waiter woke together, and each of those reloaded and
+    /// queued again — a pile that doubled with every round.
+    private var isWaitingForCheck = false
+
+    /// Reloads once the reader has passed the browser check.
+    private func waitForCheckThenReload() async {
+        isWaitingForCheck = true
+        await services.awaitChallengePass()
+        isWaitingForCheck = false
+        guard !Task.isCancelled else { return }
+        await loadCaptcha()
+    }
+
+    /// The puzzle expires like the emoji one does, so it is counted down and
+    /// asked for again rather than silently going stale.
+    private func startSliderCountdown(seconds: Int?) {
+        countdownTask?.cancel()
+        guard let seconds, seconds > 0 else {
+            captchaSecondsRemaining = nil
+            return
+        }
+        let expiresAt = Date.now.addingTimeInterval(TimeInterval(seconds))
+        countdownTask = Task { [weak self] in
+            while !Task.isCancelled {
+                let remaining = Int(expiresAt.timeIntervalSinceNow.rounded())
+                await MainActor.run { self?.captchaSecondsRemaining = max(0, remaining) }
+                if remaining <= 0 {
+                    await self?.loadCaptcha()
+                    return
+                }
+                try? await Task.sleep(for: .seconds(1))
+            }
         }
     }
 
@@ -321,9 +431,18 @@ public final class ReplyFormViewModel {
 
     public var canSend: Bool {
         guard case .sending = sendState else {
-            return !draft.isEmpty && captcha.isSolvedOrWaived && withinCommentLimit
+            // `allowsPosting` as well as the entry points that got us here: the
+            // reader can turn posting off with this form already open.
+            return services.allowsPosting
+                && !draft.isEmpty && captchaIsAnswered && withinCommentLimit
         }
         return false
+    }
+
+    /// Whether the captcha has been dealt with, however this site asks.
+    private var captchaIsAnswered: Bool {
+        if case .slider = captcha { return sliderAnswer != nil }
+        return captcha.isSolvedOrWaived
     }
 
     public var commentLimit: Int {
@@ -341,11 +460,13 @@ public final class ReplyFormViewModel {
         do {
             let outcome = try await services.posting.send(
                 draft,
-                board: board,
+                board: boardRef,
                 thread: thread,
                 captchaToken: solvedToken,
                 proofOfWork: proofOfWork,
+                sliderAnswer: sliderAnswer,
                 usesPasscode: usesPasscode,
+                deletionPassword: services.settings.postDeletionPassword,
                 onStage: { [weak self] stage in
                     Task { @MainActor in self?.sendState = .sending(stage) }
                 }

@@ -18,6 +18,7 @@ public struct ThreadView: View {
     @State private var isShowingHiddenPosts = false
     @State private var isSaving = false
     @State private var isShowingGalleryGrid = false
+    @State private var doomscrollStart: GalleryStart?
     /// Whether the favorites are open over the thread.
     @State private var isShowingFavorites = false
     @State private var browserLink: BrowserLink?
@@ -120,13 +121,14 @@ public struct ThreadView: View {
                         onOpenAttachment: { attachment in
                             openGallery(at: attachment, in: model)
                         },
-                        onReply: { replyTarget = ReplyTarget(quoting: post.num) },
+                        onReply: services.allowsPosting
+                            ? { replyTarget = ReplyTarget(quoting: post.num) } : nil,
                         onHide: { rule in Task { await model.hide(rule) } },
-                        postURL: DvachLinks.post(
+                        postURL: SiteLinks.post(
                             board: key.board,
                             threadNum: key.threadNum,
                             postNum: post.num,
-                            on: services.settings.domain
+                            on: services.settings.siteSelection
                         )
                     )
                     .id(post.num)
@@ -227,6 +229,17 @@ public struct ThreadView: View {
             let postNum = currentTopPostNum
             Task { await model.rememberPosition(postNum) }
         }
+        .fullScreenCoverCompat(item: $doomscrollStart) { start in
+            DoomscrollView(
+                items: start.items,
+                startIndex: start.index,
+                services: services,
+                onGoToPost: { postNum in
+                    doomscrollStart = nil
+                    scrollToPost(postNum)
+                }
+            )
+        }
         .fullScreenCoverCompat(item: $galleryStart) { start in
             GalleryView(
                 items: start.items,
@@ -309,10 +322,10 @@ public struct ThreadView: View {
 
     /// The thread's own address on the site, for sharing and opening.
     private var threadURL: URL? {
-        DvachLinks.thread(
+        SiteLinks.thread(
             board: key.board,
             threadNum: key.threadNum,
-            on: services.settings.domain
+            on: services.settings.siteSelection
         )
     }
 
@@ -337,7 +350,8 @@ public struct ThreadView: View {
                     .buttonStyle(.glass)
                     .accessibilityLabel(Text("Latest post", bundle: .module))
 
-                    if !model.snapshot.meta.isClosed, !model.snapshot.meta.isDeleted {
+                    if services.allowsPosting,
+                       !model.snapshot.meta.isClosed, !model.snapshot.meta.isDeleted {
                         Button {
                             replyTarget = ReplyTarget(quoting: nil)
                         } label: {
@@ -378,6 +392,15 @@ public struct ThreadView: View {
 
     /// Opens the gallery on the tapped file, with the whole thread behind it so
     /// the reader can swipe through every attachment.
+    /// Opens the feed on the thread's first video.
+    ///
+    /// Handed every attachment rather than only the videos: the feed does the
+    /// filtering, because what counts as a video there is decided by what the
+    /// player can actually open, which this module cannot ask.
+    private func startDoomscroll(in model: ThreadViewModel) {
+        doomscrollStart = GalleryStart(items: model.snapshot.galleryItems, index: 0)
+    }
+
     private func openGallery(at attachment: NeechanAPI.Attachment, in model: ThreadViewModel) {
         let items = model.snapshot.galleryItems
         guard let index = items.firstIndex(where: { $0.attachment.path == attachment.path })
@@ -414,6 +437,7 @@ public struct ThreadView: View {
                 matchCount: matchCount,
                 onSearch: { isSearchFocused = true },
                 onShowGallery: { isShowingGalleryGrid = true },
+                onShowDoomscroll: { startDoomscroll(in: model) },
                 onShowHiddenPosts: { isShowingHiddenPosts = true },
                 onReload: { Task { await model.reload(userInitiated: true) } },
                 onSave: { includingFiles in
@@ -441,6 +465,10 @@ public struct ThreadView: View {
                     Image(systemName: "questionmark.circle")
                         .foregroundStyle(.secondary)
                     Text("Post №\(postNum) is gone", bundle: .module)
+                case .restricted:
+                    Image(systemName: "hand.raised")
+                        .foregroundStyle(.secondary)
+                    Text("That board is turned off in Restrictions", bundle: .module)
                 }
             }
             .font(.subheadline)
@@ -451,7 +479,10 @@ public struct ThreadView: View {
             .accessibilityIdentifier("quote-status")
             .transition(.move(edge: .bottom).combined(with: .opacity))
             .task(id: model.quoteStatus) {
-                guard case .missing = status else { return }
+                switch status {
+                case .missing, .restricted: break
+                case .loading: return
+                }
                 try? await Task.sleep(for: .seconds(2.5))
                 withAnimation(.snappy) { model.dismissQuoteStatus() }
             }
@@ -579,6 +610,16 @@ public struct ThreadView: View {
         case .toggleSpoilers(let postNum):
             model.toggleSpoilers(in: postNum)
         case .external(let url):
+            // A link to a restricted board is refused here. It cannot be
+            // refused once the browser is up: the sheet is a Safari view
+            // controller, which offers no hook on what it navigates to.
+            if let target = NavigationQueryParser.parse(
+                url.absoluteString,
+                site: services.site,
+                currentBoard: nil
+            ), !services.contentPolicy.allows(target) {
+                return
+            }
             // Links off the site open in the app unless the reader asked for
             // Safari, so a tap does not lose the thread.
             if services.settings.usesInternalBrowser {

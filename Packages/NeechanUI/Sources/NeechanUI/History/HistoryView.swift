@@ -65,7 +65,7 @@ public struct HistoryView: View {
     }
 
     private func load() async {
-        items = (try? await services.history.search(searchText, limit: 200)) ?? []
+        items = (try? await services.history.search(searchText, site: services.site, limit: 200)) ?? []
     }
 
     private func remove(_ item: HistoryItem) async {
@@ -74,7 +74,7 @@ public struct HistoryView: View {
     }
 
     private func clear() async {
-        try? await services.history.clear()
+        try? await services.history.clear(site: services.site)
         await load()
     }
 }

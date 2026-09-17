@@ -20,11 +20,14 @@ public struct GalleryItem: Identifiable, Sendable, Hashable {
     }
 
     /// The files of one post, in the order the post carries them.
-    public init(attachment: NeechanAPI.Attachment, post: Post) {
+    ///
+    /// The site comes from the caller: a `Post` carries its board but not the
+    /// imageboard it was read from, because the JSON never says.
+    public init(attachment: NeechanAPI.Attachment, post: Post, site: Imageboard) {
         self.init(
             attachment: attachment,
             postNum: post.num,
-            threadKey: ThreadKey(board: post.board, threadNum: post.threadNum)
+            threadKey: ThreadKey(site: site, board: post.board, threadNum: post.threadNum)
         )
     }
 
@@ -53,7 +56,7 @@ extension ThreadSnapshot {
     /// Every attachment in the thread, in reading order.
     public var galleryItems: [GalleryItem] {
         posts.flatMap { post in
-            post.files.map { GalleryItem(attachment: $0, post: post) }
+            post.files.map { GalleryItem(attachment: $0, post: post, site: key.site) }
         }
     }
 }

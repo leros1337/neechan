@@ -73,7 +73,7 @@ struct HiddenThreadsView: View {
         ) {
             Button {
                 Task {
-                    try? await services.hidden.unhideAllThreads()
+                    try? await services.hidden.unhideAllThreads(site: services.site)
                     await reload()
                 }
             } label: {
@@ -84,7 +84,7 @@ struct HiddenThreadsView: View {
     }
 
     private func reload() async {
-        items = (try? await services.hidden.hiddenThreads()) ?? []
+        items = (try? await services.hidden.hiddenThreads(site: services.site)) ?? []
     }
 
     private func unhide(_ item: HiddenThreadItem) async {

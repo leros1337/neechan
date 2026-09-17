@@ -6,6 +6,8 @@ import SwiftUI
 /// them from. Each tap either advances to a new keyboard or finishes.
 struct EmojiCaptchaView: View {
     let state: ReplyFormViewModel.CaptchaState
+    /// What the reader has typed off a slider puzzle, if this site sets one.
+    @Binding var sliderResponse: String
     let secondsRemaining: Int?
     /// What the reader has picked so far, oldest first.
     var chosenKeys: [PlatformImage] = []
@@ -97,6 +99,31 @@ struct EmojiCaptchaView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+        // 4chan's puzzle. Both strips are shown and the reader lines them up
+        // by eye and types what they read; nothing in this app computes the
+        // offset or guesses a character, and nothing should.
+        case .slider(let image, let background, let backgroundWidth):
+            VStack(alignment: .leading, spacing: 10) {
+                Text(
+                    "Slide the background until the characters line up, then type them.",
+                    bundle: .module
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                SliderPuzzle(image: image, background: background, backgroundWidth: backgroundWidth)
+
+                TextField(text: $sliderResponse) {
+                    Text("What it says", bundle: .module)
+                }
+                .textFieldStyle(.roundedBorder)
+                #if os(iOS)
+                .textInputAutocapitalization(.characters)
+                #endif
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("slider-captcha-answer")
+            }
 
         case .challenge(let image, let keys):
             VStack(alignment: .leading, spacing: 10) {
@@ -192,6 +219,49 @@ struct EmojiKeyboardGrid: View {
                 .buttonStyle(.plain)
                 .disabled(busyIndex != nil)
                 .accessibilityLabel(Text("Symbol \(index + 1)", bundle: .module))
+            }
+        }
+    }
+}
+
+
+/// 4chan's slider captcha: the characters over a background the reader shifts.
+///
+/// The offset is theirs to find. This view holds it, draws it and reports
+/// nothing — there is deliberately no code anywhere that tries to work out what
+/// the right offset would be.
+private struct SliderPuzzle: View {
+    let image: PlatformImage?
+    let background: PlatformImage?
+    let backgroundWidth: Int
+
+    @State private var offset: Double = 0
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                if let background {
+                    Image(platformImage: background)
+                        .resizable()
+                        .scaledToFill()
+                        .offset(x: offset)
+                        .clipped()
+                }
+                if let image {
+                    Image(platformImage: image)
+                        .resizable()
+                        .scaledToFit()
+                }
+            }
+            .frame(height: 80)
+            .frame(maxWidth: .infinity)
+            .clipShape(.rect(cornerRadius: 10))
+            .background(.white, in: .rect(cornerRadius: 10))
+
+            if background != nil {
+                Slider(value: $offset, in: -Double(max(backgroundWidth, 1))...0)
+                    .accessibilityIdentifier("slider-captcha-offset")
+                    .accessibilityLabel(Text("Background position", bundle: .module))
             }
         }
     }

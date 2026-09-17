@@ -87,9 +87,6 @@ struct InterfaceSettingsView: View {
                         bundle: .module
                     )
                 }
-                Toggle(isOn: $settings.safeForWork) {
-                    Text("Safe for work", bundle: .module)
-                }
                 Toggle(isOn: $settings.showsHiddenThreads) {
                     Text("Show hidden threads", bundle: .module)
                 }
@@ -97,7 +94,7 @@ struct InterfaceSettingsView: View {
                 Text("Posts", bundle: .module)
             } footer: {
                 Text(
-                    "Safe for work blurs every thumbnail until it is tapped. Showing hidden threads brings them back as dimmed one-line rows you can tap to restore.",
+                    "Showing hidden threads brings them back as dimmed one-line rows you can tap to restore.",
                     bundle: .module
                 )
             }

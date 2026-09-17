@@ -5,12 +5,12 @@
 
 **English** · [Русский](README.ru.md)
 
-A native iOS client for the imageboard **2ch** (`2ch.org` / `2ch.life`), written in
-Swift 6 and SwiftUI for iOS 26. It aims for feature parity with the Android client
-[DashchanFork](https://github.com/TrixiEther/DashchanFork), restricted to the single
-site, and uses Apple's Liquid Glass design system for the navigation layer.
+A native iOS client for the imageboards **2ch** (`2ch.org` / `2ch.life`) and
+**4chan**, written in Swift 6 and SwiftUI for iOS 26. It aims for feature parity with
+the Android client [DashchanFork](https://github.com/TrixiEther/DashchanFork) on 2ch,
+and uses Apple's Liquid Glass design system for the navigation layer.
 
-Unofficial and unaffiliated with 2ch.
+Unofficial and unaffiliated with either site.
 
 <img src="preview.png" alt="The board list, in the app's dark theme" width="320">
 
@@ -28,9 +28,14 @@ developer account. iOS 26 or newer, iPhone or iPad.
 - **Reading** — boards as a catalog or page by page, in list, card or grid layout;
   threads with reply counts, quote popups, a replies window, in-thread search, and your
   place kept so a thread reopens where you left it.
-- **Posting** — replies and new threads, the markup toolbar wrapping what you select,
-  drafts, attachments with metadata stripped and randomised names, and the emoji captcha
-  with its proof-of-work.
+- **Two imageboards** — a switch on the board list flips between 2ch and 4chan.
+  Favourites, history, hidden threads and everything else you keep belong to the site
+  they came from, and a pasted link opens on whichever site it names.
+- **Posting** — on 2ch: replies and new threads, the markup toolbar wrapping what you
+  select, drafts, attachments with metadata stripped and randomised names, and the
+  emoji captcha with its proof-of-work. 4chan is read-only: its posting host sits behind
+  a browser-only check that refuses the app's own requests, so the reply button is not
+  offered there rather than offered and refused.
 - **Media** — a gallery with zoom and a full-screen viewer; WebM plays through FFmpeg,
   and a WebM you save is converted to H.264 MP4, because Photos will not accept one.
 - **Keeping up** — favourites with a watcher and unread counts, notifications, history,
@@ -83,7 +88,7 @@ workflow artifact instead of publishing it.
 | Path | What lives there |
 | --- | --- |
 | `Neechan/` | The app target: entry point, `Info.plist`, asset catalog |
-| `Packages/NeechanAPI` | 2ch HTTP client, models, comment HTML parser, captcha, posting. Foundation only |
+| `Packages/NeechanAPI` | HTTP client for both sites, per-site adapters, models, comment HTML parser, captcha, posting. Foundation only |
 | `Packages/NeechanSettings` | User preferences backed by `UserDefaults` |
 | `Packages/NeechanCore` | Domain engine (pure logic), SwiftData store, service actors |
 | `Packages/NeechanMedia` | Image and video playback, and the WebM converter. The only module allowed to import KSPlayer and FFmpeg |

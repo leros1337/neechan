@@ -23,7 +23,7 @@ struct ArchiveView: View {
             ForEach(visibleThreads) { thread in
                 Button {
                     router.push(
-                        .thread(ThreadKey(board: board, threadNum: thread.threadNum))
+                        .thread(ThreadKey(site: services.site, board: board, threadNum: thread.threadNum))
                     )
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {

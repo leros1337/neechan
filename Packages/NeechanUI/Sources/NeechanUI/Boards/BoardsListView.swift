@@ -15,25 +15,42 @@ public struct BoardsListView: View {
 
     public var body: some View {
         List {
+            titleRow
+
             // The board filter doubles as the app's "go to" field: a post
             // number, a board code or a pasted link all resolve here, which is
             // what the separate search tab used to be for.
             if let target = navigationTarget {
                 Section {
-                    Button {
-                        router.open(target)
-                        searchText = ""
-                    } label: {
-                        DestinationRow(target: target)
+                    if services.contentPolicy.allows(target) {
+                        Button {
+                            router.open(target)
+                            searchText = ""
+                        } label: {
+                            DestinationRow(target: target)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("go-to")
+                    } else {
+                        // `Router` refuses this too, but it does so silently.
+                        // A typed code that simply does nothing reads as a
+                        // broken field, so the reason belongs here.
+                        Label {
+                            Text("Turned off in Restrictions", bundle: .module)
+                        } icon: {
+                            Image(systemName: "hand.raised")
+                        }
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("go-to-restricted")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("go-to")
                 } header: {
                     Text("Go to", bundle: .module)
                 }
             }
 
-            if searchText.isEmpty {
+            if searchText.isEmpty,
+                services.capabilities.userBoards,
+                services.contentPolicy.allowsMatureBoards {
                 Section {
                     Button {
                         router.push(.userBoards)
@@ -63,15 +80,86 @@ public struct BoardsListView: View {
         .groupedListStyle()
         .scrollEdgeEffectStyle(.soft, for: .top)
         .searchable(text: $searchText)
-        .navigationTitle(Text("Boards", bundle: .module))
+        // The title is drawn in the list rather than by the navigation bar, so
+        // it can share its line with the switcher. Still set, and still
+        // inline, so the bar keeps its name for the accessibility tree and for
+        // anything that reads a screen's title — it simply draws nothing while
+        // this screen is the one on top.
+        // No navigation title: this screen draws its own, in the list, so that
+        // it can share its line with the switcher. Setting one as well puts the
+        // same word on screen twice — `toolbar(removing: .title)` does not take
+        // it off a large title, and an inline one simply moves the duplicate
+        // into the bar. Nothing is lost by leaving it out: every screen pushed
+        // from here comes back through a plain chevron, which is what iOS 26
+        // draws whether the previous screen named itself or not.
         .refreshable { await load(forceRefresh: true) }
         .overlay { stateOverlay }
-        .task { if categories.isEmpty { await load() } }
+        // Keyed on the imageboard, not merely "load once": the list held
+        // whatever it had, so switching sites left the old site's boards on
+        // screen until something else happened to reload them.
+        .task(id: services.site) {
+            if categories.isEmpty { loadState = .loading }
+            await load()
+        }
+    }
+
+    /// The screen's title, with the imageboard switcher on the same line.
+    ///
+    /// Drawn here rather than by the navigation bar because the bar cannot put
+    /// anything beside a large title: `ToolbarItemPlacement.largeTitle` renders
+    /// its content but creates no element at all — a plain `Button` placed
+    /// there is missing from the accessibility tree and never receives a tap.
+    /// Verified by dumping a running app's hierarchy; a `.topBarTrailing` probe
+    /// beside it appears exactly as expected.
+    ///
+    /// A segmented control rather than a menu: there are two sites and readers
+    /// flip between them, so one tap beats two and the one in use is visible
+    /// without opening anything.
+    @ViewBuilder
+    private var titleRow: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Boards", bundle: .module)
+                .font(.largeTitle.weight(.bold))
+            Spacer(minLength: 12)
+            Picker(selection: siteBinding) {
+                // Proper nouns, so `verbatim`: they are not translated, and the
+                // catalog test would otherwise ask for a Russian "4chan".
+                ForEach(Imageboard.allCases) { site in
+                    Text(verbatim: site.displayName).tag(site)
+                }
+            } label: {
+                Text("Imageboard", bundle: .module)
+            }
+            .pickerStyle(.segmented)
+            // Sized to its two names: left to itself a segmented picker takes
+            // every point of the row it is given.
+            .fixedSize()
+            .accessibilityIdentifier("imageboard-picker")
+        }
+        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+    }
+
+    /// Written straight to settings; the switch itself is handled once, on the
+    /// shell, because the same change can come from three different places.
+    private var siteBinding: Binding<Imageboard> {
+        Binding(
+            get: { services.settings.imageboard },
+            // Through `select` rather than straight to settings: it re-points
+            // the client before the new value is observable, which is what lets
+            // this list reload against the site the reader just chose.
+            set: { services.select($0) }
+        )
     }
 
     /// The destination the query resolves to, if it is one.
     private var navigationTarget: NavigationTarget? {
-        NavigationQueryParser.parse(searchText, currentBoard: services.settings.defaultBoard)
+        NavigationQueryParser.parse(
+            searchText,
+            site: services.site,
+            currentBoard: services.settings.defaultBoard
+        )
     }
 
     private var filteredCategories: [BoardsRepository.Category] {
@@ -195,10 +283,10 @@ private struct DestinationRow: View {
 
     private var title: String {
         switch target {
-        case .board(let board): "/\(board)/"
-        case .thread(let board, let threadNum): "/\(board)/\(threadNum)"
-        case .threadAtPost(let board, let threadNum, let postNum): "/\(board)/\(threadNum) → \(postNum)"
-        case .post(let board, let num): "/\(board)/ №\(num)"
+        case .board(let board): board.displayCode
+        case .thread(let key): key.description
+        case .threadAtPost(let key, let postNum): "\(key.description) → \(postNum)"
+        case .post(let board, let num): "\(board.displayCode) №\(num)"
         }
     }
 

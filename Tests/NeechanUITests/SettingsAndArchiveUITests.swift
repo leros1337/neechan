@@ -8,7 +8,9 @@ final class SettingsAndArchiveUITests: LiveUITestCase {
         let app = launchApp()
         openSettings(app)
 
-        for section in ["General", "Forum", "Appearance", "Contents", "Media", "About"] {
+        for section in [
+            "General", "Forum", "Appearance", "Contents", "Media", "Restrictions", "About",
+        ] {
             let row = app.buttons[section].firstMatch
             XCTAssertTrue(row.waitForExistence(timeout: 5), "\(section) is not listed")
             row.tap()
