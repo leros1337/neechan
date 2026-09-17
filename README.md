@@ -3,6 +3,8 @@
 [![Release](https://github.com/leros1337/neechan/actions/workflows/release.yml/badge.svg)](https://github.com/leros1337/neechan/actions/workflows/release.yml)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 
+**English** · [Русский](README.ru.md)
+
 A native iOS client for the imageboard **2ch** (`2ch.org` / `2ch.life`), written in
 Swift 6 and SwiftUI for iOS 26. It aims for feature parity with the Android client
 [DashchanFork](https://github.com/TrixiEther/DashchanFork), restricted to the single
