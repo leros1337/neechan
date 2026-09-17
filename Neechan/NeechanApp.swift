@@ -48,7 +48,10 @@ struct NeechanApp: App {
 
     var body: some Scene {
         WindowGroup {
-            AdaptiveRootView()
+            // The board the reader asked to open on is handed over here: the
+            // stack has to hold it before the first frame, or the board list
+            // shows for a moment and then jumps.
+            AdaptiveRootView(defaultBoard: services.settings.defaultBoard)
                 .environment(services)
                 .environment(lock)
                 .task { registerBackgroundRefresh() }

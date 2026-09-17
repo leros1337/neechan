@@ -16,8 +16,6 @@ public enum NavigationTarget: Sendable, Hashable {
 /// field, and readers expect that; anything it cannot resolve is left to be
 /// treated as a search term.
 public enum NavigationQueryParser {
-    /// 2ch board codes are short and alphanumeric.
-    private static let maxBoardCodeLength = 12
     private static let knownHosts: Set<String> = ["2ch.org", "2ch.life", "2ch.hk", "2ch.su", "2ch.pm"]
 
     /// - Parameter currentBoard: the board being read, so a bare post number
@@ -60,8 +58,9 @@ public enum NavigationQueryParser {
         }
 
         let segments = path.split(separator: "/").map(String.init)
-        guard let rawBoard = segments.first, isValidBoardCode(rawBoard) else { return nil }
-        let board = rawBoard.lowercased()
+        guard let rawBoard = segments.first, let board = BoardCode.normalized(rawBoard) else {
+            return nil
+        }
 
         // /{board}/res/{num}.html
         if segments.count >= 3, segments[1] == "res" {
@@ -87,22 +86,11 @@ public enum NavigationQueryParser {
         guard digits.allSatisfy(\.isNumber), !digits.isEmpty, let num = Int(digits) else {
             return nil
         }
-        guard let currentBoard, isValidBoardCode(currentBoard) else { return nil }
+        guard let currentBoard, BoardCode.normalized(currentBoard) != nil else { return nil }
         return .post(board: currentBoard, num: num)
     }
 
     private static func parseBoardCode(_ text: String) -> String? {
-        let code = text
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            .lowercased()
-        return isValidBoardCode(code) ? code : nil
-    }
-
-    private static func isValidBoardCode(_ code: String) -> Bool {
-        guard !code.isEmpty, code.count <= maxBoardCodeLength else { return false }
-        guard code.allSatisfy({ ($0.isLetter || $0.isNumber) && $0.isASCII }) else { return false }
-        // Every 2ch board code contains a letter. Without this a bare post
-        // number would be read as a board.
-        return code.contains(where: \.isLetter)
+        BoardCode.normalized(text)
     }
 }

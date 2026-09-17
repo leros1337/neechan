@@ -3566,6 +3566,23 @@
         }
       }
     },
+    "No board with that code.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No board with that code."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Доски с таким кодом нет."
+          }
+        }
+      }
+    },
     "No captcha needed": {
       "extractionState": "manual",
       "localizations": {
@@ -6044,6 +6061,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Этот пост не из этого треда"
+          }
+        }
+      }
+    },
+    "The app opens on this board. Leave it empty to start on the board list.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app opens on this board. Leave it empty to start on the board list."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Приложение будет открываться на этой доске. Оставьте пустым, чтобы начинать со списка досок."
           }
         }
       }

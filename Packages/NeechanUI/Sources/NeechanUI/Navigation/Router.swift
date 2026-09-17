@@ -41,6 +41,21 @@ public final class Router {
 
     public init() {}
 
+    /// Starts on the board the reader asked to open on.
+    ///
+    /// Seeded here rather than pushed once the app is up, so the board list
+    /// does not appear for a moment first. The board sits on top of the list
+    /// rather than replacing it, so Back goes where it always goes.
+    ///
+    /// - Parameter defaultBoard: whatever is stored in settings, in whatever
+    ///   shape the reader typed it. Anything that cannot be a board code opens
+    ///   the board list, which is what the app did before there was a choice.
+    public convenience init(defaultBoard: String?) {
+        self.init()
+        guard let code = defaultBoard.flatMap(BoardCode.normalized) else { return }
+        boardsPath = [.board(code)]
+    }
+
     /// The stack belonging to the tab currently on screen.
     public var activePath: [AppRoute] {
         get {

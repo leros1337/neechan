@@ -14,12 +14,17 @@ public struct AdaptiveRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
 
-    @State private var router = Router()
+    @State private var router: Router
     @State private var theme: NeechanTheme = .builtIn
     /// When the app last came to the front, for the usage total.
     @State private var becameActiveAt: Date?
 
-    public init() {}
+    /// - Parameter defaultBoard: the board the reader asked the app to open
+    ///   on, if any. Taken here rather than read from settings inside, because
+    ///   the stack has to hold it before the first frame is drawn.
+    public init(defaultBoard: String? = nil) {
+        _router = State(initialValue: Router(defaultBoard: defaultBoard))
+    }
 
     public var body: some View {
         shell

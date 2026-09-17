@@ -3,6 +3,46 @@ import Testing
 @testable import NeechanUI
 
 /// Where a push lands, now that a window can be open over a tab.
+/// Where the app starts.
+@MainActor
+@Suite("Router start")
+struct RouterStartTests {
+    @Test("the board the reader asked for opens, with the board list behind it")
+    func opensTheDefaultBoard() {
+        let router = Router(defaultBoard: "b")
+
+        #expect(router.selectedTab == .boards)
+        #expect(router.boardsPath == [.board("b")])
+    }
+
+    /// However the reader wrote it in settings.
+    @Test(
+        "the code is read the way it is everywhere else",
+        arguments: ["b", "/b/", " B "]
+    )
+    func normalisesTheCode(stored: String) {
+        #expect(Router(defaultBoard: stored).boardsPath == [.board("b")])
+    }
+
+    @Test(
+        "nothing to open leaves the board list",
+        arguments: [nil, "", "   ", "hello world", "12345"]
+    )
+    func staysOnTheList(stored: String?) {
+        #expect(Router(defaultBoard: stored).boardsPath.isEmpty)
+    }
+
+    /// The other tabs are not where a default board belongs.
+    @Test("only the boards tab is seeded")
+    func onlyTheBoardsTab() {
+        let router = Router(defaultBoard: "b")
+
+        #expect(router.favoritesPath.isEmpty)
+        #expect(router.historyPath.isEmpty)
+        #expect(router.settingsPath.isEmpty)
+    }
+}
+
 @MainActor
 @Suite("Router windows")
 struct RouterWindowTests {

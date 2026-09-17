@@ -41,6 +41,9 @@ class LiveUITestCase: XCTestCase {
         // left it on would face every later test with a lock screen it cannot
         // answer: the device's prompt belongs to another process.
         app.launchArguments += ["-general.appLock", "NO"]
+        // And on the board list rather than on somebody's default board: these
+        // tests open /b/ by tapping it, and the preference outlives a run.
+        app.launchArguments += ["-defaultBoard", ""]
         if pinsLanguage {
             app.launchArguments += ["-general.language", "system"]
         }
