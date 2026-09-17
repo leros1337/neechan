@@ -1220,6 +1220,29 @@
         }
       }
     },
+    "Appstore build cannot post. You can read both imageboards.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appstore build cannot post. You can read both imageboards."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сборка для App Store не умеет постить. Читать обе имиджборды можно."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der App-Store-Build kann nicht posten. Lesen geht auf beiden Imageboards."
+          }
+        }
+      }
+    },
     "Archive": {
       "extractionState": "manual",
       "localizations": {

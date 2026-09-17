@@ -43,9 +43,17 @@ struct RestrictionsSettingsView: View {
                 Toggle(isOn: $settings.allowsPosting) {
                     Text("Posting enabled", bundle: .module)
                 }
+                // On the row rather than on the Form: disabling the Form takes
+                // its scrolling with it.
+                .disabled(settings.postingIsFixed)
                 .accessibilityIdentifier("posting-toggle")
             } footer: {
-                Text("With this off, you can read but not write, on either imageboard.", bundle: .module)
+                if settings.postingIsFixed {
+                    Text("Appstore build cannot post. You can read both imageboards.", bundle: .module)
+                        .accessibilityIdentifier("posting-fixed-note")
+                } else {
+                    Text("With this off, you can read but not write, on either imageboard.", bundle: .module)
+                }
             }
         }
         .navigationTitle(Text("Restrictions", bundle: .module))
