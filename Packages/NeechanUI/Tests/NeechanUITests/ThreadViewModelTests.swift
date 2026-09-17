@@ -267,6 +267,64 @@ struct ThreadViewModelTests {
         #expect(model.quotePopups.first?.content.plainText.isEmpty == false)
     }
 
+    /// What the popup's replies pill counts.
+    ///
+    /// The pill is drawn from this thread's index, so a post quoted out of the
+    /// thread the reader is in has a count the pill can trust.
+    @Test("a quoted post from this thread carries its reply count")
+    func aLocalQuoteKnowsItsReplies() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+
+        let target = try #require(
+            model.snapshot.posts.map(\.num).first {
+                !model.snapshot.index.backlinks(to: $0).isEmpty
+            },
+            "the fixture thread has no post with replies"
+        )
+        await model.showQuote(board: "po", threadNum: nil, postNum: target)
+
+        #expect(model.quotePopups.first?.isRemote == false)
+        #expect(!model.snapshot.index.backlinks(to: target).isEmpty)
+    }
+
+    /// Why the popup's replies pill is gated on `isRemote` and not on the count.
+    ///
+    /// A reply index is built per thread, and a post number is only unique
+    /// within a board — so a post fetched from elsewhere can carry a number this
+    /// thread also uses. Asking the index about it then answers confidently and
+    /// wrongly: it returns the *local* post's replies, filed under a post that
+    /// has nothing to do with them.
+    ///
+    /// This fixture does exactly that, which is lucky: the post the stub returns
+    /// is numbered the same as this thread's opening post. Counting it would put
+    /// the opening post's replies on a stranger.
+    @Test("a post quoted from another thread can collide with a local number")
+    func aRemoteQuoteCanCollideWithALocalNumber() async throws {
+        let transport = try await stubbedTransport()
+        await transport.stub(
+            pathSuffix: "/api/mobile/v2/post/po/999",
+            data: try FixtureLoader.data(.postSingle)
+        )
+        let model = try makeModel(transport)
+        await model.load()
+        await model.showQuote(board: "po", threadNum: nil, postNum: 999)
+
+        let quoted = try #require(model.quotePopups.first)
+        #expect(quoted.isRemote, "the fetched post must be marked as from elsewhere")
+
+        // The collision itself, so that this test fails loudly rather than
+        // quietly stops meaning anything if the fixture is ever renumbered.
+        #expect(
+            model.snapshot.posts.contains { $0.num == quoted.post.num },
+            "the fixture no longer collides; pick a stub that does"
+        )
+        // And the consequence: the index answers, and its answer belongs to the
+        // local post. `isRemote` is the only thing standing between that answer
+        // and the reader.
+        #expect(!model.snapshot.index.backlinks(to: quoted.post.num).isEmpty)
+    }
+
     /// The site answers a quote pointing at a deleted post with error -31, and
     /// the tap used to do nothing whatever, which reads as a broken link.
     @Test("a post that cannot be fetched says so instead of doing nothing")

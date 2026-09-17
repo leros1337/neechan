@@ -371,7 +371,10 @@ private struct BadgeLabel: View {
 ///
 /// A row of raw `>>` numbers said nothing a reader could use and grew unusable
 /// on a busy post. The count opens a window listing the replies in full.
-private struct RepliesButton: View {
+///
+/// Not private: the quote popup shows the same pill, and a reader who can see
+/// a post has replies in the thread should see it wherever that post appears.
+struct RepliesButton: View {
     let count: Int
     var action: () -> Void
 

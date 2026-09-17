@@ -10,6 +10,16 @@ struct QuotePopupView: View {
     let quoted: ThreadViewModel.QuotedPost
     /// How many popups are stacked, shown so the reader knows how deep they are.
     let depth: Int
+    /// How many posts in this thread replied to the quoted one.
+    ///
+    /// Meaningless for a post fetched from another thread, which is why the
+    /// pill is gated on `isRemote` as well. A post number is unique only within
+    /// a board, so a foreign post can carry a number this thread also uses —
+    /// and the index will then answer confidently with the *local* post's
+    /// replies. Counting it would put one post's replies on another.
+    let replyCount: Int
+    /// Opens the window listing those replies.
+    var onOpenReplies: () -> Void = {}
     var onDismiss: () -> Void
     var onDismissAll: () -> Void
     /// A file in the quoted post was tapped.
@@ -35,6 +45,14 @@ struct QuotePopupView: View {
                 QuotedAttachmentsRow(attachments: quoted.post.files, onSelect: onOpenAttachment)
             }
             quotedBody
+
+            // The same pill the post carries in the thread. Never for a post
+            // fetched from elsewhere: its number can collide with one of this
+            // thread's, and the count would then belong to a different post.
+            if !quoted.isRemote, replyCount > 0 {
+                RepliesButton(count: replyCount, action: onOpenReplies)
+                    .accessibilityIdentifier("quote-popup-replies")
+            }
         }
         .padding(.horizontal, 14)
         .padding(.top, 2)

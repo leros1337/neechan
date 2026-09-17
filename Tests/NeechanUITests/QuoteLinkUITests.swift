@@ -80,6 +80,66 @@ final class QuoteLinkUITests: LiveUITestCase {
         attach(app, name: "20-nested-quote")
     }
 
+    /// A post's replies are reachable from the popup, not only from the thread.
+    ///
+    /// Deliberately not routed through `NestedQuoteChain`: that finds a quote
+    /// whose target itself quotes something, which is rare enough that the test
+    /// skipped every time it ran. All this needs is a quote whose target has
+    /// replies — common on a busy thread — so it opens quotes in turn until it
+    /// finds one, and gives up quietly if the thread has none.
+    func testTheQuotedPostOffersItsReplies() throws {
+        let app = launchApp()
+        openDefaultBoard(app)
+        openThreadWithReplies(app, minimum: 30)
+
+        let popup = app.descendants(matching: .any)
+            .matching(identifier: "quote-popup")
+            .firstMatch
+        let pill = app.buttons["quote-popup-replies"].firstMatch
+
+        for attempt in 0..<10 {
+            // `matching`, not `containing`: the latter selects elements that
+            // *hold* a match, which is not what a link's own label is.
+            let quote = app.links
+                .matching(NSPredicate(format: "label BEGINSWITH %@", ">>"))
+                .firstMatch
+            guard quote.waitForExistence(timeout: attempt == 0 ? Self.networkTimeout : 5),
+                  quote.isHittable
+            else {
+                app.swipeUp()
+                continue
+            }
+            quote.tap()
+            guard popup.waitForExistence(timeout: 15) else {
+                app.swipeUp()
+                continue
+            }
+
+            if pill.waitForExistence(timeout: 3) { break }
+
+            // This one's target has no replies of its own. Close and look on.
+            app.buttons["Close"].firstMatch.tap()
+            _ = waitForDisappearance(of: popup, timeout: 10)
+            app.swipeUp()
+        }
+
+        try XCTSkipUnless(pill.exists, "no quoted post on this thread has replies right now")
+        attach(app, name: "21-quote-replies-pill")
+
+        pill.tap()
+        XCTAssertTrue(
+            app.buttons["Done"].firstMatch.waitForExistence(timeout: Self.networkTimeout),
+            "the replies window did not open from the popup"
+        )
+        app.buttons["Done"].firstMatch.tap()
+
+        // The point of a stack: the reader comes back to where they were.
+        XCTAssertTrue(
+            popup.waitForExistence(timeout: 10),
+            "closing the replies window took the quote popup with it"
+        )
+    }
+
     /// Opens a thread at one post through the board list's "Go to" row, which
     /// resolves a pasted link.
     private func goTo(_ app: XCUIApplication, board: String, thread: Int, post: Int) {

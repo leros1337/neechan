@@ -577,6 +577,8 @@ public struct ThreadView: View {
                 QuotePopupView(
                     quoted: quoted,
                     depth: model.quotePopups.count,
+                    replyCount: model.snapshot.index.backlinks(to: quoted.post.num).count,
+                    onOpenReplies: { model.repliesSheetPostNum = quoted.post.num },
                     onDismiss: {
                         withAnimation(.snappy(duration: 0.2)) { model.dismissTopQuote() }
                     },
