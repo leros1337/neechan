@@ -6,9 +6,8 @@
 **English** · [Русский](README.ru.md)
 
 A native iOS client for the imageboards **2ch** (`2ch.org` / `2ch.life`) and
-**4chan**, written in Swift 6 and SwiftUI for iOS 26. It aims for feature parity with
-the Android client [DashchanFork](https://github.com/TrixiEther/DashchanFork) on 2ch,
-and uses Apple's Liquid Glass design system for the navigation layer.
+**4chan**, written in Swift 6 and SwiftUI for iOS 26, using Apple's Liquid Glass design
+system for the navigation layer.
 
 Unofficial and unaffiliated with either site.
 
@@ -31,19 +30,26 @@ developer account. iOS 26 or newer, iPhone or iPad.
 - **Two imageboards** — a switch on the board list flips between 2ch and 4chan.
   Favourites, history, hidden threads and everything else you keep belong to the site
   they came from, and a pasted link opens on whichever site it names.
-- **Posting** — on 2ch: replies and new threads, the markup toolbar wrapping what you
-  select, drafts, attachments with metadata stripped and randomised names, and the
-  emoji captcha with its proof-of-work. 4chan is read-only: its posting host sits behind
-  a browser-only check that refuses the app's own requests, so the reply button is not
-  offered there rather than offered and refused.
+- **Posting** — replies and new threads, the markup toolbar wrapping what you select,
+  drafts, attachments with metadata stripped and randomised names, and 2ch's emoji
+  captcha with its proof-of-work. **Posting to 4chan does not currently work**: its
+  posting host sits behind a script that computes a cookie in a browser, and the server
+  refuses that cookie when the app replays it. The reply form is still offered rather
+  than hidden, so the day that changes it is obvious; reading 4chan is unaffected.
 - **Media** — a gallery with zoom and a full-screen viewer; WebM plays through FFmpeg,
   and a WebM you save is converted to H.264 MP4, because Photos will not accept one.
+- **Doomscroll** — a thread's videos as a full-screen vertical feed: one clip per
+  screen, autoplaying, looping and silent, with one sound control for the whole session
+  and the next clip fetched ahead so a swipe does not land on black.
 - **Keeping up** — favourites with a watcher and unread counts, notifications, history,
   threads saved for offline reading, and the board archive.
 - **Filtering** — autohide rules with a live regex tester, hidden threads collapsed to a
   line, hidden posts, and per-thread rules.
-- **Fitting in** — themes including imported Dashchan JSON ones, text and thumbnail
-  scaling, an iPad split view, and Russian and English throughout.
+- **Restrictions** — one screen that says what the app will show: NSFW mode, a 21+
+  gate that hides boards meant for adults and makes them unreachable everywhere, and a
+  switch that turns posting off altogether.
+- **Fitting in** — themes, including ones imported from a theme file, text and thumbnail
+  scaling, an iPad split view, and English, Russian and German throughout.
 
 ## Build from source
 
@@ -60,8 +66,8 @@ make ipa            # unsigned .ipa in .build/, the same build CI publishes
 ```
 
 `make test` additionally runs the simulator test bundles. Those include XCUITests that
-drive the app against the live site, so they need a network and they will fail when 2ch
-is having a bad day; `make test-packages` is the offline half.
+drive the app against the live sites, so they need a network and they will fail when
+2ch or 4chan is having a bad day; `make test-packages` is the offline half.
 
 First build is slow: FFmpegKit's prebuilt xcframeworks are several gigabytes. They are
 cached in `~/Library/Caches/org.swift.swiftpm-neechan` and shared between the packages
@@ -75,7 +81,7 @@ re-run `make gen`.
 Pushing a version tag builds and publishes one:
 
 ```sh
-git tag v0.2.0 && git push origin v0.2.0
+git tag v2.1.0 && git push origin v2.1.0
 ```
 
 [`.github/workflows/release.yml`](.github/workflows/release.yml) runs the package tests,
@@ -95,7 +101,8 @@ workflow artifact instead of publishing it.
 | `Packages/NeechanUI` | SwiftUI screens, the Liquid Glass components, string catalog |
 | `Packages/NeechanTestSupport` | Recorded API fixtures and their loader |
 | `Tests/NeechanUITests` | XCUITests that drive the app against the live site |
-| `Tools/record-fixtures.sh` | Re-records the fixtures from the live site |
+| `Tools/record-fixtures.sh` | Re-records the 2ch fixtures from the live site |
+| `Tools/record-4chan-fixtures.sh` | The same for 4chan |
 
 `Packages/NeechanCore/Sources/NeechanCore/Engine` holds pure, synchronous value logic
 with no SwiftData or networking imports. That is where most of the test suite lives.
