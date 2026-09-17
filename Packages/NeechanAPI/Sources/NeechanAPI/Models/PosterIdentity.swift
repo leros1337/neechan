@@ -90,7 +90,19 @@ public struct PostIcon: Sendable, Hashable {
         else {
             return nil
         }
-        let code = file.split(separator: ".").first.map(String.init)?.uppercased() ?? ""
+        let code = file.split(separator: ".").first.map(String.init) ?? ""
+        return flagEmoji(forCountryCode: code)
+    }
+
+    /// Turns `RU` into 🇷🇺.
+    ///
+    /// Split out from the path-based reader because a site can report the
+    /// country as a code rather than as an image. Only ISO 3166-1 alpha-2 codes
+    /// map: a site whose flags are a joke set — 4chan's `/pol/` board flags
+    /// name things like "Tree Hugger" under `TR` — must not be run through
+    /// this, or it will claim Turkey.
+    static func flagEmoji(forCountryCode code: String) -> String? {
+        let code = code.uppercased()
         guard code.count == 2, code.allSatisfy({ $0.isLetter && $0.isASCII }) else { return nil }
 
         var emoji = ""

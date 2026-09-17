@@ -1,9 +1,9 @@
 import Foundation
 
-/// A recorded 2ch response used by the test suites.
+/// A recorded response used by the test suites.
 ///
 /// Fixtures live in `Sources/NeechanTestSupport/Fixtures` and are re-recorded
-/// with `Tools/record-fixtures.sh`. Referring to them through this enum (rather
+/// with `Tools/record-fixtures.sh` (2ch) and `Tools/record-4chan-fixtures.sh`. Referring to them through this enum (rather
 /// than by raw string) means a renamed or deleted fixture is a compile error.
 public enum Fixture: String, CaseIterable, Sendable {
     // Read endpoints
@@ -46,6 +46,25 @@ public enum Fixture: String, CaseIterable, Sendable {
     case reportOK = "report_ok"
     case likeForbidden = "like_forbidden"
 
+    // 4chan read endpoints
+    case fourchanBoards = "fourchan_boards"
+    case fourchanCatalog = "fourchan_catalog"
+    case fourchanIndexPage1 = "fourchan_index_page1"
+    case fourchanThread = "fourchan_thread"
+    /// Every thread on a board with its reply count: the watcher's whole pass.
+    case fourchanThreadsIndex = "fourchan_threads_index"
+    /// A bare array of thread numbers, which is all 4chan's archive is.
+    case fourchanArchive = "fourchan_archive"
+
+    // 4chan captcha
+    ///
+    /// Synthesized rather than recorded: the live endpoint sits behind a
+    /// browser check, so a served captcha cannot be fetched here.
+    case fourchanCaptchaChallenge = "fourchan_captcha_challenge"
+    case fourchanCaptchaCooldown = "fourchan_captcha_cooldown"
+    /// The real page the captcha endpoint answers with while the gate is up.
+    case fourchanCloudflareGate = "fourchan_cloudflare_gate"
+
     // Corpora / non-JSON
     case commentSamples = "comment_samples"
     case cloudflareChallenge = "cloudflare_challenge"
@@ -58,7 +77,7 @@ public enum Fixture: String, CaseIterable, Sendable {
     /// File extension on disk. Everything is JSON except the HTML challenge page.
     public var fileExtension: String {
         switch self {
-        case .cloudflareChallenge: "html"
+        case .cloudflareChallenge, .fourchanCloudflareGate: "html"
         case .sampleStillPNG: "png"
         case .sampleAnimatedGIF: "gif"
         case .sampleVideo: "webm"

@@ -84,7 +84,7 @@ struct ProofOfWorkTests {
 struct EmojiCaptchaTests {
     private func makeSession(_ transport: StubTransport) -> EmojiCaptchaSession {
         EmojiCaptchaSession(
-            client: DvachClient(transport: transport, domain: { .org })
+            client: DvachClient(transport: transport, site: { .init(site: .dvach, mirror: .org) })
         )
     }
 

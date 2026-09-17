@@ -13,7 +13,7 @@ struct ClientTests {
     ) -> DvachClient {
         DvachClient(
             transport: transport,
-            domain: { domain }
+            site: { .init(site: .dvach, mirror: domain) }
         )
     }
 
@@ -270,18 +270,57 @@ struct DomainHolderTests {
 
     @Test("the client follows the holder without being rebuilt")
     func clientFollowsHolder() async throws {
-        let holder = DomainHolder(.org)
+        let holder = SiteHolder(.init(site: .dvach, mirror: .org))
         let transport = StubTransport()
         await transport.stub(pathSuffix: "/boards", data: try FixtureLoader.data(.boards))
 
-        let client = DvachClient(transport: transport, domain: holder.provider)
+        let client = DvachClient(transport: transport, site: holder.provider)
         _ = try await client.boards()
-        holder.set(.life)
+        holder.set(.init(site: .dvach, mirror: .life))
         _ = try await client.boards()
 
         let urls = await transport.requestedURLs()
         #expect(urls.first?.contains("2ch.org") == true)
         #expect(urls.last?.contains("2ch.life") == true)
+    }
+
+    /// The claim the whole two-site design rests on: eight collaborators hold
+    /// this actor and SwiftUI holds them, so switching sites has to re-point it
+    /// rather than replace it.
+    @Test("one client follows the site it is pointed at, and is never rebuilt")
+    func clientFollowsTheSite() async throws {
+        let holder = SiteHolder(.init(site: .dvach))
+        let transport = StubTransport()
+        await transport.stub(pathSuffix: "/boards", data: try FixtureLoader.data(.boards))
+        await transport.stub(pathSuffix: "/boards.json", data: Data("{\"boards\":[]}".utf8))
+
+        let client = DvachClient(transport: transport, site: holder.provider)
+        _ = try? await client.boards()
+        holder.set(.init(site: .fourchan))
+        _ = try? await client.boards()
+
+        let urls = await transport.requestedURLs()
+        #expect(urls.first?.contains("2ch.org/api/mobile/v2/boards") == true)
+        #expect(urls.last?.contains("a.4cdn.org/boards.json") == true)
+    }
+
+    @Test("asking a site for something it does not serve is refused, not guessed")
+    func unsupportedEndpointsThrow() async throws {
+        let transport = StubTransport()
+        await transport.stubEverything(data: Data("{}".utf8))
+        let client = DvachClient(transport: transport, site: { .init(site: .fourchan) })
+
+        await #expect(throws: DvachError.self) {
+            _ = try await client.after(board: "g", thread: 1, sinceNum: 1)
+        }
+        await #expect(throws: DvachError.self) {
+            _ = try await client.threadInfo(board: "g", thread: 1)
+        }
+        await #expect(throws: DvachError.self) {
+            _ = try await client.search(board: "g", text: "swift")
+        }
+        // Nothing reached the network: the refusal happens while building.
+        #expect(await transport.recordedRequests().isEmpty)
     }
 }
 
@@ -295,7 +334,7 @@ struct TransportFailureTests {
     private struct Boom: Error {}
 
     private func makeClient(_ transport: StubTransport) -> DvachClient {
-        DvachClient(transport: transport, domain: { .org })
+        DvachClient(transport: transport, site: { .init(site: .dvach, mirror: .org) })
     }
 
     @Test("a transport that always fails is reported, not crashed on")
@@ -353,7 +392,7 @@ struct BackoffFailureTests {
         await transport.stub(pathSuffix: "/boards", failingWith: Boom())
         let client = DvachClient(
             transport: transport,
-            domain: { .org },
+            site: { .init(site: .dvach, mirror: .org) },
             retryPolicy: RetryPolicy(backoff: [.zero, .milliseconds(1)])
         )
 
@@ -366,7 +405,7 @@ struct BackoffFailureTests {
     func unmatchedRequest() async throws {
         let client = DvachClient(
             transport: StubTransport(),
-            domain: { .org },
+            site: { .init(site: .dvach, mirror: .org) },
             retryPolicy: RetryPolicy(backoff: [.zero, .milliseconds(1)])
         )
 
@@ -427,7 +466,7 @@ struct RetryBehaviourTests {
     private func makeClient(_ transport: StubTransport) -> DvachClient {
         DvachClient(
             transport: transport,
-            domain: { .org },
+            site: { .init(site: .dvach, mirror: .org) },
             retryPolicy: RetryPolicy(backoff: [.zero, .zero, .zero])
         )
     }

@@ -177,7 +177,7 @@ public enum DvachErrorCode: Sendable, Hashable {
     }
 }
 
-/// Everything that can go wrong talking to 2ch.
+/// Everything that can go wrong talking to an imageboard.
 public enum DvachError: Error, Sendable {
     /// The server answered with an error envelope.
     case api(DvachAPIError)
@@ -190,6 +190,13 @@ public enum DvachError: Error, Sendable {
     case cloudflareChallenge(url: URL)
     /// The transport failed: offline, TLS, timeout.
     case transport(underlying: any Error)
+    /// The selected imageboard does not serve this at all.
+    ///
+    /// Reached only when something asks for a feature `SiteCapabilities` says
+    /// is absent, so it is a programming error rather than a server one — but
+    /// it is thrown rather than trapped, because the caller is usually a
+    /// background poll and a crash there would be worse than a skipped pass.
+    case unsupported(Imageboard)
 
     /// The API code, when the failure carries one.
     public var code: DvachErrorCode? {

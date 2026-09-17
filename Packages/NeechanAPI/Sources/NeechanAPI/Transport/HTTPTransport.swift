@@ -49,4 +49,17 @@ public struct HTTPReply: Sendable {
             .first
             .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
     }
+
+    /// Whether the body is a document rather than data.
+    ///
+    /// Every endpoint this app talks to answers JSON, so a document means
+    /// something answered in its place: a gate, an interstitial, an error page.
+    /// Checked by content type and, because a gate does not always label
+    /// itself, by how the body starts.
+    public var looksLikeHTML: Bool {
+        if contentType == "text/html" { return true }
+        let whitespace: Set<UInt8> = [0x20, 0x0A, 0x0D, 0x09]
+        guard let first = data.first(where: { !whitespace.contains($0) }) else { return false }
+        return first == UInt8(ascii: "<")
+    }
 }

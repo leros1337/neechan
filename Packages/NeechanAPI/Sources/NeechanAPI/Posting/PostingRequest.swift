@@ -21,6 +21,12 @@ public struct PostingRequest: Sendable {
         case emoji(token: String, proofOfWork: Int?)
         /// A passcode is active; the cookie does the proving.
         case passcode
+        /// A slider puzzle the reader aligned and read out themselves.
+        ///
+        /// `challenge` is the token the site issued with the images and
+        /// `response` is what the reader typed. Nothing in this app produces
+        /// either: they come back from a person looking at a picture.
+        case slider(challenge: String, response: String)
         /// The board asks for nothing.
         case none
 
@@ -28,6 +34,8 @@ public struct PostingRequest: Sendable {
             switch self {
             case .emoji: "emoji_captcha"
             case .passcode: "passcode"
+            // 4chan's form has no such field; nothing reads this there.
+            case .slider: "slider"
             case .none: "nocaptcha"
             }
         }
@@ -50,6 +58,11 @@ public struct PostingRequest: Sendable {
     public var isOriginalPoster: Bool
     public var attachments: [Attachment]
     public var captcha: Captcha
+    /// Lets the poster delete their own post afterwards.
+    ///
+    /// 4chan's form sends one on every post; 2ch has no such field and ignores
+    /// this entirely.
+    public var deletionPassword: String?
 
     public init(
         board: String,
@@ -82,6 +95,40 @@ public struct PostingRequest: Sendable {
     /// True when the site would reject this as empty.
     public var isEmpty: Bool {
         comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attachments.isEmpty
+    }
+
+    /// The form 4chan's own reply page sends, in its order.
+    ///
+    /// A different set of names, a different arrangement and a different host
+    /// from 2ch's — the only thing the two share is being multipart.
+    ///
+    /// - Parameter deletionPassword: 4chan's `pwd`, which is what lets the
+    ///   poster delete their own post later. The site's page generates one per
+    ///   browser and sends it every time; this app keeps one per install.
+    func fourchanFormFields() -> [(String, String)] {
+        var fields: [(String, String)] = [
+            ("mode", "regist"),
+            // The site's own form carries this and the server reads it.
+            ("MAX_FILE_SIZE", "4194304"),
+        ]
+        // Absent entirely when starting a thread, rather than sent as zero.
+        if let thread { fields.append(("resto", String(thread))) }
+        fields.append(("com", comment))
+
+        if let subject, !subject.isEmpty { fields.append(("sub", subject)) }
+        if let name, !name.isEmpty { fields.append(("name", name)) }
+        // 4chan has no sage of its own; the field is still how one is sent.
+        if isSage {
+            fields.append(("email", "sage"))
+        } else if let email, !email.isEmpty {
+            fields.append(("email", email))
+        }
+        if case .slider(let challenge, let response) = captcha {
+            fields.append(("t-challenge", challenge))
+            fields.append(("t-response", response))
+        }
+        if let deletionPassword { fields.append(("pwd", deletionPassword)) }
+        return fields
     }
 
     /// The form the site expects, in the order its own page sends it.

@@ -65,6 +65,47 @@ public struct Attachment: Sendable, Hashable, Identifiable, Decodable {
         return Double(width) / Double(height)
     }
 
+    /// Builds an attachment directly, for a site whose JSON is not 2ch's.
+    ///
+    /// `path` and `thumbnail` may be absolute: `SiteEndpoints.url(forPath:)`
+    /// passes an absolute URL through unchanged, which is how a site that
+    /// serves its media from another host fits the same model.
+    public init(
+        name: String = "",
+        fullName: String = "",
+        displayName: String = "",
+        path: String,
+        thumbnail: String = "",
+        md5: String? = nil,
+        declaredType: AttachmentType = .none,
+        sizeKB: Int = 0,
+        width: Int = 0,
+        height: Int = 0,
+        thumbnailWidth: Int = 0,
+        thumbnailHeight: Int = 0,
+        durationText: String? = nil,
+        durationSeconds: Int? = nil,
+        isNSFW: Bool = false,
+        stickerPack: String? = nil
+    ) {
+        self.name = name
+        self.fullName = fullName
+        self.displayName = displayName.isEmpty ? fullName : displayName
+        self.path = path
+        self.thumbnail = thumbnail
+        self.md5 = md5
+        self.declaredType = declaredType
+        self.sizeKB = sizeKB
+        self.width = width
+        self.height = height
+        self.thumbnailWidth = thumbnailWidth
+        self.thumbnailHeight = thumbnailHeight
+        self.durationText = durationText
+        self.durationSeconds = durationSeconds
+        self.isNSFW = isNSFW
+        self.stickerPack = stickerPack
+    }
+
     private enum CodingKeys: String, CodingKey {
         case name, fullname, displayname, path, thumbnail, md5, type, size
         case width, height
@@ -149,6 +190,30 @@ public enum AttachmentType: Sendable, Hashable {
         // WebP has no code of its own; report the code it arrives under.
         case .webp: 1
         case .unknown(let value): value
+        }
+    }
+
+    /// The type named by a file extension.
+    ///
+    /// For a site that reports the extension rather than a numeric code. The
+    /// leading dot is optional, because 4chan's `ext` carries one.
+    public init(fileExtension: String) {
+        let ext = fileExtension
+            .trimmingCharacters(in: CharacterSet(charactersIn: "."))
+            .lowercased()
+        self = switch ext {
+        case "jpg", "jpeg": .jpeg
+        case "png": .png
+        case "gif": .gif
+        case "bmp": .bmp
+        case "webp": .webp
+        case "webm": .webm
+        case "mp4", "m4v": .mp4
+        case "mp3": .mp3
+        case "ogg": .ogg
+        // No code of its own on either site; kept recognisable rather than
+        // silently reported as "no file".
+        default: .unknown(-1)
         }
     }
 

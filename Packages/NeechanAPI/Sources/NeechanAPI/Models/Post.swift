@@ -50,6 +50,10 @@ public struct Post: Sendable, Hashable, Identifiable, Decodable {
     public let isOP: Bool
     public let likes: Int?
     public let dislikes: Int?
+    /// A staff badge: `mod`, `admin`, `founder` and the like.
+    ///
+    /// Nil where the site has no such thing, which is everywhere on 2ch.
+    public let capcode: String?
     /// 1-based position in the thread; only present in thread responses.
     public let number: Int?
 
@@ -74,6 +78,71 @@ public struct Post: Sendable, Hashable, Identifiable, Decodable {
 
     /// The thread this post lives in: its own number when it is the original post.
     public var threadNum: Int { isOriginalPost ? num : parent }
+
+    /// Builds a post directly, for a site whose JSON is not 2ch's.
+    ///
+    /// The defaults mirror what `init(from:)` falls back to. `likes` and
+    /// `dislikes` stay optional rather than defaulting to zero: nil means the
+    /// site does not do voting at all, which is what hides the control.
+    public init(
+        num: Int,
+        parent: Int = 0,
+        board: String = "",
+        timestamp: Int = 0,
+        lastHit: Int = 0,
+        date: String = "",
+        comment: String = "",
+        subject: String = "",
+        name: String = "",
+        email: String = "",
+        tripcode: String = "",
+        tripcodeStyle: String? = nil,
+        iconHTML: String? = nil,
+        icon: PostIcon? = nil,
+        posterID: String? = nil,
+        posterIDColor: PostColor? = nil,
+        tags: String = "",
+        files: [Attachment] = [],
+        views: Int = 0,
+        stickyPriority: Int = 0,
+        isEndless: Bool = false,
+        isClosed: Bool = false,
+        bannedState: Int = 0,
+        isOP: Bool = false,
+        likes: Int? = nil,
+        dislikes: Int? = nil,
+        capcode: String? = nil,
+        number: Int? = nil
+    ) {
+        self.num = num
+        self.parent = parent
+        self.board = board
+        self.timestamp = timestamp
+        self.lastHit = lastHit
+        self.date = date
+        self.comment = comment
+        self.subject = subject
+        self.name = name
+        self.email = email
+        self.tripcode = tripcode
+        self.tripcodeStyle = tripcodeStyle
+        self.iconHTML = iconHTML
+        self.icon = icon
+        self.posterID = posterID
+        self.posterIDColor = posterIDColor
+        self.tags = tags
+        self.files = files
+        self.views = views
+        self.stickyPriority = stickyPriority
+        self.isEndless = isEndless
+        self.isClosed = isClosed
+        self.bannedState = bannedState
+        self.isOP = isOP
+        self.likes = likes
+        self.dislikes = dislikes
+        self.capcode = capcode
+        self.number = number
+    }
 
     private enum CodingKeys: String, CodingKey {
         case num, parent, board, timestamp, lasthit, date
@@ -122,6 +191,7 @@ public struct Post: Sendable, Hashable, Identifiable, Decodable {
         isClosed = (try c.decodeIfPresent(Int.self, forKey: .closed) ?? 0) != 0
         bannedState = try c.decodeIfPresent(Int.self, forKey: .banned) ?? 0
         isOP = (try c.decodeIfPresent(Int.self, forKey: .op) ?? 0) != 0
+        capcode = nil
         likes = try c.decodeIfPresent(Int.self, forKey: .likes)
         dislikes = try c.decodeIfPresent(Int.self, forKey: .dislikes)
         number = try c.decodeIfPresent(Int.self, forKey: .number)

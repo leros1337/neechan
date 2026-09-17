@@ -40,10 +40,85 @@ public struct Board: Sendable, Hashable, Identifiable, Decodable {
     public let allowsLikes: Bool
     public let allowsOekaki: Bool
 
+    /// Whether the board is worksafe.
+    ///
+    /// Reported only by a site that says; true where nothing says, which keeps
+    /// today's behaviour where nothing reads it yet.
+    public let isWorkSafe: Bool
+    /// Whether the board keeps an archive of its dead threads.
+    public let hasArchive: Bool
+
     public var maxFilesSizeBytes: Int { maxFilesSizeKB * 1024 }
 
     /// `/b/`, the way the site writes it.
     public var displayCode: String { "/\(id)/" }
+
+    /// Builds a board directly, for a site whose board list is not 2ch's.
+    ///
+    /// The defaults mirror what `init(from:)` falls back to, so a mapper or a
+    /// test names only what it actually knows. `defaultName` is one a second
+    /// site will always want to pass: it is the poster name the board shows,
+    /// and it is not Russian everywhere.
+    public init(
+        id: String,
+        name: String? = nil,
+        category: String = "",
+        info: String = "",
+        infoOuter: String = "",
+        threadsPerPage: Int = 0,
+        bumpLimit: Int = 500,
+        maxPages: Int = 0,
+        defaultName: String = "Аноним",
+        maxComment: Int = 15000,
+        maxFilesSizeKB: Int = 0,
+        fileTypes: [String] = [],
+        tags: [String] = [],
+        icons: [BoardIcon] = [],
+        allowsNames: Bool = false,
+        allowsTripcodes: Bool = false,
+        allowsSubject: Bool = false,
+        allowsSage: Bool = false,
+        allowsIcons: Bool = false,
+        allowsFlags: Bool = false,
+        allowsDices: Bool = false,
+        allowsShield: Bool = false,
+        allowsThreadTags: Bool = false,
+        allowsPosting: Bool = true,
+        allowsLikes: Bool = false,
+        allowsOekaki: Bool = false,
+        isWorkSafe: Bool = true,
+        hasArchive: Bool = true
+    ) {
+        self.id = id
+        self.name = name ?? id
+        self.category = category
+        self.info = info
+        self.infoOuter = infoOuter
+        self.threadsPerPage = threadsPerPage
+        self.bumpLimit = bumpLimit
+        self.maxPages = maxPages
+        self.defaultName = defaultName
+        self.maxComment = maxComment
+        self.maxFilesSizeKB = maxFilesSizeKB
+        var seen = Set<String>()
+        self.fileTypes = fileTypes.filter { seen.insert($0).inserted }
+        self.tags = tags
+        self.icons = icons
+        self.allowsNames = allowsNames
+        self.allowsTripcodes = allowsTripcodes
+        self.allowsSubject = allowsSubject
+        self.allowsSage = allowsSage
+        self.allowsIcons = allowsIcons
+        self.allowsFlags = allowsFlags
+        self.allowsDices = allowsDices
+        self.allowsShield = allowsShield
+        self.allowsThreadTags = allowsThreadTags
+        self.allowsPosting = allowsPosting
+        self.allowsLikes = allowsLikes
+        self.allowsOekaki = allowsOekaki
+        self.isWorkSafe = isWorkSafe
+        self.hasArchive = hasArchive
+    }
 
     private enum CodingKeys: String, CodingKey {
         case id, name, category, info
@@ -106,6 +181,11 @@ public struct Board: Sendable, Hashable, Identifiable, Decodable {
         allowsPosting = try c.decodeIfPresent(Bool.self, forKey: .enablePosting) ?? true
         allowsLikes = try c.decodeIfPresent(Bool.self, forKey: .enableLikes) ?? false
         allowsOekaki = try c.decodeIfPresent(Bool.self, forKey: .enableOekaki) ?? false
+        // 2ch reports neither; the defaults keep every board readable and
+        // archived, which is what the app assumed before there was a second
+        // site to ask.
+        isWorkSafe = true
+        hasArchive = true
     }
 }
 
@@ -117,6 +197,12 @@ public struct BoardIcon: Sendable, Hashable, Identifiable, Decodable {
     public let url: String
 
     public var id: Int { num }
+
+    public init(num: Int, name: String, url: String) {
+        self.num = num
+        self.name = name
+        self.url = url
+    }
 
     private enum CodingKeys: String, CodingKey { case num, name, url }
 

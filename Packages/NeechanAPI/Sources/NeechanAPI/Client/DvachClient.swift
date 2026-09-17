@@ -1,54 +1,119 @@
 import Foundation
+import os
 
-/// The 2ch API, as async methods.
+/// One imageboard's API, as async methods.
 ///
 /// An actor so the cookie jar and any in-flight coordination stay serialised.
 /// Every failure is reported as a `DvachError`, so callers never see a raw
 /// `URLError` or a decoding error from deeper down.
+///
+/// There is one of these whatever site is selected. The selection is read from
+/// `site()` on every request, so switching imageboards re-points this client
+/// rather than replacing it — which matters because eight collaborators hold it
+/// and SwiftUI holds them.
 public actor DvachClient {
     private let transport: any HTTPTransport
-    private let domain: DomainProvider
+    private let site: SiteProvider
     private let retryPolicy: RetryPolicy
     private let decoder: JSONDecoder
     private let onChallenge: (@Sendable (URL) -> Void)?
 
+    /// Board details per site, for a site whose catalog and thread answers do
+    /// not carry them.
+    ///
+    /// Filled lazily by one `/boards.json` fetch and kept here rather than in a
+    /// repository, because this is where the shortfall is and because the
+    /// mapping cannot go looking for it from inside a synchronous decode.
+    private var boardMetadata: [Imageboard: [String: Board]] = [:]
+
     public init(
         transport: any HTTPTransport,
-        domain: @escaping DomainProvider,
+        site: @escaping SiteProvider,
         retryPolicy: RetryPolicy = .default,
         // Told about every gate page, so one place can put the check in front of
         // the reader no matter which screen ran into it.
         onChallenge: (@Sendable (URL) -> Void)? = nil
     ) {
         self.transport = transport
-        self.domain = domain
+        self.site = site
         self.retryPolicy = retryPolicy
         self.decoder = JSONDecoder()
         self.onChallenge = onChallenge
     }
 
-    /// The mirror requests currently go to.
-    public var currentDomain: DvachDomain { domain() }
+    /// The site and mirror requests currently go to.
+    public var currentSelection: SiteSelection { site() }
+
+    /// The mirror requests currently go to. Meaningful only on 2ch.
+    public var currentDomain: DvachDomain { site().mirror }
+
+    /// What the selected site can do.
+    public var capabilities: SiteCapabilities { site().capabilities }
 
     // MARK: Reading
 
     public func boards() async throws(DvachError) -> [Board] {
-        try await get([Board].self, .boards)
+        let reply = try await send(.boards)
+        let selection = site()
+        let boards = try decode(reply, on: selection) { adapter, data in
+            try adapter.boards(from: data, decoder: decoder)
+        }
+        // Remembered so a catalog or thread on a site that does not repeat the
+        // board's details still has them.
+        boardMetadata[selection.site] = Dictionary(
+            boards.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        return boards
     }
 
     public func catalog(board: String, byCreation: Bool = false) async throws(DvachError) -> CatalogResponse {
-        try await get(
-            CatalogResponse.self,
+        let selection = site()
+        let known = try await boardMetadata(board, on: selection)
+        let reply = try await send(
             byCreation ? .catalogByCreation(board: board) : .catalog(board: board)
         )
+        return try decode(reply, on: selection) { adapter, data in
+            try adapter.catalog(
+                from: data, board: known, endpoints: selection.endpoints, decoder: decoder
+            )
+        }
     }
 
     public func boardPage(board: String, page: Int) async throws(DvachError) -> BoardPage {
-        try await get(BoardPage.self, .boardPage(board: board, page: page))
+        let selection = site()
+        let known = try await boardMetadata(board, on: selection)
+        let reply = try await send(.boardPage(board: board, page: page))
+        return try decode(reply, on: selection) { adapter, data in
+            try adapter.boardPage(
+                from: data, board: known, page: page,
+                endpoints: selection.endpoints, decoder: decoder
+            )
+        }
     }
 
     public func thread(board: String, num: Int) async throws(DvachError) -> ThreadResponse {
-        try await get(ThreadResponse.self, .thread(board: board, thread: num))
+        let selection = site()
+        let known = try await boardMetadata(board, on: selection)
+        let reply = try await send(.thread(board: board, thread: num))
+        return try decode(reply, on: selection) { adapter, data in
+            try adapter.thread(
+                from: data, board: known, endpoints: selection.endpoints, decoder: decoder
+            )
+        }
+    }
+
+    /// Every thread on a board with how many posts it holds, in one request.
+    ///
+    /// The substitute for a count-only poll on a site that has none: a reader
+    /// watching twenty threads across three boards costs three requests rather
+    /// than twenty, which is cheaper than the per-thread poll it replaces.
+    public func boardThreadCounts(board: String) async throws(DvachError) -> [Int: ThreadCount] {
+        let selection = site()
+        let reply = try await send(.boardThreads(board: board), policy: .poll)
+        return try decode(reply, on: selection) { adapter, data in
+            try adapter.threadCounts(from: data, decoder: decoder)
+        }
     }
 
     /// The thread together with the bytes the server sent.
@@ -60,12 +125,15 @@ public actor DvachClient {
         board: String,
         num: Int
     ) async throws(DvachError) -> (response: ThreadResponse, json: Data) {
+        let selection = site()
+        let known = try await boardMetadata(board, on: selection)
         let reply = try await send(.thread(board: board, thread: num))
-        do {
-            return (try decoder.decode(ThreadResponse.self, from: reply.data), reply.data)
-        } catch {
-            throw DvachError.decoding(underlying: String(describing: error), url: reply.url)
+        let response = try decode(reply, on: selection) { adapter, data in
+            try adapter.thread(
+                from: data, board: known, endpoints: selection.endpoints, decoder: decoder
+            )
         }
+        return (response, reply.data)
     }
 
     /// Posts numbered `sinceNum` and above. The first element is the anchor the
@@ -95,8 +163,26 @@ public actor DvachClient {
         )
     }
 
-    public func post(board: String, num: Int) async throws(DvachError) -> SinglePostResponse {
-        try await get(SinglePostResponse.self, .post(board: board, num: num), envelope: \.error)
+    /// One post, for the quote popup when the post is not in the open thread.
+    ///
+    /// `inThread` is a hint for a site with no single-post endpoint: it fetches
+    /// that thread and picks the post out. 2ch ignores it.
+    public func post(
+        board: String,
+        num: Int,
+        inThread: Int? = nil
+    ) async throws(DvachError) -> SinglePostResponse {
+        let selection = site()
+        let known = try await boardMetadata(board, on: selection)
+        let reply = try await send(.post(board: board, num: num, inThread: inThread))
+        let response = try decode(reply, on: selection) { adapter, data in
+            try adapter.singlePost(
+                from: data, board: known, num: num,
+                endpoints: selection.endpoints, decoder: decoder
+            )
+        }
+        if let error = response.error { throw DvachError.api(error) }
+        return response
     }
 
     public func search(board: String, text: String) async throws(DvachError) -> SearchResponse {
@@ -105,10 +191,90 @@ public actor DvachClient {
 
     /// One page of a board's archive. Page `0` is its index.
     public func archive(board: String, page: Int) async throws(DvachError) -> ArchiveResponse {
-        try await get(
-            ArchiveResponse.self,
+        let selection = site()
+        let reply = try await send(
             page <= 0 ? .archiveIndex(board: board) : .archivePage(board: board, page: page)
         )
+        return try decode(reply, on: selection) { adapter, data in
+            try adapter.archive(from: data, board: board, page: page, decoder: decoder)
+        }
+    }
+
+    // MARK: Decoding
+
+    /// Turns an answer into a model with the selected site's own reading of it.
+    private func decode<T>(
+        _ reply: HTTPReply,
+        on selection: SiteSelection,
+        _ body: (any SiteAdapter, Data) throws -> T
+    ) throws(DvachError) -> T {
+        do {
+            return try body(selection.site.adapter, reply.data)
+        } catch is UnsupportedBySite {
+            throw DvachError.unsupported(selection.site)
+        } catch {
+            // A gate can arrive with a 200, so the body is checked here too
+            // rather than only on the way out of `attemptSend`.
+            //
+            // Deliberately the real detector and not merely "this looks like a
+            // page": a page that is *not* a gate cannot be passed, and offering
+            // the reader a browser check for one puts them in a loop — answer
+            // the check, retry, get the same page, be shown the check again.
+            // Anything else is reported as unreadable, which is what it is, and
+            // logged below so it can be identified.
+            if ChallengeDetector.isChallenge(reply) {
+                let url = reply.url ?? selection.endpoints.api
+                Self.log.notice(
+                    """
+                    gated by \(ChallengeDetector.matchedMarker(reply) ?? "?", privacy: .public) \
+                    status=\(reply.statusCode, privacy: .public) \
+                    sent-cookie=\(reply.url.map { Self.cookieNames(for: $0) } ?? "none", privacy: .public)
+                    """
+                )
+                onChallenge?(url)
+                throw DvachError.cloudflareChallenge(url: url)
+            }
+            // Logged with the start of the body, because this is the failure
+            // that tells the reader least and needs diagnosing most: attach
+            // with `log stream --predicate 'subsystem == "com.lain.neechan"'`
+            // and the answer that could not be read is there.
+            Self.log.error(
+                """
+                decode failed for \(reply.url?.absoluteString ?? "?", privacy: .public): \
+                \(String(describing: error), privacy: .public) \
+                body: \(String(decoding: reply.data.prefix(256), as: UTF8.self), privacy: .public)
+                """
+            )
+            throw DvachError.decoding(underlying: String(describing: error), url: reply.url)
+        }
+    }
+
+    private static let log = Logger(subsystem: Signposts.subsystem, category: "client")
+
+    /// The cookies the shared jar would send to a URL, by name.
+    private static func cookieNames(for url: URL) -> String {
+        (HTTPCookieStorage.shared.cookies(for: url) ?? [])
+            .map(\.name)
+            .sorted()
+            .joined(separator: ",")
+    }
+
+    /// The board's own details, for a site that does not repeat them in every
+    /// answer.
+    ///
+    /// Returns nil where the site does carry them, so 2ch pays nothing at all.
+    /// The first miss fetches the whole board list once.
+    private func boardMetadata(
+        _ board: String,
+        on selection: SiteSelection
+    ) async throws(DvachError) -> Board? {
+        guard selection.site.adapter.needsBoardMetadata else { return nil }
+        if let known = boardMetadata[selection.site]?[board] { return known }
+        _ = try await boards()
+        // Still missing after a fetch: a board code the site does not have, or
+        // one typed by hand. A placeholder keeps the thread readable rather
+        // than failing the whole request over its metadata.
+        return boardMetadata[selection.site]?[board] ?? Board(id: board, defaultName: "Anonymous")
     }
 
     // MARK: Writing
@@ -139,6 +305,44 @@ public actor DvachClient {
     }
 
     // MARK: Captcha
+
+    /// Asks for 4chan's slider captcha.
+    ///
+    /// Almost all of this feature is the absence of code. The endpoint sits
+    /// behind a browser check, and `ChallengeDetector` reads the `cf-mitigated`
+    /// header before anything else, so a gated answer already becomes
+    /// `.cloudflareChallenge`, already reaches `onChallenge`, and already skips
+    /// the retry loop rather than hammering the gate. What is left is one
+    /// request and one model.
+    ///
+    /// Nothing here solves the puzzle. The images are handed to the reader.
+    public func fourchanCaptcha(
+        board: String,
+        thread: Int? = nil
+    ) async throws(DvachError) -> FourchanCaptcha {
+        let selection = site()
+        // One attempt: the answer is a gate or a puzzle, and neither improves
+        // by being asked for three times in a row.
+        let reply = try await send(.sliderCaptcha(board: board, thread: thread), policy: .none)
+        let captcha = try decode(reply, on: selection) { _, data in
+            try decoder.decode(FourchanCaptcha.self, from: data)
+        }
+        // A refusal carries a cooldown rather than a puzzle. Reported as a rate
+        // limit so the posting layer's existing classification applies to it.
+        Self.log.notice(
+            """
+            captcha answered: challenge=\(captcha.challenge ?? "none", privacy: .public) \
+            image=\(captcha.image?.count ?? 0, privacy: .public) \
+            background=\(captcha.background?.count ?? 0, privacy: .public) \
+            ttl=\(captcha.ttl ?? -1, privacy: .public) \
+            error=\(captcha.error ?? "none", privacy: .public)
+            """
+        )
+        if let error = captcha.error, !error.isEmpty {
+            throw DvachError.api(DvachAPIError(code: .rateLimited, message: error))
+        }
+        return captcha
+    }
 
     public func captchaSettings(board: String) async throws(DvachError) -> CaptchaSettings {
         try await get(CaptchaSettings.self, .captchaSettings(board: board))
@@ -186,7 +390,7 @@ public actor DvachClient {
     /// the payload carries one.
     private func get<T: Decodable>(
         _ type: T.Type,
-        _ endpoint: DvachEndpoint,
+        _ endpoint: ImageboardEndpoint,
         envelope: (@Sendable (T) -> DvachAPIError?)? = nil,
         policy: RetryPolicy? = nil
     ) async throws(DvachError) -> T {
@@ -206,7 +410,7 @@ public actor DvachClient {
     /// Performs the request, retrying transient failures and turning anything
     /// that is not a usable 2xx into a `DvachError`.
     private func send(
-        _ endpoint: DvachEndpoint,
+        _ endpoint: ImageboardEndpoint,
         policy: RetryPolicy? = nil
     ) async throws(DvachError) -> HTTPReply {
         // The retry loop lives in a function with an untyped `throws`.
@@ -226,10 +430,13 @@ public actor DvachClient {
     }
 
     private func attemptSend(
-        _ endpoint: DvachEndpoint,
+        _ endpoint: ImageboardEndpoint,
         policy: RetryPolicy
     ) async throws -> HTTPReply {
-        let request = endpoint.request(on: domain())
+        let selection = site()
+        guard let request = endpoint.request(for: selection) else {
+            throw DvachError.unsupported(selection.site)
+        }
         var lastError: DvachError?
         /// What the server asked for on the previous attempt, in seconds.
         var retryAfter: Double?
@@ -264,7 +471,20 @@ public actor DvachClient {
             // A gate page must reach the user, not the retry loop: repeating the
             // request cannot pass a challenge.
             if ChallengeDetector.isChallenge(reply) {
-                let url = reply.url ?? domain().baseURL
+                let url = reply.url ?? selection.endpoints.api
+                // Which gate, and with what already in the jar: Cloudflare
+                // refusing the connection and the site's own script refusing a
+                // replayed cookie look identical to the reader and need
+                // completely different answers.
+                Self.log.notice(
+                    """
+                    gated by \(ChallengeDetector.matchedMarker(reply) ?? "?", privacy: .public) \
+                    status=\(reply.statusCode, privacy: .public) \
+                    url=\(url.absoluteString, privacy: .public) \
+                    sent-cookies=\(Self.cookieNames(for: url), privacy: .public) \
+                    ua=\(UserAgent.current, privacy: .public)
+                    """
+                )
                 onChallenge?(url)
                 throw DvachError.cloudflareChallenge(url: url)
             }

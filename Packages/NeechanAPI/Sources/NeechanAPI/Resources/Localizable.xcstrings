@@ -16,6 +16,12 @@
             "state": "translated",
             "value": "Не удалось загрузить капчу."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Captcha konnte nicht geladen werden."
+          }
         }
       }
     },
@@ -32,6 +38,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Капча устарела. Запросите новую."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Captcha ist abgelaufen. Lade ein neues."
           }
         }
       }
@@ -50,6 +62,12 @@
             "state": "translated",
             "value": "Капча не была запрошена."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Captcha wurde nicht gestartet."
+          }
         }
       }
     },
@@ -66,6 +84,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Пасскод не принят."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Passcode wurde nicht akzeptiert."
           }
         }
       }
@@ -84,6 +108,12 @@
             "state": "translated",
             "value": "Не удалось отправить пост."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Beitrag konnte nicht gesendet werden."
+          }
         }
       }
     },
@@ -101,6 +131,12 @@
             "state": "translated",
             "value": "Сайт ответил неожиданным образом."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Seite hat unerwartet geantwortet."
+          }
         }
       }
     },
@@ -117,6 +153,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сайт не сообщил, был ли пост отправлен."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Seite hat nicht gesagt, ob der Beitrag angekommen ist."
+          }
+        }
+      }
+    },
+    "The site did not say whether the post went through.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The site did not say whether the post went through."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сайт не сказал, прошёл ли пост."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Seite hat nicht gesagt, ob der Beitrag durchgegangen ist."
+          }
+        }
+      }
+    },
+    "The site wants to check your browser before accepting a post.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The site wants to check your browser before accepting a post."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сайт хочет проверить браузер, прежде чем принять пост."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Seite will deinen Browser prüfen, bevor sie einen Beitrag annimmt."
           }
         }
       }

@@ -152,6 +152,7 @@ screenshot:
 ## Re-record API fixtures from the live site.
 fixtures:
 	./Tools/record-fixtures.sh
+	./Tools/record-4chan-fixtures.sh
 
 clean:
 	rm -rf $(DERIVED) $(RESULTS)

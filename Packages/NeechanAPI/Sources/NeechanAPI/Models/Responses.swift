@@ -10,6 +10,20 @@ public struct CatalogResponse: Sendable, Decodable {
     public let bannerImage: String?
     public let bannerLink: String?
 
+    public init(
+        board: Board,
+        threads: [ThreadSummary],
+        filter: String? = nil,
+        bannerImage: String? = nil,
+        bannerLink: String? = nil
+    ) {
+        self.board = board
+        self.threads = threads
+        self.filter = filter
+        self.bannerImage = bannerImage
+        self.bannerLink = bannerLink
+    }
+
     private enum CodingKeys: String, CodingKey {
         case board, threads, filter
         case bannerImage = "board_banner_image"
@@ -26,6 +40,20 @@ public struct BoardPage: Sendable, Decodable {
     public let currentPage: Int
     /// Posts per hour, when the server reports it.
     public let boardSpeed: Int?
+
+    public init(
+        board: Board,
+        threads: [PagedThread],
+        pages: [Int] = [],
+        currentPage: Int = 0,
+        boardSpeed: Int? = nil
+    ) {
+        self.board = board
+        self.threads = threads
+        self.pages = pages
+        self.currentPage = currentPage
+        self.boardSpeed = boardSpeed
+    }
 
     private enum CodingKeys: String, CodingKey {
         case board, threads, pages
@@ -53,6 +81,13 @@ public struct PagedThread: Sendable, Hashable, Identifiable, Decodable {
     public var id: Int { threadNum }
     public var opPost: Post? { posts.first }
     public var replyPreview: [Post] { Array(posts.dropFirst()) }
+
+    public init(threadNum: Int, posts: [Post], postsCount: Int? = nil, filesCount: Int? = nil) {
+        self.threadNum = threadNum
+        self.posts = posts
+        self.postsCount = postsCount ?? posts.count
+        self.filesCount = filesCount ?? posts.reduce(0) { $0 + $1.files.count }
+    }
 
     private enum CodingKeys: String, CodingKey {
         case threadNum = "thread_num"
@@ -85,6 +120,30 @@ public struct ThreadResponse: Sendable, Decodable {
     public let title: String
     /// Server-relative path to the thread's first image, used as its poster.
     public let firstImage: String?
+
+    public init(
+        board: Board,
+        posts: [Post],
+        currentThread: Int? = nil,
+        maxNum: Int? = nil,
+        postsCount: Int? = nil,
+        filesCount: Int? = nil,
+        uniquePosters: Int = 0,
+        isClosed: Bool = false,
+        title: String = "",
+        firstImage: String? = nil
+    ) {
+        self.board = board
+        self.posts = posts
+        self.currentThread = currentThread ?? (posts.first?.num ?? 0)
+        self.maxNum = maxNum ?? (posts.last?.num ?? 0)
+        self.postsCount = postsCount ?? posts.count
+        self.filesCount = filesCount ?? posts.reduce(0) { $0 + $1.files.count }
+        self.uniquePosters = uniquePosters
+        self.isClosed = isClosed
+        self.title = title
+        self.firstImage = firstImage
+    }
 
     private enum CodingKeys: String, CodingKey {
         case board, threads, title
@@ -128,6 +187,13 @@ public struct AfterResponse: Sendable, Decodable {
     public let uniquePosters: Int
     public let posts: [Post]
 
+    public init(result: Int = 1, error: DvachAPIError? = nil, uniquePosters: Int = 0, posts: [Post]) {
+        self.result = result
+        self.error = error
+        self.uniquePosters = uniquePosters
+        self.posts = posts
+    }
+
     private enum CodingKeys: String, CodingKey {
         case result, error, posts
         case uniquePosters = "unique_posters"
@@ -149,11 +215,23 @@ public struct InfoResponse: Sendable, Decodable {
         /// Reply count, excluding the original post.
         public let posts: Int
         public let timestamp: Int
+
+        public init(num: Int, posts: Int, timestamp: Int) {
+            self.num = num
+            self.posts = posts
+            self.timestamp = timestamp
+        }
     }
 
     public let result: Int
     public let error: DvachAPIError?
     public let thread: ThreadInfo?
+
+    public init(result: Int = 1, error: DvachAPIError? = nil, thread: ThreadInfo?) {
+        self.result = result
+        self.error = error
+        self.thread = thread
+    }
 }
 
 /// `GET /api/mobile/v2/post/{board}/{num}`
@@ -161,6 +239,12 @@ public struct SinglePostResponse: Sendable, Decodable {
     public let result: Int
     public let error: DvachAPIError?
     public let post: Post?
+
+    public init(result: Int = 1, error: DvachAPIError? = nil, post: Post?) {
+        self.result = result
+        self.error = error
+        self.post = post
+    }
 }
 
 /// `POST /user/search?json=1`
@@ -168,6 +252,12 @@ public struct SearchResponse: Sendable, Decodable {
     public let board: Board?
     public let posts: [Post]
     public let error: DvachAPIError?
+
+    public init(board: Board? = nil, posts: [Post], error: DvachAPIError? = nil) {
+        self.board = board
+        self.posts = posts
+        self.error = error
+    }
 
     private enum CodingKeys: String, CodingKey { case board, posts, error }
 
@@ -190,6 +280,13 @@ public struct ArchiveResponse: Sendable, Decodable {
     public let lastPage: Int
     public let pages: [Int]
     public let threads: [ArchivedThread]
+
+    public init(board: String, lastPage: Int, pages: [Int], threads: [ArchivedThread]) {
+        self.board = board
+        self.lastPage = lastPage
+        self.pages = pages
+        self.threads = threads
+    }
 
     private enum CodingKeys: String, CodingKey {
         case board, threads, pages, page
@@ -217,6 +314,20 @@ public struct ArchivedThread: Sendable, Hashable, Identifiable, Decodable {
 
     /// When the thread was archived, from the server's own timestamp.
     public var archivedAt: Date { Date(timeIntervalSince1970: TimeInterval(timestamp)) }
+
+    public init(
+        board: String,
+        threadNum: Int,
+        subject: String = "",
+        date: String = "",
+        timestamp: Int = 0
+    ) {
+        self.board = board
+        self.threadNum = threadNum
+        self.subject = subject
+        self.date = date
+        self.timestamp = timestamp
+    }
 
     private enum CodingKeys: String, CodingKey {
         case board, subject, date, timestamp

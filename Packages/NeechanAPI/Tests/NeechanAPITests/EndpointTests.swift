@@ -4,8 +4,9 @@ import Testing
 
 @Suite("Endpoints")
 struct EndpointTests {
-    private func url(_ endpoint: DvachEndpoint, on domain: DvachDomain = .org) throws -> String {
-        try #require(endpoint.request(on: domain).url?.absoluteString)
+    private func url(_ endpoint: ImageboardEndpoint, on domain: DvachDomain = .org) throws -> String {
+        let selection = SiteSelection(site: .dvach, mirror: domain)
+        return try #require(endpoint.request(for: selection)?.url?.absoluteString)
     }
 
     @Test("the board list uses the mobile API")
@@ -66,12 +67,12 @@ struct EndpointTests {
 
     @Test("read endpoints are GETs that ask for JSON")
     func readRequestsAreGETs() throws {
-        for endpoint: DvachEndpoint in [
+        for endpoint: ImageboardEndpoint in [
             .boards, .catalog(board: "b"), .boardPage(board: "b", page: 0),
             .thread(board: "b", thread: 1), .after(board: "b", thread: 1, sinceNum: 1),
             .threadInfo(board: "b", thread: 1), .post(board: "b", num: 1)
         ] {
-            let request = endpoint.request(on: .org)
+            let request = endpoint.request(for: .default)!
             #expect(request.httpMethod == "GET", "\(endpoint) should be a GET")
             #expect(request.value(forHTTPHeaderField: "Accept") == "application/json")
             #expect(request.httpBody == nil)
@@ -80,7 +81,7 @@ struct EndpointTests {
 
     @Test("search posts a multipart form and asks for a JSON reply")
     func searchRequest() throws {
-        let request = DvachEndpoint.search(board: "b", text: "аниме").request(on: .org)
+        let request = ImageboardEndpoint.search(board: "b", text: "аниме").request(for: .default)!
         #expect(request.httpMethod == "POST")
         #expect(request.url?.absoluteString == "https://2ch.org/user/search?json=1")
 
@@ -112,9 +113,9 @@ struct EndpointTests {
 struct PollEndpointTests {
     @Test("a polled endpoint gives up sooner than one the reader is waiting on")
     func pollsTimeOutSooner() {
-        let poll = DvachEndpoint.threadInfo(board: "b", thread: 1).request(on: .org)
-        let incremental = DvachEndpoint.after(board: "b", thread: 1, sinceNum: 5).request(on: .org)
-        let reader = DvachEndpoint.thread(board: "b", thread: 1).request(on: .org)
+        let poll = ImageboardEndpoint.threadInfo(board: "b", thread: 1).request(for: .default)!
+        let incremental = ImageboardEndpoint.after(board: "b", thread: 1, sinceNum: 5).request(for: .default)!
+        let reader = ImageboardEndpoint.thread(board: "b", thread: 1).request(for: .default)!
 
         #expect(poll.timeoutInterval == 15)
         #expect(incremental.timeoutInterval == 15)
@@ -125,8 +126,8 @@ struct PollEndpointTests {
     /// and no body; where it does not, it costs nothing.
     @Test("a polled endpoint asks the server to confirm rather than resend")
     func pollsRevalidate() {
-        let poll = DvachEndpoint.threadInfo(board: "b", thread: 1).request(on: .org)
-        let reader = DvachEndpoint.thread(board: "b", thread: 1).request(on: .org)
+        let poll = ImageboardEndpoint.threadInfo(board: "b", thread: 1).request(for: .default)!
+        let reader = ImageboardEndpoint.thread(board: "b", thread: 1).request(for: .default)!
 
         #expect(poll.cachePolicy == .reloadRevalidatingCacheData)
         #expect(reader.cachePolicy == .useProtocolCachePolicy)

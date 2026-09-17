@@ -11,7 +11,7 @@ import Testing
 @Suite("User agent", .serialized)
 struct UserAgentTests {
     private func makeClient(_ transport: StubTransport) -> DvachClient {
-        DvachClient(transport: transport, domain: { .org })
+        DvachClient(transport: transport, site: { .init(site: .dvach, mirror: .org) })
     }
 
     @Test("before anything is read, a plausible browser agent is sent")

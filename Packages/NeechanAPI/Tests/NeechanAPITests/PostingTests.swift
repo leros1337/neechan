@@ -70,9 +70,9 @@ struct MultipartFormEncoderTests {
 struct PostingServiceTests {
     private func makeService(_ transport: StubTransport) -> PostingService {
         PostingService(
-            client: DvachClient(transport: transport, domain: { .org }),
+            client: DvachClient(transport: transport, site: { .init(site: .dvach, mirror: .org) }),
             transport: transport,
-            domain: { .org }
+            site: { .init(site: .dvach, mirror: .org) }
         )
     }
 
