@@ -5,7 +5,9 @@
 
 SHELL := /bin/bash
 
-SCHEME      := Neechan
+# Recursively expanded: the App Store configuration has a scheme of its own,
+# because its test action leaves out the unit bundle that needs testability.
+SCHEME       = $(if $(filter $(APPSTORE),$(CONFIGURATION)),Neechan (App Store),Neechan)
 SIMULATOR   := iPhone 17 Pro
 IPAD        := iPad Pro 13-inch (M5)
 # Pinned to one runtime: several Xcode versions can be installed side by side,
@@ -28,21 +30,33 @@ RESULTS     := .build/TestResults.xcresult
 # Shared SwiftPM clone cache: FFmpegKit alone is a multi-gigabyte checkout, so
 # it must not be re-cloned every time DerivedData is wiped.
 SPM_CACHE   := $(HOME)/Library/Caches/org.swift.swiftpm-neechan
-XCB          = xcodebuild -scheme $(SCHEME) -destination '$(DESTINATION)' \
+XCB          = xcodebuild -scheme '$(SCHEME)' -destination '$(DESTINATION)' \
                -configuration $(CONFIGURATION) \
                -derivedDataPath $(DERIVED) \
                -clonedSourcePackagesDirPath $(SPM_CACHE) \
                -skipMacroValidation -quiet
 PACKAGES    := NeechanTestSupport NeechanAPI NeechanSettings NeechanCore NeechanMedia NeechanUI
-BUNDLE_ID   := com.lain.neechan
-# A release build keeps its own DerivedData so it does not fight the debug one
-# over the same module cache every time the two are run in turn.
-DERIVED_REL := .build/DerivedDataRelease
-ARCHIVE     := .build/Neechan.xcarchive
+# The configuration that starts cautious and cannot post.
+APPSTORE    := AppStore
+# Recursively expanded and derived from the configuration: the App Store build
+# installs beside the ordinary one under its own identifier, so `simctl launch`
+# has to be told which of the two was just put there. Keeping this tied to the
+# configuration is what stops the two drifting apart.
+BUNDLE_ID    = com.lain.neechan$(if $(filter $(APPSTORE),$(CONFIGURATION)),.appstore,)
+# The configuration an archive is cut from. `ipa` stays on Release, which is
+# what the release workflow builds and names.
+ARCHIVE_CONFIG ?= Release
+# Both keyed by it, so two variants archived in turn cannot overwrite each
+# other, and a release build does not fight the debug one over a module cache.
+DERIVED_REL  = .build/DerivedDataArchive-$(ARCHIVE_CONFIG)
+ARCHIVE      = .build/Neechan-$(ARCHIVE_CONFIG).xcarchive
 # The version the built app reports. The release workflow passes the tag.
 VERSION     := $(shell awk '/MARKETING_VERSION:/ { gsub(/["[:space:]]/, "", $$2); print $$2; exit }' project.yml)
+# Infixed only away from Release: `.github/workflows/release.yml` names
+# `.build/Neechan-$(VERSION).ipa` literally and fails the job if it is absent.
+IPA          = .build/Neechan$(if $(filter-out Release,$(ARCHIVE_CONFIG)),-appstore,)-$(VERSION).ipa
 
-.PHONY: all gen build ipa test test-packages test-pkg test-app test-one test-report sim ipad screenshot fixtures clean clean-all
+.PHONY: all gen build ipa appstore ipa-appstore check-appstore check-ipa-appstore test test-packages test-pkg test-app test-one test-report sim ipad screenshot fixtures clean clean-all
 
 all: gen test
 
@@ -62,7 +76,7 @@ build:
 ## signing method, so the archive's app is wrapped in a Payload/ folder by hand,
 ## which is all an .ipa is.
 ipa: gen
-	xcodebuild -scheme $(SCHEME) -configuration Release \
+	xcodebuild -scheme '$(SCHEME)' -configuration $(ARCHIVE_CONFIG) \
 		-destination 'generic/platform=iOS' \
 		-archivePath $(ARCHIVE) \
 		-derivedDataPath $(DERIVED_REL) \
@@ -71,11 +85,11 @@ ipa: gen
 		CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= \
 		MARKETING_VERSION=$(VERSION) \
 		archive
-	@rm -rf .build/Payload .build/Neechan-$(VERSION).ipa
+	@rm -rf .build/Payload $(IPA)
 	@mkdir -p .build/Payload
 	@cp -R $(ARCHIVE)/Products/Applications/Neechan.app .build/Payload/
-	@cd .build && zip -qry9 Neechan-$(VERSION).ipa Payload && rm -rf Payload
-	@ls -lh .build/Neechan-$(VERSION).ipa | awk '{ print "built .build/Neechan-$(VERSION).ipa (" $$5 ")" }'
+	@cd .build && zip -qry9 $(notdir $(IPA)) Payload && rm -rf Payload
+	@ls -lh $(IPA) | awk '{ print "built $(IPA) (" $$5 ")" }'
 
 ## Run every package test suite, then the app test bundles.
 test: test-packages test-app
@@ -143,6 +157,46 @@ sim: build
 ipad: SIMULATOR := $(IPAD)
 ipad: sim
 
+## Build, install and launch the App Store variant on the simulator.
+##
+## It carries its own bundle identifier, so it sits beside the ordinary build
+## rather than replacing it.
+appstore: CONFIGURATION := $(APPSTORE)
+appstore: check-appstore sim
+
+## An unsigned .ipa of the App Store variant.
+ipa-appstore: ARCHIVE_CONFIG := $(APPSTORE)
+ipa-appstore: ipa
+	@$(MAKE) --no-print-directory check-ipa-appstore ARCHIVE_CONFIG=$(APPSTORE)
+
+## Fails unless the built app really is the restricted one.
+##
+## `Neechan/Info.plist` is generated and gitignored, and `build` does not depend
+## on `gen` — so editing project.yml and building without regenerating produces
+## an app with no such key at all, which reads as the ordinary build and posts
+## freely while wearing the App Store identifier. A typo between the setting
+## name and the $(...) in the plist does the same, expanding to nothing. This
+## turns either of those from a silent unlock into a failed build.
+check-appstore: build
+	@set -e; \
+	plist=$$(find $(DERIVED)/Build/Products -name 'Neechan.app' -maxdepth 3 | head -1)/Info.plist; \
+	test -f "$$plist" || { echo "no built app to check"; exit 1; }; \
+	locked=$$(plutil -extract NeechanIsAppStoreBuild raw -o - "$$plist" 2>/dev/null || echo MISSING); \
+	id=$$(plutil -extract CFBundleIdentifier raw -o - "$$plist"); \
+	test "$$locked" = "YES" || { echo "NOT the App Store build: NeechanIsAppStoreBuild=$$locked. Run 'make gen'."; exit 1; }; \
+	case "$$id" in *.appstore) ;; *) echo "wrong bundle id: $$id"; exit 1 ;; esac; \
+	echo "App Store build confirmed: $$id, posting fixed off"
+
+## Checks the archive `ipa-appstore` just cut. Given ARCHIVE_CONFIG explicitly,
+## because a target-specific variable does not reach a sub-make and this would
+## otherwise inspect the ordinary Release archive and pass on the wrong file.
+check-ipa-appstore:
+	@set -e; \
+	plist=$(ARCHIVE)/Products/Applications/Neechan.app/Info.plist; \
+	locked=$$(plutil -extract NeechanIsAppStoreBuild raw -o - "$$plist" 2>/dev/null || echo MISSING); \
+	test "$$locked" = "YES" || { echo "NOT the App Store build: NeechanIsAppStoreBuild=$$locked"; exit 1; }; \
+	echo "App Store .ipa confirmed: posting fixed off"
+
 ## Capture the booted simulator screen.
 screenshot:
 	@mkdir -p .build/screenshots
@@ -155,7 +209,7 @@ fixtures:
 	./Tools/record-4chan-fixtures.sh
 
 clean:
-	rm -rf $(DERIVED) $(RESULTS)
+	rm -rf $(DERIVED) $(RESULTS) .build/DerivedData-$(APPSTORE) .build/DerivedDataArchive-*
 	@for pkg in $(PACKAGES); do rm -rf Packages/$$pkg/.build; done
 
 ## Also drops the shared SwiftPM clone cache (re-cloning FFmpegKit takes minutes).

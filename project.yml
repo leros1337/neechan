@@ -6,6 +6,29 @@ options:
   createIntermediateGroups: true
   generateEmptyDirectories: false
   groupSortPosition: top
+  # Named because XcodeGen otherwise picks the alphabetically first
+  # configuration, and `AppStore` sorts before `Debug` — which would quietly
+  # make the restricted build what any xcodebuild without -configuration
+  # produces.
+  defaultConfig: Release
+
+# Declared because a third configuration is needed, and the moment this block
+# exists the implicit Debug and Release disappear unless they are named here.
+#
+# The value is the *type*, which is what picks the preset: `release` means
+# optimised, whole-module, dSYM, no assertions, and no DEBUG in the active
+# compilation conditions. `AppStore` is therefore a Release in everything the
+# compiler sees; the name is the only thing that differs, and it is what the
+# posting lock and the bundle identifier key off. An empty type would give it
+# neither preset — unoptimised *and* without DEBUG — which is the worst of both
+# and would not announce itself.
+#
+# Release is listed before AppStore so it stays the project's default for any
+# xcodebuild that omits -configuration.
+configs:
+  Debug: debug
+  Release: release
+  AppStore: release
 
 settings:
   base:
@@ -47,10 +70,16 @@ targets:
     info:
       path: Neechan/Info.plist
       properties:
-        CFBundleDisplayName: Neechan
+        CFBundleDisplayName: $(NEECHAN_DISPLAY_NAME)
         CFBundleDevelopmentRegion: en
         CFBundleLocalizations: [en, ru, de]
         CFBundleShortVersionString: $(MARKETING_VERSION)
+        # How a package learns which build this is. A compilation condition
+        # cannot: one set on this target reaches this target's single Swift
+        # file and no package, and SwiftPM knows only debug and release, so it
+        # cannot see a third configuration either. Expansion inside a plist is
+        # textual, so this arrives as the string "YES" or "NO".
+        NeechanIsAppStoreBuild: $(NEECHAN_APP_STORE_BUILD)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
         # `fetch` alone: the app registers a `BGAppRefreshTask` for the
@@ -80,7 +109,11 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.lain.neechan
         PRODUCT_NAME: Neechan
-        INFOPLIST_KEY_CFBundleDisplayName: Neechan
+        NEECHAN_DISPLAY_NAME: Neechan
+        # The ordinary build is the default, so a configuration added later
+        # behaves like the ordinary build until it says otherwise.
+        NEECHAN_APP_STORE_BUILD: NO
+        INFOPLIST_KEY_CFBundleDisplayName: $(NEECHAN_DISPLAY_NAME)
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # The icons the reader can switch to. Naming them here is what puts
         # them in the bundle and writes the `CFBundleAlternateIcons` entries
@@ -90,6 +123,17 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         ENABLE_PREVIEWS: YES
         SWIFT_EMIT_LOC_STRINGS: YES
+      configs:
+        # Tied to one configuration on purpose: the identifier and the posting
+        # lock cannot come apart, so a build that can post is never the one
+        # wearing the App Store identifier.
+        #
+        # Both of these are for testing beside the ordinary build. Change them
+        # back to `com.lain.neechan` and `Neechan` before submitting.
+        AppStore:
+          PRODUCT_BUNDLE_IDENTIFIER: com.lain.neechan.appstore
+          NEECHAN_DISPLAY_NAME: Neechan AS
+          NEECHAN_APP_STORE_BUILD: YES
     dependencies:
       - package: NeechanUI
       - package: NeechanCore
@@ -141,3 +185,30 @@ schemes:
       config: Debug
     archive:
       config: Release
+
+  # For Xcode's Run and Archive menus. Deliberately without a test action: the
+  # UI tests pin posting open with a launch argument this build ignores, so
+  # running them here would be a screenful of red for the right reason.
+  Neechan (App Store):
+    build:
+      targets:
+        Neechan: all
+    run:
+      config: AppStore
+    # Only the XCUITests, and only ever with `-only-testing`. The unit bundle
+    # is left out because it does `@testable import Neechan`, which needs
+    # testability — off in a release-type configuration, and switching it on
+    # would make this build something other than the one being shipped. The
+    # rest of the XCUITests expect a build that can post, so running the whole
+    # bundle here would be red for the right reason; `make test-one` is what
+    # this is for.
+    test:
+      config: AppStore
+      targets:
+        - NeechanUITests
+    profile:
+      config: AppStore
+    analyze:
+      config: AppStore
+    archive:
+      config: AppStore
