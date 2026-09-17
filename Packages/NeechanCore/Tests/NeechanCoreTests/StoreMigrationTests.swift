@@ -7,41 +7,39 @@ import Testing
 /// Opening a store written before there were two imageboards.
 ///
 /// An in-memory container starts empty, so it cannot exercise this at all: each
-/// test writes a real V1 store to its own file and reopens it under V2.
+/// test takes a copy of a real V1 store and opens it under the current schema.
+///
+/// The store is a committed fixture rather than something written here, and it
+/// has to be. V1 and V2 give their entities the same names on purpose — that is
+/// what lets SwiftData match them across the migration — so a process holding
+/// both schemas has two descriptions claiming one entity, and whichever was
+/// registered last wins. Writing a V1 store while another suite happened to be
+/// building a V2 container aborted the whole test run with
+/// `HistoryEntry is not key value coding-compliant for the key "siteRaw"`.
+/// Reading a file written earlier needs no V1 container at all.
 @Suite("Store migration")
 struct StoreMigrationTests {
-    /// A store of its own per test. swift-testing runs these in parallel, and
-    /// two sharing one file would corrupt each other.
-    private func temporaryStoreURL() -> URL {
-        URL.temporaryDirectory.appending(path: "NeechanMigration-\(UUID().uuidString).store")
-    }
-
-    /// Writes the old shape and lets the container go out of scope, which is
-    /// the only way SwiftData closes one.
-    private func writeV1Store(at url: URL) throws {
-        let schema = Schema(NeechanSchemaV1.models)
-        let container = try ModelContainer(
-            for: schema,
-            migrationPlan: nil,
-            configurations: ModelConfiguration("Neechan", schema: schema, url: url)
+    /// A copy of the fixture, in a directory of its own.
+    ///
+    /// Copied because opening it migrates it in place, and swift-testing runs
+    /// these in parallel: they would otherwise migrate one file five times.
+    private func v1StoreCopy() throws -> URL {
+        let fixture = try #require(
+            Bundle.module.url(forResource: "neechan-v1", withExtension: "store", subdirectory: "Fixtures")
+                ?? Bundle.module.url(forResource: "neechan-v1", withExtension: "store"),
+            "the V1 store fixture is missing from the test bundle"
         )
-        let context = ModelContext(container)
-        context.insert(NeechanSchemaV1.Favorite(board: "b", threadNum: 12345, title: "Тред"))
-        context.insert(NeechanSchemaV1.FavoriteBoard(board: "b", name: "Бред"))
-        context.insert(NeechanSchemaV1.HistoryEntry(board: "po", threadNum: 777, title: "Политика"))
-        context.insert(NeechanSchemaV1.HiddenThread(board: "b", threadNum: 999, title: "Спам"))
-        context.insert(NeechanSchemaV1.AutohideRule(pattern: "спам"))
-        let watched = NeechanSchemaV1.WatchedThreadState(board: "b", threadNum: 12345)
-        watched.unreadCount = 4
-        context.insert(watched)
-        try context.save()
+        let directory = URL.temporaryDirectory.appending(path: "NeechanMigration-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let copy = directory.appending(path: "neechan-v1.store")
+        try FileManager.default.copyItem(at: fixture, to: copy)
+        return copy
     }
 
     @Test("a store written before there were two imageboards opens as 2ch's")
     func backfillsToDvach() throws {
-        let url = temporaryStoreURL()
-        defer { try? FileManager.default.removeItem(at: url) }
-        try writeV1Store(at: url)
+        let url = try v1StoreCopy()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let container = try NeechanStore.makeContainer(at: url)
         let context = ModelContext(container)
@@ -73,9 +71,8 @@ struct StoreMigrationTests {
     /// have overwritten the first's rather than sitting beside it.
     @Test("pinning /b/ on one imageboard does not overwrite the other's")
     func favoriteBoardsNoLongerCollide() throws {
-        let url = temporaryStoreURL()
-        defer { try? FileManager.default.removeItem(at: url) }
-        try writeV1Store(at: url)
+        let url = try v1StoreCopy()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let container = try NeechanStore.makeContainer(at: url)
         let context = ModelContext(container)
@@ -92,9 +89,8 @@ struct StoreMigrationTests {
 
     @Test("two imageboards' /b/12345 are two different threads")
     func threadsNoLongerCollide() throws {
-        let url = temporaryStoreURL()
-        defer { try? FileManager.default.removeItem(at: url) }
-        try writeV1Store(at: url)
+        let url = try v1StoreCopy()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let container = try NeechanStore.makeContainer(at: url)
         let context = ModelContext(container)
@@ -113,9 +109,8 @@ struct StoreMigrationTests {
     /// did on a site, so it is deliberately *not* narrowed to 2ch on upgrade.
     @Test("an autohide rule carried over applies to every imageboard")
     func rulesStaySiteBlind() throws {
-        let url = temporaryStoreURL()
-        defer { try? FileManager.default.removeItem(at: url) }
-        try writeV1Store(at: url)
+        let url = try v1StoreCopy()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let container = try NeechanStore.makeContainer(at: url)
         let context = ModelContext(container)
@@ -129,9 +124,8 @@ struct StoreMigrationTests {
 
     @Test("a store already on the current version opens unchanged")
     func reopeningIsStable() throws {
-        let url = temporaryStoreURL()
-        defer { try? FileManager.default.removeItem(at: url) }
-        try writeV1Store(at: url)
+        let url = try v1StoreCopy()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         _ = try NeechanStore.makeContainer(at: url)
         let container = try NeechanStore.makeContainer(at: url)

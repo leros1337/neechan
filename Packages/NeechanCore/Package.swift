@@ -27,6 +27,9 @@ let package = Package(
                 "NeechanTestSupport",
                 .product(name: "NeechanAPITesting", package: "NeechanAPI")
             ],
+            // Copied rather than processed: one of them is a SwiftData store
+            // written by the old schema, and it has to arrive byte for byte.
+            resources: [.copy("Fixtures")],
             swiftSettings: [.swiftLanguageMode(.v6)]
         )
     ]
