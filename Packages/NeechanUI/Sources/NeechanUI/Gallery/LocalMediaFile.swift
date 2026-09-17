@@ -17,8 +17,9 @@ enum LocalMediaFile {
     /// **The caller must not delete or move the result.** It is the cache entry
     /// itself, and playback reads it in place.
     ///
-    /// - Parameter onProgress: how far a download has got, when a whole one is
-    ///   needed. Not called for a cache hit or when pieces are completed.
+    /// - Parameter onProgress: how far getting the file has got — whether that
+    ///   means filling in the pieces left by watching it or downloading the lot.
+    ///   Not called for a cache hit, which is already instant.
     static func resolve(
         _ url: URL,
         referer: URL?,
@@ -32,7 +33,10 @@ enum LocalMediaFile {
         }
         // Watched pieces are a head start: only the rest is fetched.
         if let completed = await MediaFileCompletion.wholeFile(
-            for: url, referer: referer, cache: cache, store: blocks
+            for: url, referer: referer, cache: cache, store: blocks,
+            onProgress: { received, total in
+                onProgress?(Downloader.Progress(bytesReceived: received, bytesExpected: total))
+            }
         ) {
             return completed
         }
