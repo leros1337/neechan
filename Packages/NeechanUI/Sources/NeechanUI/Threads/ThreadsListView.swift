@@ -35,6 +35,18 @@ public struct ThreadsListView: View {
     @State private var usesCatalog: Bool?
     @State private var pageIndex = 0
     @State private var pageCount = 1
+    /// When the threads on screen arrived, so coming back to a board that has
+    /// gone stale can fetch it again and coming straight back need not.
+    @State private var lastLoadedAt: Date?
+    /// Whether this is the screen being looked at, rather than one left under
+    /// a thread the reader opened from it.
+    @State private var isVisible = false
+    /// Whether the reader is at the top of the list.
+    ///
+    /// A board is ordered by what was last bumped, so a refresh moves rows: it
+    /// waits while somebody is reading part way down.
+    @State private var isNearTop = true
+    @Environment(\.scenePhase) private var scenePhase
 
     public init(board: String) {
         self.board = board
@@ -59,9 +71,34 @@ public struct ThreadsListView: View {
             }
             .overlay { stateOverlay }
             .safeAreaInset(edge: .bottom) { pageControls }
-            .task(id: sort) { await load() }
-            .task(id: pageIndex) { await load() }
+            // One task, not one per thing it depends on: keyed separately on
+            // the sort and the page, both fired on the first appearance and
+            // every board was fetched twice for it.
+            .task(id: LoadKey(sort: sort, pageIndex: pageIndex, isCatalog: isCatalog)) {
+                await load()
+            }
             .task { await loadHidden() }
+            .onAppear {
+                let wasVisible = isVisible
+                isVisible = true
+                // Coming back from a thread. The board's own view never went
+                // away, so nothing else here knows anything happened.
+                if !wasVisible { Task { await refreshIfStale() } }
+            }
+            .onDisappear { isVisible = false }
+            // Returning to the app is the other moment a stale board shows.
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active, isVisible else { return }
+                Task { await refreshIfStale() }
+            }
+            // Reduced to a yes or no and stored only when it changes: this
+            // fires on every scrolled frame, and a store into `@State` per
+            // frame would rebuild the whole list as it moved.
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top < 200
+            } action: { _, isTop in
+                isNearTop = isTop
+            }
             // Recomputed off the main actor whenever the board or the rules
             // change, rather than per row while drawing.
             .task(id: RuleInputs(threadNums: threads.map(\.num), rules: autohideRules)) {
@@ -477,15 +514,36 @@ public struct ThreadsListView: View {
         Binding(
             get: { isCatalog },
             set: { newValue in
+                // No fetch from here: switching modes changes the key the load
+                // task runs on, which fetches once. Asking as well made it
+                // twice.
                 usesCatalog = newValue
                 pageIndex = 0
-                Task { await load() }
             }
         )
     }
 
-    private func load() async {
-        loadState = .loading
+    /// Fetches the board again if what is on screen has gone stale.
+    ///
+    /// Quietly: the rows stay while it runs, and a failure leaves them alone.
+    /// A refresh nobody asked for must never turn a working screen into an
+    /// error screen.
+    private func refreshIfStale() async {
+        guard BoardRefreshPolicy.shouldRefresh(
+            lastLoadedAt: lastLoadedAt,
+            staleAfter: .seconds(services.settings.watcherIntervalSeconds),
+            isNearTop: isNearTop,
+            isLoading: loadState == .loading,
+            allowsAutomaticPolling: services.allowsAutomaticPolling
+        ) else { return }
+
+        await load(quietly: true)
+    }
+
+    /// - Parameter quietly: leaves the rows and the state where they are until
+    ///   an answer arrives, for a refresh the reader did not ask for.
+    private func load(quietly: Bool = false) async {
+        if !quietly { loadState = .loading }
         do {
             if isCatalog {
                 let page = try await services.catalog.catalog(board: board, sort: sort)
@@ -499,10 +557,24 @@ public struct ThreadsListView: View {
                 pageCount = page.pageCount
             }
             loadState = .loaded
+            lastLoadedAt = .now
         } catch {
+            // A refresh nobody asked for keeps its failure to itself: the rows
+            // it could not replace are still worth reading.
+            guard !quietly else { return }
             loadState = .failed(error.readableMessage)
         }
     }
+}
+
+/// What the list of threads depends on.
+///
+/// One key rather than a task per part: two tasks both fired on the first
+/// appearance, so opening a board fetched it twice.
+private struct LoadKey: Equatable {
+    let sort: CatalogSort
+    let pageIndex: Int
+    let isCatalog: Bool
 }
 
 /// What the rule-hidden set depends on.

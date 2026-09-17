@@ -46,6 +46,24 @@ final class ReadingFlowUITests: LiveUITestCase {
         attachScreenshot(app, name: "03-thread")
     }
 
+    /// Coming back from a thread refreshes the board when it has gone stale,
+    /// and that refresh happens under the rows rather than instead of them.
+    /// The guard worth having is that the board still has threads afterwards:
+    /// a quiet reload that failed must leave what was there.
+    func testTheBoardStillHasThreadsAfterAThread() throws {
+        let app = launchApp()
+        openFirstBoard(app)
+        openThreadWithReplies(app)
+
+        XCTAssertTrue(leaveThread(app), "the tabs did not come back after the thread")
+
+        XCTAssertTrue(
+            replyCounts(app).firstMatch.waitForExistence(timeout: Self.networkTimeout),
+            "the board lost its threads on the way back from one"
+        )
+        attachScreenshot(app, name: "05-board-after-thread")
+    }
+
     func testHistoryRecordsAVisitedThread() throws {
         let app = launchApp()
         openFirstBoard(app)

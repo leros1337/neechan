@@ -53,6 +53,9 @@ public enum DvachEndpoint: Sendable, Hashable {
             // A poll left hanging on the default timeout holds a connection
             // open across several of its own successors.
             request.timeoutInterval = 15
+        }
+
+        if usesRevalidation {
             // Asks the server to confirm rather than resend. It answers 304
             // where it can, and the session serves the body from its own cache;
             // where it sends no validators this costs nothing and changes
@@ -83,6 +86,21 @@ public enum DvachEndpoint: Sendable, Hashable {
     var isPoll: Bool {
         switch self {
         case .threadInfo, .after: true
+        default: false
+        }
+    }
+
+    /// Whether the same answer is likely to come back, and is worth confirming
+    /// rather than re-sending.
+    ///
+    /// The polls, and the board listings: a board is opened, read and come back
+    /// to, and its catalog is a long answer with every thumbnail's address in
+    /// it. Separate from `isPoll` because that also shortens the timeout, which
+    /// suits something nobody is waiting on and not a board the reader is
+    /// looking at.
+    var usesRevalidation: Bool {
+        switch self {
+        case .threadInfo, .after, .catalog, .catalogByCreation, .boardPage: true
         default: false
         }
     }
