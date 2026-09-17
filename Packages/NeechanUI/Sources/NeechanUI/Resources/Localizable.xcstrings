@@ -857,6 +857,23 @@
         }
       }
     },
+    "App icon": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App icon"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Иконка приложения"
+          }
+        }
+      }
+    },
     "Appearance": {
       "extractionState": "manual",
       "localizations": {
@@ -1397,6 +1414,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Категория"
+          }
+        }
+      }
+    },
+    "Changing it takes a moment to show on the home screen.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changing it takes a moment to show on the home screen."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На домашнем экране иконка меняется не сразу."
           }
         }
       }
@@ -4178,6 +4212,23 @@
         }
       }
     },
+    "Original": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обычная"
+          }
+        }
+      }
+    },
     "Other": {
       "extractionState": "manual",
       "localizations": {
@@ -6180,6 +6231,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Выбранная папка больше недоступна. Выберите её заново в настройках."
+          }
+        }
+      }
+    },
+    "The icon could not be changed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The icon could not be changed."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось сменить иконку."
           }
         }
       }

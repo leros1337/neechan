@@ -290,6 +290,17 @@ public final class AppSettings {
         set { write(newValue, forKey: Key.remembersHistory) }
     }
 
+    /// The app icon the reader picked, or nil for the one it ships with.
+    ///
+    /// Stored rather than read back from the system so the settings screen can
+    /// draw the choice before the first frame; what is actually on the home
+    /// screen is the system's to report, and the two are kept in step when the
+    /// choice is applied.
+    public var appIconName: String? {
+        get { defaults.string(forKey: Key.appIcon) }
+        set { write(newValue, forKey: Key.appIcon) }
+    }
+
     /// Whether the app asks who is holding the device before showing anything.
     ///
     /// Off unless the reader asks for it. What the check accepts is the
@@ -600,6 +611,7 @@ public final class AppSettings {
         static let remembersHistory = "general.remembersHistory"
         static let internalBrowser = "general.internalBrowser"
         static let appLock = "general.appLock"
+        static let appIcon = "interface.appIcon"
         static let catalogByDefault = "forum.catalogByDefault"
         static let autoRefresh = "contents.autoRefresh"
         static let endlessMode = "contents.endlessMode"
