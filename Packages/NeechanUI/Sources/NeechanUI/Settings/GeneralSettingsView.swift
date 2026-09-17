@@ -18,6 +18,7 @@ struct GeneralSettingsView: View {
                     Text("System", bundle: .module).tag(String?.none)
                     Text(verbatim: "English").tag(String?.some("en"))
                     Text(verbatim: "Русский").tag(String?.some("ru"))
+                    Text(verbatim: "Deutsch").tag(String?.some("de"))
                 } label: {
                     Text("Language", bundle: .module)
                 }
@@ -65,7 +66,7 @@ struct GeneralSettingsView: View {
                     Text("Open links in the app", bundle: .module)
                 }
             } footer: {
-                Text("Links outside 2ch open in a browser sheet instead of Safari.", bundle: .module)
+                Text("Links off the imageboard open in a browser sheet instead of Safari.", bundle: .module)
             }
         }
         .onChange(of: services.settings.remembersHistory) {
@@ -92,7 +93,7 @@ struct GeneralSettingsView: View {
             titleVisibility: .visible
         ) {
             Button(role: .destructive) {
-                Task { try? await services.history.clear() }
+                Task { try? await services.history.clear(site: nil) }
             } label: {
                 Text("Clear", bundle: .module)
             }

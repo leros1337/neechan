@@ -2,6 +2,29 @@
   "sourceLanguage": "en",
   "version": "1.0",
   "strings": {
+    "Loading…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загрузка…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird geladen…"
+          }
+        }
+      }
+    },
     "Playback failed.": {
       "extractionState": "manual",
       "localizations": {
@@ -15,6 +38,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Не удалось воспроизвести."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Wiedergabe ist fehlgeschlagen."
           }
         }
       }
@@ -33,22 +62,11 @@
             "state": "translated",
             "value": "Видео не удалось воспроизвести."
           }
-        }
-      }
-    },
-    "Loading…": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Loading…"
-          }
         },
-        "ru": {
+        "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Загрузка…"
+            "value": "Dieses Video konnte nicht abgespielt werden."
           }
         }
       }

@@ -49,7 +49,7 @@ targets:
       properties:
         CFBundleDisplayName: Neechan
         CFBundleDevelopmentRegion: en
-        CFBundleLocalizations: [en, ru]
+        CFBundleLocalizations: [en, ru, de]
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false

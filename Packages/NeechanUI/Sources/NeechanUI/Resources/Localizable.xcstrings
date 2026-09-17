@@ -52,6 +52,24 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Anhang"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Anhänge"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -101,6 +119,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld файла"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Datei"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Dateien"
                 }
               }
             }
@@ -158,6 +194,24 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld verborgener Beitrag"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld verborgene Beiträge"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -207,6 +261,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld совпадения"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Treffer"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Treffer"
                 }
               }
             }
@@ -264,6 +336,24 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld neuer Beitrag"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld neue Beiträge"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -313,6 +403,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld участника"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Poster"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Poster"
                 }
               }
             }
@@ -370,6 +478,24 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Beitrag"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Beiträge"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -419,6 +545,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld ответа"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Antwort"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Antworten"
                 }
               }
             }
@@ -476,6 +620,24 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Antwort an dich"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Antworten an dich"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -529,6 +691,24 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Symbol gewählt"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Symbole gewählt"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -545,6 +725,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "1 день"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 Tag"
           }
         }
       }
@@ -563,6 +749,12 @@
             "state": "translated",
             "value": "30 дней"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 Tage"
+          }
         }
       }
     },
@@ -579,6 +771,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "7 дней"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7 Tage"
           }
         }
       }
@@ -597,6 +795,12 @@
             "state": "translated",
             "value": "Копия хранит избранное, историю и правила. Импорт добавляет недостающее и не трогает остальное."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Backup enthält Favoriten, Verlauf und Regeln. Beim Import wird ergänzt, was fehlt; alles andere bleibt unangetastet."
+          }
         }
       }
     },
@@ -613,6 +817,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Пасскод покупается на сайте. Он убирает капчу и повышает лимит файлов."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Passcode wird auf der Seite gekauft. Er entfernt das Captcha und erhöht das Dateilimit."
           }
         }
       }
@@ -631,6 +841,12 @@
             "state": "translated",
             "value": "Правило скрывает все подходящие посты на всех досках, если не ограничить его."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Regel verbirgt jeden passenden Beitrag, auf allen Boards, solange du sie nicht einschränkst."
+          }
         }
       }
     },
@@ -647,6 +863,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Правило без выбранных полей никогда не срабатывает."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Regel ohne Auswahl trifft nie zu."
           }
         }
       }
@@ -665,6 +887,12 @@
             "state": "translated",
             "value": "О программе"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Über"
+          }
         }
       }
     },
@@ -681,6 +909,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Об этой доске"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Über dieses Board"
           }
         }
       }
@@ -699,6 +933,12 @@
             "state": "translated",
             "value": "В избранное"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu Favoriten hinzufügen"
+          }
         }
       }
     },
@@ -715,6 +955,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Добавлять в избранное при ответе"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim Antworten zu Favoriten hinzufügen"
           }
         }
       }
@@ -769,6 +1015,24 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Eintrag hinzugefügt."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Einträge hinzugefügt."
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -785,6 +1049,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Все новые посты"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle neuen Beiträge"
           }
         }
       }
@@ -803,6 +1073,12 @@
             "state": "translated",
             "value": "Разрешено"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erlaubt"
+          }
         }
       }
     },
@@ -819,6 +1095,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Всегда"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Immer"
           }
         }
       }
@@ -837,6 +1119,12 @@
             "state": "translated",
             "value": "Анимация, %@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Animation, %@"
+          }
         }
       }
     },
@@ -853,6 +1141,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Другой тред"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anderer Thread"
           }
         }
       }
@@ -871,6 +1165,12 @@
             "state": "translated",
             "value": "Иконка приложения"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App-Symbol"
+          }
         }
       }
     },
@@ -887,6 +1187,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Оформление"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Darstellung"
           }
         }
       }
@@ -905,6 +1211,12 @@
             "state": "translated",
             "value": "Применяется ко всем вложениям. Из фото удаляются геоданные и сведения о камере; у видео остаются собственные теги, для их удаления файл нужно пересобрать."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gilt für alles, was du anhängst. Fotos verlieren Orts- und Kameradaten; Videos behalten ihre eigenen Tags, für deren Entfernung die Datei neu geschrieben werden müsste."
+          }
         }
       }
     },
@@ -921,6 +1233,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Архив"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archiv"
           }
         }
       }
@@ -939,6 +1257,35 @@
             "state": "translated",
             "value": "Архив /%@/"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archiv von /%@/"
+          }
+        }
+      }
+    },
+    "Are you 21 or older?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Are you 21 or older?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вам есть 21 год?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bist du 21 oder älter?"
+          }
         }
       }
     },
@@ -955,6 +1302,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "По мере прокрутки"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim Scrollen"
           }
         }
       }
@@ -973,6 +1326,12 @@
             "state": "translated",
             "value": "Спрашивать"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fragen"
+          }
         }
       }
     },
@@ -989,6 +1348,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Спрашивает Face ID, Touch ID или код-пароль устройства, когда вы возвращаетесь после минуты отсутствия, и при каждом новом запуске."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fragt nach Face ID, Touch ID oder dem Gerätecode, wenn du nach einer Minute zurückkommst, und bei jedem Neustart der App."
           }
         }
       }
@@ -1007,6 +1372,12 @@
             "state": "translated",
             "value": "Файлы"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anhänge"
+          }
         }
       }
     },
@@ -1023,6 +1394,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Автоскрытие"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-Ausblenden"
           }
         }
       }
@@ -1041,6 +1418,12 @@
             "state": "translated",
             "value": "Автоматически"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch"
+          }
         }
       }
     },
@@ -1057,6 +1440,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "«Автоматически» отмечает пост прочитанным после прокрутки мимо него."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "«Automatisch» markiert einen Beitrag als gelesen, sobald du daran vorbeigescrollt bist."
+          }
+        }
+      }
+    },
+    "Background position": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Background position"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Положение фона"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hintergrundposition"
           }
         }
       }
@@ -1075,6 +1487,12 @@
             "state": "translated",
             "value": "Резервная копия"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup"
+          }
         }
       }
     },
@@ -1091,6 +1509,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Бан"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesperrt"
           }
         }
       }
@@ -1109,6 +1533,12 @@
             "state": "translated",
             "value": "Код доски, например b"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Board-Kürzel, etwa b"
+          }
         }
       }
     },
@@ -1125,6 +1555,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Доска, номер поста или ссылка"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Board, Beitragsnummer oder Link"
           }
         }
       }
@@ -1143,6 +1579,12 @@
             "state": "translated",
             "value": "Доски"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Boards"
+          }
         }
       }
     },
@@ -1159,6 +1601,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Жирный"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fett"
           }
         }
       }
@@ -1177,6 +1625,12 @@
             "state": "translated",
             "value": "Оба зеркала отдают одно и то же."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beide Spiegel liefern denselben Inhalt."
+          }
         }
       }
     },
@@ -1193,6 +1647,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Оба зеркала отдают одно и то же. Пасскод и подтверждение возраста переносятся с вами."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beide Spiegel liefern denselben Inhalt. Passcode und Altersbestätigung kommen mit."
           }
         }
       }
@@ -1211,6 +1671,12 @@
             "state": "translated",
             "value": "Вернуть все скрытые треды?"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle verborgenen Threads zurückholen?"
+          }
         }
       }
     },
@@ -1227,6 +1693,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Возвращает его"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Holt ihn zurück"
           }
         }
       }
@@ -1245,6 +1717,12 @@
             "state": "translated",
             "value": "Проверка браузера"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browser-Prüfung"
+          }
         }
       }
     },
@@ -1261,6 +1739,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Бамплимит"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bump-Limit"
           }
         }
       }
@@ -1279,6 +1763,12 @@
             "state": "translated",
             "value": "По бампу"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bump-Reihenfolge"
+          }
         }
       }
     },
@@ -1295,6 +1785,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "По правилу"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durch eine Regel"
           }
         }
       }
@@ -1313,6 +1809,12 @@
             "state": "translated",
             "value": "По названию"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach Titel"
+          }
         }
       }
     },
@@ -1329,6 +1831,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Отмена"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abbrechen"
           }
         }
       }
@@ -1347,6 +1855,12 @@
             "state": "translated",
             "value": "Капча"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Captcha"
+          }
         }
       }
     },
@@ -1363,6 +1877,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Капча решена"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Captcha gelöst"
           }
         }
       }
@@ -1381,6 +1901,12 @@
             "state": "translated",
             "value": "Карточки"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karten"
+          }
         }
       }
     },
@@ -1397,6 +1923,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Каталог"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Katalog"
           }
         }
       }
@@ -1415,6 +1947,12 @@
             "state": "translated",
             "value": "Категория"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kategorie"
+          }
         }
       }
     },
@@ -1431,6 +1969,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "На домашнем экране иконка меняется не сразу."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es dauert einen Moment, bis die Änderung auf dem Home-Bildschirm zu sehen ist."
           }
         }
       }
@@ -1485,6 +2029,24 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Alle %lld Sekunde prüfen"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Alle %lld Sekunden prüfen"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1501,6 +2063,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Выберите папку, иначе файлы пойдут в «Фото»."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle vor dem Sichern einen Ordner, sonst landen Dateien in Fotos."
           }
         }
       }
@@ -1519,6 +2087,12 @@
             "state": "translated",
             "value": "Очистить"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Löschen"
+          }
         }
       }
     },
@@ -1535,6 +2109,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Очистить всё"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alles löschen"
           }
         }
       }
@@ -1553,6 +2133,12 @@
             "state": "translated",
             "value": "Очистить историю?"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesamten Verlauf löschen?"
+          }
         }
       }
     },
@@ -1569,6 +2155,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Очистить кэш"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache leeren"
           }
         }
       }
@@ -1587,6 +2179,12 @@
             "state": "translated",
             "value": "Очистить историю"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verlauf löschen"
+          }
         }
       }
     },
@@ -1603,6 +2201,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Очистка кэша не затрагивает сохранённые треды."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Leeren des Caches rührt gesicherte Threads nicht an."
           }
         }
       }
@@ -1621,6 +2225,12 @@
             "state": "translated",
             "value": "Закрыть"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schließen"
+          }
         }
       }
     },
@@ -1637,6 +2247,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Закрыть все"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle schließen"
           }
         }
       }
@@ -1655,6 +2271,12 @@
             "state": "translated",
             "value": "Закрыт"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geschlossen"
+          }
         }
       }
     },
@@ -1671,6 +2293,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Код"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code"
           }
         }
       }
@@ -1725,6 +2353,24 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Nach %lld Zeile einklappen"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Nach %lld Zeilen einklappen"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1741,6 +2387,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Комментарий"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kommentar"
           }
         }
       }
@@ -1759,6 +2411,12 @@
             "state": "translated",
             "value": "Длина сообщения"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kommentarlänge"
+          }
         }
       }
     },
@@ -1775,6 +2433,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Содержимое"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inhalte"
           }
         }
       }
@@ -1793,6 +2457,12 @@
             "state": "translated",
             "value": "Конвертировать WebM в MP4"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WebM in MP4 umwandeln"
+          }
         }
       }
     },
@@ -1809,6 +2479,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Конвертация"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird umgewandelt"
           }
         }
       }
@@ -1827,6 +2503,12 @@
             "state": "translated",
             "value": "Конвертация %lld%%"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Umwandeln %lld %%"
+          }
         }
       }
     },
@@ -1843,6 +2525,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cookie"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cookies"
           }
         }
       }
@@ -1861,6 +2549,12 @@
             "state": "translated",
             "value": "Скопировать ссылку"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Link kopieren"
+          }
         }
       }
     },
@@ -1877,6 +2571,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Скопировать номер поста"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beitragsnummer kopieren"
           }
         }
       }
@@ -1895,6 +2595,12 @@
             "state": "translated",
             "value": "Скопировать текст"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text kopieren"
+          }
         }
       }
     },
@@ -1911,6 +2617,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Не удалось загрузить /%@/"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "/%@/ konnte nicht geladen werden"
           }
         }
       }
@@ -1929,6 +2641,12 @@
             "state": "translated",
             "value": "Не удалось загрузить доски"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Boards konnten nicht geladen werden"
+          }
         }
       }
     },
@@ -1945,6 +2663,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Не удалось загрузить тред"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thread konnte nicht geladen werden"
           }
         }
       }
@@ -1963,6 +2687,12 @@
             "state": "translated",
             "value": "Не удалось загрузить файл"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Datei konnte nicht geladen werden"
+          }
         }
       }
     },
@@ -1979,6 +2709,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Не удалось сохранить"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konnte nicht gesichert werden"
           }
         }
       }
@@ -1997,6 +2733,12 @@
             "state": "translated",
             "value": "Считается только на этом устройстве и никуда не отправляется."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird nur auf diesem Gerät gezählt und nirgendwohin gesendet."
+          }
         }
       }
     },
@@ -2013,6 +2755,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Тёмная"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dunkel"
           }
         }
       }
@@ -2031,6 +2779,12 @@
             "state": "translated",
             "value": "Доска по умолчанию"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard-Board"
+          }
         }
       }
     },
@@ -2047,6 +2801,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Имя по умолчанию"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standardname"
           }
         }
       }
@@ -2065,6 +2825,12 @@
             "state": "translated",
             "value": "Удалить"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Löschen"
+          }
         }
       }
     },
@@ -2081,6 +2847,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Удалить всё"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle löschen"
           }
         }
       }
@@ -2099,6 +2871,12 @@
             "state": "translated",
             "value": "Удалить все cookie?"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Cookies löschen?"
+          }
         }
       }
     },
@@ -2115,6 +2893,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Удалить все сохранённые треды?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle gesicherten Threads löschen?"
           }
         }
       }
@@ -2133,6 +2917,12 @@
             "state": "translated",
             "value": "Удалён"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gelöscht"
+          }
         }
       }
     },
@@ -2149,6 +2939,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "Готово"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fertig"
+          }
+        }
+      }
+    },
+    "Doomscroll": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Doomscroll"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Думскролл"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Doomscroll"
           }
         }
       }
@@ -2167,6 +2986,12 @@
             "state": "translated",
             "value": "Загрузки"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloads"
+          }
         }
       }
     },
@@ -2183,6 +3008,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Включено"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktiviert"
           }
         }
       }
@@ -2237,6 +3068,24 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Alle %lld Sekunde"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Alle %lld Sekunden"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -2253,6 +3102,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Всё, включая файлы"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alles, auch Dateien"
           }
         }
       }
@@ -2271,6 +3126,12 @@
             "state": "translated",
             "value": "Истекает"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läuft ab"
+          }
         }
       }
     },
@@ -2287,6 +3148,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Экспортировать копию"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup exportieren"
           }
         }
       }
@@ -2305,6 +3172,12 @@
             "state": "translated",
             "value": "Избранное"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favoriten"
+          }
         }
       }
     },
@@ -2321,6 +3194,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "Избранное и слежение за тредами появятся на этапе M4."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favoriten und der Thread-Wächter kommen in Meilenstein M4."
+          }
+        }
+      }
+    },
+    "Favourites, history and everything else you keep belong to the imageboard they came from.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favourites, history and everything else you keep belong to the imageboard they came from."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Избранное, история и всё остальное, что вы храните, принадлежат тому имиджборду, откуда они пришли."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favoriten, Verlauf und alles andere Gespeicherte gehören zu dem Imageboard, von dem es stammt."
           }
         }
       }
@@ -2339,6 +3241,12 @@
             "state": "translated",
             "value": "Файл"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datei"
+          }
         }
       }
     },
@@ -2355,6 +3263,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Имя файла"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateiname"
           }
         }
       }
@@ -2373,6 +3287,12 @@
             "state": "translated",
             "value": "Типы файлов"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateitypen"
+          }
         }
       }
     },
@@ -2389,6 +3309,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Файлы"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateien"
           }
         }
       }
@@ -2407,6 +3333,12 @@
             "state": "translated",
             "value": "Файлы попадают в медиатеку «Фото»."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateien landen in deiner Fotomediathek."
+          }
         }
       }
     },
@@ -2423,6 +3355,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Фильтр архива"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archiv filtern"
           }
         }
       }
@@ -2441,6 +3379,12 @@
             "state": "translated",
             "value": "Фильтр тредов"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Threads filtern"
+          }
         }
       }
     },
@@ -2457,6 +3401,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Папки"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ordner"
           }
         }
       }
@@ -2475,6 +3425,12 @@
             "state": "translated",
             "value": "В пути можно использовать <board>, <thread> и <title>."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ordner können <board>, <thread> und <title> verwenden."
+          }
         }
       }
     },
@@ -2491,6 +3447,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Всегда"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unbegrenzt"
           }
         }
       }
@@ -2509,6 +3471,12 @@
             "state": "translated",
             "value": "Форум"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forum"
+          }
         }
       }
     },
@@ -2525,6 +3493,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Галерея"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Galerie"
           }
         }
       }
@@ -2543,6 +3517,12 @@
             "state": "translated",
             "value": "Общие"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allgemein"
+          }
         }
       }
     },
@@ -2559,6 +3539,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Перейти"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gehe zu"
           }
         }
       }
@@ -2577,6 +3563,12 @@
             "state": "translated",
             "value": "Перейти к посту"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zum Beitrag"
+          }
         }
       }
     },
@@ -2593,6 +3585,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сетка"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raster"
           }
         }
       }
@@ -2611,6 +3609,12 @@
             "state": "translated",
             "value": "Скрыт правилом автоскрытия"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durch eine Auto-Ausblenden-Regel verborgen"
+          }
         }
       }
     },
@@ -2627,6 +3631,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Скрытый пост"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verborgener Beitrag"
           }
         }
       }
@@ -2645,6 +3655,12 @@
             "state": "translated",
             "value": "Скрытые посты"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verborgene Beiträge"
+          }
         }
       }
     },
@@ -2661,6 +3677,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Скрытый тред, %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verborgener Thread, %@"
           }
         }
       }
@@ -2679,6 +3701,12 @@
             "state": "translated",
             "value": "Скрытые треды"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verborgene Threads"
+          }
         }
       }
     },
@@ -2695,6 +3723,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Скрыть"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausblenden"
           }
         }
       }
@@ -2713,6 +3747,12 @@
             "state": "translated",
             "value": "Скройте пост через его меню, чтобы добавить правило."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blende einen Beitrag über sein Menü aus, um eine Regel anzulegen."
+          }
         }
       }
     },
@@ -2729,6 +3769,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "История"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verlauf"
+          }
+        }
+      }
+    },
+    "I am 21 or older": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I am 21 or older"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Мне есть 21"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ich bin 21 oder älter"
           }
         }
       }
@@ -2747,6 +3816,12 @@
             "state": "translated",
             "value": "Иконки"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Symbole"
+          }
         }
       }
     },
@@ -2763,6 +3838,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Если имя занято"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wenn der Name vergeben ist"
           }
         }
       }
@@ -2781,6 +3862,12 @@
             "state": "translated",
             "value": "Изображение в посте %lld"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bild in Beitrag %lld"
+          }
         }
       }
     },
@@ -2797,6 +3884,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "Изображение, %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bild, %@"
+          }
+        }
+      }
+    },
+    "Imageboard": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imageboard"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Имиджборд"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imageboard"
           }
         }
       }
@@ -2815,6 +3931,12 @@
             "state": "translated",
             "value": "Изображения"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilder"
+          }
         }
       }
     },
@@ -2831,6 +3953,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Изображения и видео"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilder und Videos"
           }
         }
       }
@@ -2849,6 +3977,12 @@
             "state": "translated",
             "value": "Импортировать копию"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup importieren"
+          }
         }
       }
     },
@@ -2865,6 +3999,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Импортировать тему"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Theme importieren"
           }
         }
       }
@@ -2883,6 +4023,12 @@
             "state": "translated",
             "value": "Курсив"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kursiv"
+          }
         }
       }
     },
@@ -2899,6 +4045,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Оставить оба"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beide behalten"
           }
         }
       }
@@ -2917,6 +4069,12 @@
             "state": "translated",
             "value": "Хранить"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufbewahren für"
+          }
         }
       }
     },
@@ -2933,6 +4091,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Оставить исходное имя"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Originalnamen behalten"
           }
         }
       }
@@ -2951,6 +4115,12 @@
             "state": "translated",
             "value": "Язык"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprache"
+          }
         }
       }
     },
@@ -2967,6 +4137,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Последний пост"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neuester Beitrag"
           }
         }
       }
@@ -2985,6 +4161,12 @@
             "state": "translated",
             "value": "Вид"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layout"
+          }
         }
       }
     },
@@ -3001,6 +4183,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Лицензии"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lizenzen"
           }
         }
       }
@@ -3019,6 +4207,12 @@
             "state": "translated",
             "value": "Светлая"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hell"
+          }
         }
       }
     },
@@ -3035,6 +4229,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Лайки"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Likes"
           }
         }
       }
@@ -3053,22 +4253,34 @@
             "state": "translated",
             "value": "Лимит"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limit"
+          }
         }
       }
     },
-    "Links outside 2ch open in a browser sheet instead of Safari.": {
+    "Links off the imageboard open in a browser sheet instead of Safari.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Links outside 2ch open in a browser sheet instead of Safari."
+            "value": "Links off the imageboard open in a browser sheet instead of Safari."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ссылки за пределы 2ch открываются во встроенном браузере, а не в Safari."
+            "value": "Ссылки за пределы имиджборда открываются во встроенном браузере, а не в Safari."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Links außerhalb des Imageboards öffnen sich in einem Browser-Fenster statt in Safari."
           }
         }
       }
@@ -3087,6 +4299,12 @@
             "state": "translated",
             "value": "Список"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liste"
+          }
         }
       }
     },
@@ -3103,6 +4321,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Загружать всё"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alles laden"
           }
         }
       }
@@ -3121,6 +4345,12 @@
             "state": "translated",
             "value": "Загружать всё, старое отбрасывать"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alles laden, Ältestes verwerfen"
+          }
         }
       }
     },
@@ -3137,6 +4367,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Загружать изображения"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilder laden"
           }
         }
       }
@@ -3155,6 +4391,12 @@
             "state": "translated",
             "value": "Загрузка капчи…"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Captcha wird geladen…"
+          }
         }
       }
     },
@@ -3171,6 +4413,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Блокировать приложение"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App sperren"
           }
         }
       }
@@ -3189,6 +4437,12 @@
             "state": "translated",
             "value": "Длинные треды"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lange Threads"
+          }
         }
       }
     },
@@ -3205,6 +4459,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Искать в"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suchen in"
           }
         }
       }
@@ -3223,6 +4483,12 @@
             "state": "translated",
             "value": "Повтор"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiederholen"
+          }
         }
       }
     },
@@ -3239,6 +4505,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Делать файлы уникальными"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateien einzigartig machen"
           }
         }
       }
@@ -3257,6 +4529,12 @@
             "state": "translated",
             "value": "Сделать файл уникальным"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datei einzigartig machen"
+          }
         }
       }
     },
@@ -3273,6 +4551,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "Вручную"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manuell"
+          }
+        }
+      }
+    },
+    "Mature 21+": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mature 21+"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для взрослых 21+"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erwachsene 21+"
           }
         }
       }
@@ -3291,6 +4598,12 @@
             "state": "translated",
             "value": "Медиа"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Medien"
+          }
         }
       }
     },
@@ -3307,6 +4620,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Зеркало"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spiegel"
           }
         }
       }
@@ -3325,6 +4644,12 @@
             "state": "translated",
             "value": "По ответам"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meiste Antworten"
+          }
         }
       }
     },
@@ -3341,6 +4666,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "Выключить звук"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stumm"
+          }
+        }
+      }
+    },
+    "NSFW mode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NSFW mode"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Режим NSFW"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NSFW-Modus"
           }
         }
       }
@@ -3359,6 +4713,12 @@
             "state": "translated",
             "value": "Имя"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name"
+          }
         }
       }
     },
@@ -3375,6 +4735,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Имя или имя#трипкод"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name oder Name#Tripcode"
           }
         }
       }
@@ -3393,6 +4759,12 @@
             "state": "translated",
             "value": "Имена"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Namen"
+          }
         }
       }
     },
@@ -3406,6 +4778,12 @@
           }
         },
         "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neechan"
+          }
+        },
+        "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Neechan"
@@ -3427,6 +4805,12 @@
             "state": "translated",
             "value": "Neechan воспроизводит WebM через FFmpeg, распространяемый по GPL. Поэтому приложение тоже под GPL-3.0, и его исходный код открыт."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neechan spielt WebM über FFmpeg ab, das unter der GPL vertrieben wird. Deshalb steht die App ebenfalls unter GPL-3.0, und ihr Quelltext ist verfügbar."
+          }
         }
       }
     },
@@ -3443,6 +4827,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Никогда"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nie"
           }
         }
       }
@@ -3461,6 +4851,12 @@
             "state": "translated",
             "value": "При «никогда» изображение всё равно открывается нажатием на заглушку."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bei «Nie» lässt sich ein Bild trotzdem über seinen Platzhalter öffnen."
+          }
         }
       }
     },
@@ -3477,6 +4873,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Метка новых постов"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markierung für neue Beiträge"
           }
         }
       }
@@ -3495,6 +4897,12 @@
             "state": "translated",
             "value": "Новые посты"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neue Beiträge"
+          }
         }
       }
     },
@@ -3511,6 +4919,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Новое правило"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neue Regel"
           }
         }
       }
@@ -3529,6 +4943,12 @@
             "state": "translated",
             "value": "Новый тред"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neuer Thread"
+          }
         }
       }
     },
@@ -3545,6 +4965,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Более новые треды"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neuere Threads"
           }
         }
       }
@@ -3563,6 +4989,12 @@
             "state": "translated",
             "value": "Сначала новые"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neueste zuerst"
+          }
         }
       }
     },
@@ -3579,6 +5011,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Архива нет"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Archiv"
           }
         }
       }
@@ -3597,6 +5035,12 @@
             "state": "translated",
             "value": "Нет вложений"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Anhänge"
+          }
         }
       }
     },
@@ -3613,6 +5057,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Доски с таким кодом нет."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Board mit diesem Kürzel."
           }
         }
       }
@@ -3631,6 +5081,12 @@
             "state": "translated",
             "value": "Капча не нужна"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Captcha nötig"
+          }
         }
       }
     },
@@ -3647,6 +5103,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Нет соединения."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Verbindung."
           }
         }
       }
@@ -3665,6 +5127,12 @@
             "state": "translated",
             "value": "Нет cookie"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Cookies"
+          }
         }
       }
     },
@@ -3681,6 +5149,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Избранного пока нет"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Favoriten"
           }
         }
       }
@@ -3699,6 +5173,12 @@
             "state": "translated",
             "value": "История пуста"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch kein Verlauf"
+          }
         }
       }
     },
@@ -3715,6 +5195,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Новых постов нет"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine neuen Beiträge"
           }
         }
       }
@@ -3733,6 +5219,12 @@
             "state": "translated",
             "value": "Правил пока нет"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Regeln"
+          }
         }
       }
     },
@@ -3749,6 +5241,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "Тредов нет"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Threads"
+          }
+        }
+      }
+    },
+    "No videos in this thread": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No videos in this thread"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "В этом треде нет видео"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Videos in diesem Thread"
+          }
+        }
+      }
+    },
+    "Not available": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not available"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Недоступно"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht verfügbar"
           }
         }
       }
@@ -3767,6 +5311,12 @@
             "state": "translated",
             "value": "Не найдено. Возможно, удалено."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht gefunden. Möglicherweise wurde es gelöscht."
+          }
         }
       }
     },
@@ -3783,6 +5333,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ничего не найдено"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nichts gefunden"
           }
         }
       }
@@ -3801,6 +5357,12 @@
             "state": "translated",
             "value": "В этот тред ещё ничего не выложили."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In diesem Thread wurde noch nichts gepostet."
+          }
         }
       }
     },
@@ -3817,6 +5379,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Для этого зеркала пока ничего не сохранено."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für diesen Spiegel wurde noch nichts gespeichert."
           }
         }
       }
@@ -3835,6 +5403,12 @@
             "state": "translated",
             "value": "Ничего не скрыто"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nichts verborgen"
+          }
         }
       }
     },
@@ -3851,6 +5425,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "Здесь ничего не скрыто"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hier ist nichts verborgen"
+          }
+        }
+      }
+    },
+    "Nothing in this thread has a video attached to it.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing in this thread has a video attached to it."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ни к одному посту в этом треде не прикреплено видео."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An keinem Beitrag in diesem Thread hängt ein Video."
           }
         }
       }
@@ -3869,6 +5472,12 @@
             "state": "translated",
             "value": "Ничего не сохранено"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nichts gesichert"
+          }
         }
       }
     },
@@ -3886,6 +5495,12 @@
             "state": "translated",
             "value": "Уведомления"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mitteilungen"
+          }
         }
       }
     },
@@ -3899,6 +5514,12 @@
           }
         },
         "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "de": {
           "stringUnit": {
             "state": "translated",
             "value": "OK"
@@ -3920,6 +5541,12 @@
             "state": "translated",
             "value": "ОП"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OP"
+          }
         }
       }
     },
@@ -3936,6 +5563,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Выкл."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus"
           }
         }
       }
@@ -3954,6 +5587,12 @@
             "state": "translated",
             "value": "Более старые треды"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ältere Threads"
+          }
         }
       }
     },
@@ -3970,6 +5609,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сначала старые"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Älteste zuerst"
           }
         }
       }
@@ -3988,6 +5633,12 @@
             "state": "translated",
             "value": "Вкл."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An"
+          }
         }
       }
     },
@@ -4004,6 +5655,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Только по Wi-Fi"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur über WLAN"
           }
         }
       }
@@ -4022,6 +5679,12 @@
             "state": "translated",
             "value": "Открывать доски каталогом"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Boards als Katalog öffnen"
+          }
         }
       }
     },
@@ -4038,6 +5701,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Открыть в браузере"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Browser öffnen"
           }
         }
       }
@@ -4056,6 +5725,12 @@
             "state": "translated",
             "value": "Открывать ссылки в приложении"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Links in der App öffnen"
+          }
         }
       }
     },
@@ -4072,6 +5747,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Откройте сайт в браузере, чтобы пройти проверку."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffne die Seite im Browser, um die Prüfung zu bestehen."
           }
         }
       }
@@ -4090,6 +5771,12 @@
             "state": "translated",
             "value": "Открыть тред на этом посте"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thread bei diesem Beitrag öffnen"
+          }
         }
       }
     },
@@ -4106,6 +5793,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Открыть доску"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Board öffnen"
           }
         }
       }
@@ -4124,6 +5817,12 @@
             "state": "translated",
             "value": "Открыть пост"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diesen Beitrag öffnen"
+          }
         }
       }
     },
@@ -4140,6 +5839,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Открыть тред"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diesen Thread öffnen"
           }
         }
       }
@@ -4158,6 +5863,12 @@
             "state": "translated",
             "value": "Открываю пост №%lld…"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beitrag №%lld wird geöffnet…"
+          }
         }
       }
     },
@@ -4174,6 +5885,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Только ОП-посты"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur Eröffnungsbeiträge"
           }
         }
       }
@@ -4192,6 +5909,12 @@
             "state": "translated",
             "value": "Открывает изображение"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffnet dieses Bild"
+          }
         }
       }
     },
@@ -4208,6 +5931,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Порядок"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reihenfolge"
           }
         }
       }
@@ -4226,6 +5955,12 @@
             "state": "translated",
             "value": "Обычная"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original"
+          }
         }
       }
     },
@@ -4242,6 +5977,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Прочее"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Andere"
           }
         }
       }
@@ -4260,6 +6001,12 @@
             "state": "translated",
             "value": "Надчёркнутый"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Überstrich"
+          }
         }
       }
     },
@@ -4276,6 +6023,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Страница %1$lld из %2$lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seite %lld von %lld"
           }
         }
       }
@@ -4294,6 +6047,12 @@
             "state": "translated",
             "value": "Страниц"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seiten"
+          }
         }
       }
     },
@@ -4310,6 +6069,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Часть вашей сессии"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teil deiner Sitzung"
           }
         }
       }
@@ -4328,6 +6093,12 @@
             "state": "translated",
             "value": "Пасскод"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passcode"
+          }
         }
       }
     },
@@ -4344,6 +6115,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Вставьте текст для проверки"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text zum Prüfen einfügen"
           }
         }
       }
@@ -4362,6 +6139,12 @@
             "state": "translated",
             "value": "Шаблон"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muster"
+          }
         }
       }
     },
@@ -4378,6 +6161,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Пауза"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause"
           }
         }
       }
@@ -4396,6 +6185,12 @@
             "state": "translated",
             "value": "Выберите все символы сверху. Порядок не важен, часть появится позже."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle jedes oben gezeigte Symbol. Die Reihenfolge spielt keine Rolle, und manche erscheinen erst später."
+          }
         }
       }
     },
@@ -4412,6 +6207,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Выбрано"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gewählt"
           }
         }
       }
@@ -4430,6 +6231,12 @@
             "state": "translated",
             "value": "Заполнитель"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Platzhalterinhalt"
+          }
         }
       }
     },
@@ -4446,6 +6253,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Воспроизвести"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abspielen"
           }
         }
       }
@@ -4464,6 +6277,35 @@
             "state": "translated",
             "value": "Запускать при открытии"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim Öffnen abspielen"
+          }
+        }
+      }
+    },
+    "Playback": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Playback"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Воспроизведение"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiedergabe"
+          }
         }
       }
     },
@@ -4480,6 +6322,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Позиция воспроизведения"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiedergabeposition"
           }
         }
       }
@@ -4498,6 +6346,12 @@
             "state": "translated",
             "value": "Воспроизводит видео"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spielt dieses Video ab"
+          }
         }
       }
     },
@@ -4514,6 +6368,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Пост %lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beitrag %lld"
           }
         }
       }
@@ -4532,6 +6392,12 @@
             "state": "translated",
             "value": "Отметить как ОП"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Als OP posten"
+          }
         }
       }
     },
@@ -4548,6 +6414,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Пост №%lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beitrag №%lld"
           }
         }
       }
@@ -4566,6 +6438,12 @@
             "state": "translated",
             "value": "Пост №%lld и ответы на него"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beitrag №%lld und seine Antworten"
+          }
         }
       }
     },
@@ -4582,6 +6460,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Пост №%lld удалён"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beitrag №%lld ist weg"
           }
         }
       }
@@ -4600,6 +6484,35 @@
             "state": "translated",
             "value": "Постинг"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Posten"
+          }
+        }
+      }
+    },
+    "Posting enabled": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Posting enabled"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разрешить постинг"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Posten erlaubt"
+          }
         }
       }
     },
@@ -4616,6 +6529,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Посты"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beiträge"
           }
         }
       }
@@ -4634,6 +6553,12 @@
             "state": "translated",
             "value": "Посты от %@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beiträge von %@"
+          }
         }
       }
     },
@@ -4650,6 +6575,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Похожие посты"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beiträge wie dieser"
           }
         }
       }
@@ -4668,6 +6599,12 @@
             "state": "translated",
             "value": "Отправлено постов"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesendete Beiträge"
+          }
         }
       }
     },
@@ -4684,6 +6621,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Посты, похожие на скрытый"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beiträge ähnlich einem verborgenen"
           }
         }
       }
@@ -4702,6 +6645,12 @@
             "state": "translated",
             "value": "Подготовка файлов…"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateien werden vorbereitet…"
+          }
         }
       }
     },
@@ -4718,6 +6667,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Приватность"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privatsphäre"
           }
         }
       }
@@ -4736,6 +6691,12 @@
             "state": "translated",
             "value": "Качество: %lld%%"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qualität: %lld %%"
+          }
         }
       }
     },
@@ -4752,6 +6713,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Случайные имена файлов"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zufällige Dateinamen"
           }
         }
       }
@@ -4770,6 +6737,12 @@
             "state": "translated",
             "value": "Пережать в JPEG"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Als JPEG neu kodieren"
+          }
         }
       }
     },
@@ -4786,6 +6759,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Только чтение"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur lesen"
           }
         }
       }
@@ -4804,6 +6783,12 @@
             "state": "translated",
             "value": "Обновить"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktualisieren"
+          }
         }
       }
     },
@@ -4820,6 +6805,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Обновлять открытый тред"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offenen Thread aktualisieren"
           }
         }
       }
@@ -4838,6 +6829,12 @@
             "state": "translated",
             "value": "Регулярное выражение"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regulärer Ausdruck"
+          }
         }
       }
     },
@@ -4854,6 +6851,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Перезагрузить"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neu laden"
           }
         }
       }
@@ -4872,6 +6875,12 @@
             "state": "translated",
             "value": "Обновить капчу"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Captcha neu laden"
+          }
         }
       }
     },
@@ -4888,6 +6897,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Запоминать открытые треды"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geöffnete Threads merken"
           }
         }
       }
@@ -4906,6 +6921,12 @@
             "state": "translated",
             "value": "Удалить"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entfernen"
+          }
         }
       }
     },
@@ -4922,6 +6943,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Удалить недоступные"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gelöschte entfernen"
           }
         }
       }
@@ -4940,6 +6967,12 @@
             "state": "translated",
             "value": "Удалить метаданные"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metadaten entfernen"
+          }
         }
       }
     },
@@ -4956,6 +6989,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Переименовать"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Umbenennen"
           }
         }
       }
@@ -4974,6 +7013,12 @@
             "state": "translated",
             "value": "Повторять после конца"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Am Ende wiederholen"
+          }
         }
       }
     },
@@ -4990,6 +7035,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Заменить"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ersetzen"
           }
         }
       }
@@ -5008,6 +7059,12 @@
             "state": "translated",
             "value": "Только ответы"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur Antworten"
+          }
         }
       }
     },
@@ -5024,6 +7081,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ответы мне"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antworten an mich"
           }
         }
       }
@@ -5042,6 +7105,12 @@
             "state": "translated",
             "value": "Ответить"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antworten"
+          }
         }
       }
     },
@@ -5058,6 +7127,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ответить на пост"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf diesen Beitrag antworten"
           }
         }
       }
@@ -5076,6 +7151,12 @@
             "state": "translated",
             "value": "Сбросить"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurücksetzen"
+          }
         }
       }
     },
@@ -5092,6 +7173,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сбросить статистику?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Statistiken zurücksetzen?"
           }
         }
       }
@@ -5110,6 +7197,35 @@
             "state": "translated",
             "value": "Сбросить статистику"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Statistiken zurücksetzen"
+          }
+        }
+      }
+    },
+    "Restrictions": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restrictions"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ограничения"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beschränkungen"
+          }
         }
       }
     },
@@ -5126,6 +7242,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Показать"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anzeigen"
           }
         }
       }
@@ -5144,6 +7266,12 @@
             "state": "translated",
             "value": "Правило"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regel"
+          }
         }
       }
     },
@@ -5161,22 +7289,11 @@
             "state": "translated",
             "value": "Правила, скрывающие подходящие посты."
           }
-        }
-      }
-    },
-    "Safe for work": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Safe for work"
-          }
         },
-        "ru": {
+        "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Безопасный режим"
+            "value": "Regeln, die passende Beiträge verbergen."
           }
         }
       }
@@ -5195,22 +7312,11 @@
             "state": "translated",
             "value": "Безопасный режим размывает миниатюры до нажатия."
           }
-        }
-      }
-    },
-    "Safe for work blurs every thumbnail until it is tapped. Showing hidden threads brings them back as dimmed one-line rows you can tap to restore.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Safe for work blurs every thumbnail until it is tapped. Showing hidden threads brings them back as dimmed one-line rows you can tap to restore."
-          }
         },
-        "ru": {
+        "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Безопасный режим размывает миниатюры до нажатия. Показ скрытых тредов возвращает их тусклой строкой, по которой можно нажать, чтобы восстановить."
+            "value": "Der jugendfreie Modus macht jede Miniatur unscharf, bis sie angetippt wird."
           }
         }
       }
@@ -5229,6 +7335,12 @@
             "state": "translated",
             "value": "Сажа"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sage"
+          }
         }
       }
     },
@@ -5245,6 +7357,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сажа (не поднимать)"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sage (nicht bumpen)"
           }
         }
       }
@@ -5263,6 +7381,12 @@
             "state": "translated",
             "value": "Только с сажей"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur gesagete Beiträge"
+          }
         }
       }
     },
@@ -5279,6 +7403,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сохранить"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichern"
           }
         }
       }
@@ -5297,6 +7427,12 @@
             "state": "translated",
             "value": "Сохраните тред из его меню, чтобы читать без сети."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichere einen Thread über sein Menü, um ihn ohne Verbindung zu lesen."
+          }
         }
       }
     },
@@ -5313,6 +7449,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сохранять в «Фото»"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Fotos sichern"
           }
         }
       }
@@ -5331,6 +7473,12 @@
             "state": "translated",
             "value": "Сохранено"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesichert"
+          }
         }
       }
     },
@@ -5347,6 +7495,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сохранённые треды"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesicherte Threads"
           }
         }
       }
@@ -5365,6 +7519,12 @@
             "state": "translated",
             "value": "Сохранение"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird gesichert"
+          }
         }
       }
     },
@@ -5381,6 +7541,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сохранение %lld%%"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichern %lld %%"
           }
         }
       }
@@ -5399,6 +7565,12 @@
             "state": "translated",
             "value": "Масштаб: %lld%%"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skalierung: %lld %%"
+          }
         }
       }
     },
@@ -5415,6 +7587,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Поиск"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suchen"
           }
         }
       }
@@ -5433,6 +7611,12 @@
             "state": "translated",
             "value": "Поиск по /%@/"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "/%@/ durchsuchen"
+          }
         }
       }
     },
@@ -5449,6 +7633,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Поиск по истории"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verlauf durchsuchen"
           }
         }
       }
@@ -5467,6 +7657,12 @@
             "state": "translated",
             "value": "Поиск в треде"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Thread suchen"
+          }
         }
       }
     },
@@ -5483,6 +7679,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Искать по доске"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Board durchsuchen"
           }
         }
       }
@@ -5501,6 +7703,12 @@
             "state": "translated",
             "value": "Отправить"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Senden"
+          }
         }
       }
     },
@@ -5517,6 +7725,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Отправка…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird gesendet…"
           }
         }
       }
@@ -5535,6 +7749,12 @@
             "state": "translated",
             "value": "Отправлено"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesendet"
+          }
         }
       }
     },
@@ -5551,6 +7771,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Чтобы включить, задайте код-пароль на устройстве."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Richte auf diesem Gerät einen Code ein, um das zu nutzen."
           }
         }
       }
@@ -5569,6 +7795,12 @@
             "state": "translated",
             "value": "Настройки"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen"
+          }
         }
       }
     },
@@ -5585,6 +7817,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Настройки появятся на этапе M5."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen kommen in Meilenstein M5."
           }
         }
       }
@@ -5603,6 +7841,12 @@
             "state": "translated",
             "value": "Поделиться"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teilen"
+          }
         }
       }
     },
@@ -5619,6 +7863,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Поделиться ссылкой"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Link teilen"
           }
         }
       }
@@ -5637,6 +7887,12 @@
             "state": "translated",
             "value": "Показывать скрытые треды"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verborgene Threads zeigen"
+          }
         }
       }
     },
@@ -5653,6 +7909,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Показать полностью"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mehr zeigen"
           }
         }
       }
@@ -5671,6 +7933,35 @@
             "state": "translated",
             "value": "Показать ответы"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antworten zeigen"
+          }
+        }
+      }
+    },
+    "Showing hidden threads brings them back as dimmed one-line rows you can tap to restore.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Showing hidden threads brings them back as dimmed one-line rows you can tap to restore."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показ скрытых тредов возвращает их тусклой строкой, по которой можно нажать, чтобы восстановить."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verborgene Threads kommen als gedimmte einzeilige Zeilen zurück, die sich zum Wiederherstellen antippen lassen."
+          }
         }
       }
     },
@@ -5687,6 +7978,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Показывает ответы на этот пост"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeigt die Antworten auf diesen Beitrag"
           }
         }
       }
@@ -5705,6 +8002,12 @@
             "state": "translated",
             "value": "Показывает этот пост"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeigt diesen Beitrag"
+          }
         }
       }
     },
@@ -5721,6 +8024,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Войти"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmelden"
           }
         }
       }
@@ -5739,6 +8048,12 @@
             "state": "translated",
             "value": "Вход выполнен"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Angemeldet"
+          }
         }
       }
     },
@@ -5755,6 +8070,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Размер"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Größe"
           }
         }
       }
@@ -5773,6 +8094,35 @@
             "state": "translated",
             "value": "Пропустить"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Überspringen"
+          }
+        }
+      }
+    },
+    "Slide the background until the characters line up, then type them.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slide the background until the characters line up, then type them."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сдвиньте фон, пока символы не совпадут, затем введите их."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verschiebe den Hintergrund, bis die Zeichen übereinanderliegen, und tippe sie dann ein."
+          }
         }
       }
     },
@@ -5789,6 +8139,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Решение задачи…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prüfung wird gelöst…"
           }
         }
       }
@@ -5807,6 +8163,35 @@
             "state": "translated",
             "value": "Сортировка"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sortieren"
+          }
+        }
+      }
+    },
+    "Sound": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sound"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Звук"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ton"
+          }
         }
       }
     },
@@ -5823,6 +8208,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Спойлер"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spoiler"
           }
         }
       }
@@ -5841,6 +8232,12 @@
             "state": "translated",
             "value": "Статистика"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Statistiken"
+          }
         }
       }
     },
@@ -5857,6 +8254,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Хранилище"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speicher"
           }
         }
       }
@@ -5875,6 +8278,12 @@
             "state": "translated",
             "value": "Зачёркнутый"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durchgestrichen"
+          }
         }
       }
     },
@@ -5891,6 +8300,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Тема"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Betreff"
           }
         }
       }
@@ -5909,6 +8324,12 @@
             "state": "translated",
             "value": "Темы"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Betreffe"
+          }
         }
       }
     },
@@ -5925,6 +8346,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Нижний индекс"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiefgestellt"
           }
         }
       }
@@ -5943,6 +8370,12 @@
             "state": "translated",
             "value": "Верхний индекс"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hochgestellt"
+          }
         }
       }
     },
@@ -5959,6 +8392,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Символ %lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Symbol %lld"
           }
         }
       }
@@ -5977,6 +8416,12 @@
             "state": "translated",
             "value": "Системная"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System"
+          }
         }
       }
     },
@@ -5993,6 +8438,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Проверить"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test"
           }
         }
       }
@@ -6011,6 +8462,12 @@
             "state": "translated",
             "value": "Текст и миниатюры"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text und Miniaturen"
+          }
         }
       }
     },
@@ -6027,6 +8484,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Размер текста"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Textgröße"
           }
         }
       }
@@ -6045,6 +8508,35 @@
             "state": "translated",
             "value": "Текст для скрытия"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu verbergender Text"
+          }
+        }
+      }
+    },
+    "That board is turned off in Restrictions": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That board is turned off in Restrictions"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эта доска выключена в «Ограничениях»"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Board ist in den Beschränkungen deaktiviert"
+          }
         }
       }
     },
@@ -6061,6 +8553,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Это не резервная копия Neechan."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Datei ist kein Neechan-Backup."
           }
         }
       }
@@ -6079,6 +8577,12 @@
             "state": "translated",
             "value": "Это не файл темы."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Datei ist kein Theme."
+          }
         }
       }
     },
@@ -6095,6 +8599,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Эту папку использовать не удалось."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Ordner konnte nicht verwendet werden."
           }
         }
       }
@@ -6113,6 +8623,12 @@
             "state": "translated",
             "value": "Этот пост не из этого треда"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Beitrag ist nicht in diesem Thread"
+          }
         }
       }
     },
@@ -6129,6 +8645,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Приложение будет открываться на этой доске. Оставьте пустым, чтобы начинать со списка досок."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die App startet auf diesem Board. Leer lassen, um mit der Board-Liste zu beginnen."
           }
         }
       }
@@ -6147,6 +8669,12 @@
             "state": "translated",
             "value": "Архив пуст"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Archiv ist leer"
+          }
         }
       }
     },
@@ -6163,6 +8691,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Не удалось создать копию."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Backup konnte nicht erstellt werden."
           }
         }
       }
@@ -6181,6 +8715,35 @@
             "state": "translated",
             "value": "Копия не сохранена."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Backup wurde nicht gesichert."
+          }
+        }
+      }
+    },
+    "The board you typed is turned off in Restrictions.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The board you typed is turned off in Restrictions."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Указанная доска выключена в «Ограничениях»."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das eingegebene Board ist in den Beschränkungen deaktiviert."
+          }
         }
       }
     },
@@ -6197,6 +8760,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Каталог показывает все треды сразу, а не постранично."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Katalog zeigt alle Threads auf einmal statt Seite für Seite."
           }
         }
       }
@@ -6215,6 +8784,12 @@
             "state": "translated",
             "value": "Загрузка отменена."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Download wurde abgebrochen."
+          }
         }
       }
     },
@@ -6231,6 +8806,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Выбранная папка больше недоступна. Выберите её заново в настройках."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der gewählte Ordner ist nicht mehr verfügbar. Wähle ihn in den Einstellungen erneut."
           }
         }
       }
@@ -6249,6 +8830,12 @@
             "state": "translated",
             "value": "Не удалось сменить иконку."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Symbol konnte nicht geändert werden."
+          }
         }
       }
     },
@@ -6265,6 +8852,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Остальные настройки появятся на этапе M5."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Rest der Einstellungen kommt in Meilenstein M5."
           }
         }
       }
@@ -6283,6 +8876,12 @@
             "state": "translated",
             "value": "Сервер ответил ошибкой."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server hat mit einem Fehler geantwortet."
+          }
         }
       }
     },
@@ -6299,6 +8898,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сервер отклонил запрос."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server hat die Anfrage abgelehnt."
           }
         }
       }
@@ -6317,6 +8922,12 @@
             "state": "translated",
             "value": "Сайт не принял этот пасскод."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Seite hat diesen Passcode nicht akzeptiert."
+          }
         }
       }
     },
@@ -6333,6 +8944,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "На сайте неполадки. Попробуйте позже."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Seite hat Probleme. Versuche es später erneut."
           }
         }
       }
@@ -6351,6 +8968,12 @@
             "state": "translated",
             "value": "Сайт отклоняет уже загруженный файл. Удаление метаданных также убирает геометку."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Seite lehnt eine Datei ab, die sie schon kennt. Das Entfernen der Metadaten löscht auch Ortsdaten aus Fotos."
+          }
         }
       }
     },
@@ -6367,6 +8990,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сайт ищет по всем тредам, в том числе неоткрытым."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Seite durchsucht alle Threads, auch solche, die du nicht geöffnet hast."
           }
         }
       }
@@ -6385,6 +9014,12 @@
             "state": "translated",
             "value": "Сайт прислал то, что приложение не смогло прочитать."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Seite hat etwas gesendet, das diese App nicht lesen konnte."
+          }
         }
       }
     },
@@ -6401,6 +9036,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сайт хочет проверить браузер."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Seite will deinen Browser prüfen."
           }
         }
       }
@@ -6419,6 +9060,12 @@
             "state": "translated",
             "value": "Текст самого сайта остаётся на языке оригинала."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Text der Seite selbst bleibt in der Sprache, in der er geschrieben wurde."
+          }
         }
       }
     },
@@ -6435,6 +9082,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Слежение проверяет избранные треды на новые посты."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Wächter prüft favorisierte Threads auf neue Beiträge."
           }
         }
       }
@@ -6453,6 +9106,35 @@
             "state": "translated",
             "value": "Тема"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Theme"
+          }
+        }
+      }
+    },
+    "These boards carry explicit sexual content.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These boards carry explicit sexual content."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На этих досках есть материалы откровенно сексуального характера."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Boards enthalten explizite sexuelle Inhalte."
+          }
         }
       }
     },
@@ -6469,6 +9151,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Множители поверх системного размера."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Werte vervielfachen die Größe, die das System ohnehin verwendet."
           }
         }
       }
@@ -6487,6 +9175,35 @@
             "state": "translated",
             "value": "Доска только для чтения."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Board ist schreibgeschützt."
+          }
+        }
+      }
+    },
+    "This board is turned off in Settings, under Restrictions.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This board is turned off in Settings, under Restrictions."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эта доска выключена в настройках, в разделе «Ограничения»."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Board ist in den Einstellungen unter «Beschränkungen» deaktiviert."
+          }
         }
       }
     },
@@ -6503,6 +9220,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "У файла нет адреса."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Datei hat keine Adresse."
           }
         }
       }
@@ -6521,6 +9244,35 @@
             "state": "translated",
             "value": "Это не изображение."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Datei ist kein Bild."
+          }
+        }
+      }
+    },
+    "This imageboard does not offer that.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This imageboard does not offer that."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Этот имиджборд такого не умеет."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Imageboard bietet das nicht."
+          }
         }
       }
     },
@@ -6537,6 +9289,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Этот пост"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Beitrag"
           }
         }
       }
@@ -6555,6 +9313,12 @@
             "state": "translated",
             "value": "Этот пост и ответы на него"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Beitrag und seine Antworten"
+          }
         }
       }
     },
@@ -6571,6 +9335,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Этот текст будет скрыт"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Text würde verborgen"
           }
         }
       }
@@ -6589,6 +9359,12 @@
             "state": "translated",
             "value": "Этот текст не будет скрыт"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Text würde nicht verborgen"
+          }
         }
       }
     },
@@ -6605,6 +9381,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Тред удалён. Вы читаете сохранённую копию."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Thread ist weg. Du liest eine gesicherte Kopie."
           }
         }
       }
@@ -6623,6 +9405,12 @@
             "state": "translated",
             "value": "Этот тред больше не сохранён на устройстве."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Thread ist auf diesem Gerät nicht mehr gesichert."
+          }
         }
       }
     },
@@ -6639,6 +9427,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Видео не удалось воспроизвести."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Video konnte nicht abgespielt werden."
           }
         }
       }
@@ -6657,6 +9451,12 @@
             "state": "translated",
             "value": "Действия с тредом"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thread-Aktionen"
+          }
         }
       }
     },
@@ -6673,6 +9473,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Треды"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Threads"
           }
         }
       }
@@ -6691,6 +9497,12 @@
             "state": "translated",
             "value": "Сохранённые треды и доски появятся здесь."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gespeicherte Threads und Boards erscheinen hier."
+          }
         }
       }
     },
@@ -6707,6 +9519,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Открыто тредов"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geöffnete Threads"
           }
         }
       }
@@ -6725,6 +9543,12 @@
             "state": "translated",
             "value": "Треды, скрытые на доске, перечислены здесь."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf einem Board ausgeblendete Threads stehen hier."
+          }
         }
       }
     },
@@ -6741,6 +9565,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Открытые треды появляются здесь."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geöffnete Threads stehen hier."
           }
         }
       }
@@ -6759,6 +9589,12 @@
             "state": "translated",
             "value": "Размер миниатюр"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Miniaturgröße"
+          }
         }
       }
     },
@@ -6775,6 +9611,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Время в приложении"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeit in der App"
           }
         }
       }
@@ -6793,6 +9635,12 @@
             "state": "translated",
             "value": "Слишком много запросов. Попробуйте чуть позже."
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu viele Anfragen. Versuche es gleich noch einmal."
+          }
         }
       }
     },
@@ -6809,6 +9657,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Общий размер файлов"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesamtgröße"
           }
         }
       }
@@ -6827,6 +9681,12 @@
             "state": "translated",
             "value": "Трипкоды"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tripcodes"
+          }
         }
       }
     },
@@ -6843,6 +9703,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Повторить"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut versuchen"
           }
         }
       }
@@ -6861,6 +9727,35 @@
             "state": "translated",
             "value": "Проверка"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausprobieren"
+          }
+        }
+      }
+    },
+    "Turned off in Restrictions": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turned off in Restrictions"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выключено в «Ограничениях»"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In den Beschränkungen deaktiviert"
+          }
         }
       }
     },
@@ -6877,6 +9772,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Если выключить, новые треды не записываются."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wenn das aus ist, werden keine neuen Threads mehr aufgezeichnet."
           }
         }
       }
@@ -6931,6 +9832,24 @@
               }
             }
           }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Gib mindestens %lld Zeichen ein."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Gib mindestens %lld Zeichen ein."
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -6947,6 +9866,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Подчёркнутый"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unterstrichen"
           }
         }
       }
@@ -6965,6 +9890,12 @@
             "state": "translated",
             "value": "Показать"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einblenden"
+          }
         }
       }
     },
@@ -6981,6 +9912,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Показать все"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle einblenden"
           }
         }
       }
@@ -6999,6 +9936,12 @@
             "state": "translated",
             "value": "Разблокировать"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entsperren"
+          }
         }
       }
     },
@@ -7015,6 +9958,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Разблокировать Neechan"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neechan entsperren"
           }
         }
       }
@@ -7033,6 +9982,12 @@
             "state": "translated",
             "value": "Включить звук"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ton an"
+          }
         }
       }
     },
@@ -7049,6 +10004,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сначала непрочитанные"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungelesene zuerst"
           }
         }
       }
@@ -7067,6 +10028,12 @@
             "state": "translated",
             "value": "Загрузка файлов"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uploads"
+          }
         }
       }
     },
@@ -7083,6 +10050,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Использовать название с сайта"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titel der Seite verwenden"
           }
         }
       }
@@ -7101,6 +10074,12 @@
             "state": "translated",
             "value": "Пользовательские доски"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutzer-Boards"
+          }
         }
       }
     },
@@ -7117,6 +10096,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Версия"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version"
           }
         }
       }
@@ -7135,6 +10120,12 @@
             "state": "translated",
             "value": "Видео"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video"
+          }
         }
       }
     },
@@ -7151,6 +10142,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Видео в посте %lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video in Beitrag %lld"
           }
         }
       }
@@ -7169,6 +10166,12 @@
             "state": "translated",
             "value": "Видео, %@"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video, %@"
+          }
         }
       }
     },
@@ -7185,6 +10188,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Параметры вида"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ansichtsoptionen"
           }
         }
       }
@@ -7203,6 +10212,12 @@
             "state": "translated",
             "value": "Предупреждение"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verwarnt"
+          }
         }
       }
     },
@@ -7219,6 +10234,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Следить за новым избранным"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neue Favoriten beobachten"
           }
         }
       }
@@ -7237,6 +10258,12 @@
             "state": "translated",
             "value": "Слежение"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wächter"
+          }
         }
       }
     },
@@ -7253,6 +10280,104 @@
           "stringUnit": {
             "state": "translated",
             "value": "WebM воспроизводится в этом приложении, но больше нигде на телефоне: «Фото» его вовсе не примут. Конвертация перекодирует видео — это занимает время и немного ухудшает качество."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WebM läuft in dieser App, sonst nirgends auf dem Telefon: Fotos nimmt es gar nicht erst an. Beim Umwandeln wird das Video neu kodiert, was einen Moment dauert und etwas Qualität kostet."
+          }
+        }
+      }
+    },
+    "What it says": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What it says"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Что написано"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was darin steht"
+          }
+        }
+      }
+    },
+    "With this off, boards meant for adults are hidden and cannot be opened, and threads on them disappear from Favorites, History and Saved threads until you turn it back on. Nothing is deleted.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With this off, boards meant for adults are hidden and cannot be opened, and threads on them disappear from Favorites, History and Saved threads until you turn it back on. Nothing is deleted."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Когда выключено, доски для взрослых скрыты и их нельзя открыть, а треды с них исчезают из избранного, истории и сохранённых, пока вы не включите это обратно. Ничего не удаляется."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wenn das aus ist, sind Boards für Erwachsene verborgen und lassen sich nicht öffnen, und Threads darauf verschwinden aus Favoriten, Verlauf und gesicherten Threads, bis du es wieder einschaltest. Nichts wird gelöscht."
+          }
+        }
+      }
+    },
+    "With this off, every thumbnail is blurred until you tap it.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With this off, every thumbnail is blurred until you tap it."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Когда выключено, каждая миниатюра размыта до нажатия."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wenn das aus ist, ist jede Miniatur unscharf, bis du sie antippst."
+          }
+        }
+      }
+    },
+    "With this off, you can read but not write, on either imageboard.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With this off, you can read but not write, on either imageboard."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Когда выключено, можно читать, но не писать — на обеих имиджбордах."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wenn das aus ist, kannst du lesen, aber nicht schreiben — auf beiden Imageboards."
           }
         }
       }
@@ -7271,6 +10396,12 @@
             "state": "translated",
             "value": "Вы"
           }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du"
+          }
         }
       }
     },
@@ -7287,6 +10418,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Пасскод будет сброшен, и возраст спросят заново."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du wirst von deinem Passcode abgemeldet und erneut nach deinem Alter gefragt."
           }
         }
       }

@@ -21,30 +21,72 @@ struct LocalizationCatalogTests {
         init(from decoder: any Decoder) throws {}
     }
 
-    private func loadCatalog() throws -> Catalog {
-        // The test file sits beside the sources, so the catalog is found by
-        // walking up from it rather than by a path baked into the test.
-        let sources = URL(filePath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appending(path: "Sources/NeechanUI/Resources/Localizable.xcstrings")
-        return try JSONDecoder().decode(Catalog.self, from: Data(contentsOf: sources))
+    /// Where the packages live, found by walking up from this file rather than
+    /// by a path baked into the test.
+    private static var packages: URL {
+        URL(filePath: #filePath)
+            .deletingLastPathComponent()  // NeechanUITests
+            .deletingLastPathComponent()  // Tests
+            .deletingLastPathComponent()  // NeechanUI
+            .deletingLastPathComponent()  // Packages
     }
 
-    @Test("every string is written in both languages")
-    func everyStringHasBothLanguages() throws {
-        let catalog = try loadCatalog()
+    /// Every catalog in the project, not only this package's.
+    ///
+    /// Four packages carry strings, and three of them carry only a handful —
+    /// which is exactly why they are the ones a new language gets forgotten in.
+    /// One test over all of them is cheaper than three tests that have to be
+    /// remembered separately.
+    static func catalogURLs() throws -> [URL] {
+        let found = FileManager.default.enumerator(
+            at: packages, includingPropertiesForKeys: nil
+        )?.compactMap { $0 as? URL }
+            .filter { $0.lastPathComponent == "Localizable.xcstrings" }
+            // A checkout of a dependency is not ours to translate.
+            .filter { !$0.path.contains("/.build/") }
+            ?? []
+        return found.sorted { $0.path < $1.path }
+    }
 
-        let incomplete = catalog.strings
-            .filter { _, entry in
+    private func loadCatalog(at url: URL) throws -> Catalog {
+        try JSONDecoder().decode(Catalog.self, from: Data(contentsOf: url))
+    }
+
+    private func loadCatalog() throws -> Catalog {
+        try loadCatalog(
+            at: Self.packages.appending(path: "NeechanUI/Sources/NeechanUI/Resources/Localizable.xcstrings")
+        )
+    }
+
+    /// Every language the app claims to speak, as `CFBundleLocalizations` lists
+    /// them. A string missing one of these still builds and still runs; it just
+    /// shows English to somebody who asked for something else.
+    static let languages: Set<String> = ["en", "ru", "de"]
+
+    @Test("every string is written in every language the app offers")
+    func everyStringIsTranslated() throws {
+        var incomplete: [String] = []
+
+        for url in try Self.catalogURLs() {
+            let package = url.pathComponents.dropLast(4).last ?? "?"
+            for (key, entry) in try loadCatalog(at: url).strings {
                 let languages = Set(entry.localizations?.keys ?? [:].keys)
-                return !languages.isSuperset(of: ["en", "ru"])
+                let absent = Self.languages.subtracting(languages)
+                if !absent.isEmpty {
+                    incomplete.append("\(package): \(key) [\(absent.sorted().joined(separator: ", "))]")
+                }
             }
-            .keys
-            .sorted()
+        }
 
-        #expect(incomplete.isEmpty, "not translated: \(incomplete.joined(separator: ", "))")
+        #expect(incomplete.isEmpty, "not translated:\n\(incomplete.sorted().joined(separator: "\n"))")
+    }
+
+    @Test("every package's catalog is found, not just this one's")
+    func everyCatalogIsChecked() throws {
+        let urls = try Self.catalogURLs()
+        let packages = Set(urls.map { $0.pathComponents.dropLast(4).last ?? "?" })
+        #expect(packages.isSuperset(of: ["NeechanAPI", "NeechanCore", "NeechanMedia", "NeechanUI"]),
+                "found only \(packages.sorted())")
     }
 
     @Test("the catalog is not empty, which would mean it failed to load")
