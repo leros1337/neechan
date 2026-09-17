@@ -25,16 +25,22 @@ public actor WatchedThreadStore {
     }
 
     /// Notes what a poll saw.
+    ///
+    /// - Parameter isClosed: write-only-true, like the one `markRead` sets: a
+    ///   thread that has fallen off the board does not come back, and a poll
+    ///   that cannot see it must not clear what an earlier one established.
     public func record(
         key: ThreadKey,
         postsCount: Int,
         maxNum: Int,
-        isDeleted: Bool
+        isDeleted: Bool,
+        isClosed: Bool = false
     ) throws {
         let state = try stored(key) ?? insert(key)
         state.lastKnownPostsCount = postsCount
         state.lastKnownMaxNum = max(state.lastKnownMaxNum, maxNum)
         state.isThreadDeleted = isDeleted
+        if isClosed { state.isClosed = true }
         state.lastPolledAt = .now
         state.lastError = nil
         // Everything past what the reader has seen is unread.
@@ -106,16 +112,19 @@ public actor WatchedThreadStore {
     }
 
     private func insert(_ key: ThreadKey) -> WatchedThreadState {
-        let state = WatchedThreadState(board: key.board, threadNum: key.threadNum)
+        let state = WatchedThreadState(key: key)
         modelContext.insert(state)
         return state
     }
 
     private func stored(_ key: ThreadKey) throws -> WatchedThreadState? {
+        let site = key.site.rawValue
         let board = key.board
         let threadNum = key.threadNum
         var descriptor = FetchDescriptor<WatchedThreadState>(
-            predicate: #Predicate { $0.board == board && $0.threadNum == threadNum }
+            predicate: #Predicate {
+                $0.siteRaw == site && $0.board == board && $0.threadNum == threadNum
+            }
         )
         descriptor.fetchLimit = 1
         return try modelContext.fetch(descriptor).first

@@ -24,8 +24,11 @@ struct NeechanApp: App {
             _services = State(
                 initialValue: AppServices(
                     settings: settings,
+                    // The current shapes, not a named version: a fallback a
+                    // schema behind would be a container whose every predicate
+                    // names a column it has never heard of.
                     modelContainer: try! ModelContainer(
-                        for: Schema(NeechanSchemaV1.models),
+                        for: Schema(NeechanStore.currentModels),
                         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
                     )
                 )
@@ -51,7 +54,11 @@ struct NeechanApp: App {
             // The board the reader asked to open on is handed over here: the
             // stack has to hold it before the first frame, or the board list
             // shows for a moment and then jumps.
-            AdaptiveRootView(defaultBoard: services.settings.defaultBoard)
+            AdaptiveRootView(
+                defaultBoard: services.settings.defaultBoard,
+                site: services.settings.imageboard,
+                policy: services.contentPolicy
+            )
                 .environment(services)
                 .environment(lock)
                 .task { registerBackgroundRefresh() }
