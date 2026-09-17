@@ -105,6 +105,21 @@ jobs:
 
           Requires iOS 26 or newer, on iPhone or iPad.
           NOTES
+          # This version's own section of the changelog, if it has one. `awk`
+          # rather than a range of line numbers, so adding a release above it
+          # does not silently shift what gets published.
+          if [ -f CHANGELOG.md ]; then
+            notes=$(awk -v v="## $VERSION" '
+              $0 == v { found = 1; next }
+              found && /^## / { exit }
+              found { print }
+            ' CHANGELOG.md)
+            if [ -n "$notes" ]; then
+              { echo; echo "$notes"; } >> .build/notes.md
+            else
+              echo "No CHANGELOG.md section for $VERSION; publishing without one." >&2
+            fi
+          fi
           gh release create "$GITHUB_REF_NAME" \
             ".build/Neechan-$VERSION.ipa" \
             --title "Neechan $VERSION" \
