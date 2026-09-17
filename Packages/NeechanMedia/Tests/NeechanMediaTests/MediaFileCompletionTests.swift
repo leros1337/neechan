@@ -3,6 +3,67 @@ import Synchronization
 import Testing
 @testable import NeechanMedia
 
+/// A stub of this suite's own.
+///
+/// The body a stub serves lives in a global, and swift-testing runs separate
+/// suites in parallel even when each is `.serialized` — so two suites sharing
+/// one reset it under each other, and the failure looks like a bug in the
+/// reader rather than in the test. A copy is cheaper than that confusion.
+final class CompletionServingProtocol: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static let body = Mutex(Data())
+    /// Set false to answer the whole body whatever range was asked for, the way
+    /// a server with no range support would.
+    nonisolated(unsafe) static let honoursRanges = Mutex(true)
+    /// Every `Range` header seen, so a test can show a read was not a download.
+    nonisolated(unsafe) static let requestedRanges = Mutex([String]())
+
+    static func reset(body: Data, honoursRanges: Bool = true) {
+        Self.body.withLock { $0 = body }
+        Self.honoursRanges.withLock { $0 = honoursRanges }
+        requestedRanges.withLock { $0 = [] }
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        let body = Self.body.withLock { $0 }
+        let honours = Self.honoursRanges.withLock { $0 }
+        let header = request.value(forHTTPHeaderField: "Range")
+        if let header { Self.requestedRanges.withLock { $0.append(header) } }
+
+        var status = 200
+        var slice = body
+        var headers = ["Content-Type": "video/webm"]
+
+        if honours, let header, let range = Self.parse(header, count: body.count) {
+            status = 206
+            slice = body.subdata(in: range)
+            headers["Content-Range"] = "bytes \(range.lowerBound)-\(range.upperBound - 1)/\(body.count)"
+        }
+        headers["Content-Length"] = "\(slice.count)"
+
+        let response = HTTPURLResponse(
+            url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: headers
+        )!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: slice)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+
+    /// `bytes=start-end`, clamped to what there is.
+    private static func parse(_ header: String, count: Int) -> Range<Int>? {
+        guard header.hasPrefix("bytes=") else { return nil }
+        let parts = header.dropFirst("bytes=".count).split(separator: "-", omittingEmptySubsequences: false)
+        guard let start = Int(parts.first ?? ""), start < count else { return nil }
+        let end = parts.count > 1 ? Int(parts[1]) ?? count - 1 : count - 1
+        return start..<min(count, end + 1)
+    }
+}
+
+
 /// Saving a clip already watched should cost the remainder, not the file.
 @Suite("Completing a part-watched file", .serialized)
 struct MediaFileCompletionTests {
@@ -10,7 +71,7 @@ struct MediaFileCompletionTests {
 
     private func makeSession() -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [RangeServingProtocol.self]
+        configuration.protocolClasses = [CompletionServingProtocol.self]
         return URLSession(configuration: configuration)
     }
 
@@ -47,9 +108,9 @@ struct MediaFileCompletionTests {
 
         // Two whole blocks and a short third.
         let source = body(blockSize * 2 + 5000)
-        RangeServingProtocol.reset(body: source)
+        CompletionServingProtocol.reset(body: source)
         seed(source, upToBlock: 2, for: url, in: store)
-        RangeServingProtocol.requestedRanges.withLock { $0 = [] }
+        CompletionServingProtocol.requestedRanges.withLock { $0 = [] }
 
         let whole = try #require(
             await MediaFileCompletion.wholeFile(
@@ -57,7 +118,7 @@ struct MediaFileCompletionTests {
             )
         )
 
-        let asked = RangeServingProtocol.requestedRanges.withLock { $0 }
+        let asked = CompletionServingProtocol.requestedRanges.withLock { $0 }
         #expect(asked == ["bytes=131072-196607"], "asked for \(asked)")
         #expect(try Data(contentsOf: whole) == source)
         #expect(await cache.cachedFile(for: url) != nil, "it should now be one cached file")
@@ -77,9 +138,9 @@ struct MediaFileCompletionTests {
         let url = URL(string: "https://example.invalid/fully-watched.webm")!
 
         let source = body(blockSize + 100)
-        RangeServingProtocol.reset(body: source)
+        CompletionServingProtocol.reset(body: source)
         seed(source, upToBlock: 2, for: url, in: store)
-        RangeServingProtocol.requestedRanges.withLock { $0 = [] }
+        CompletionServingProtocol.requestedRanges.withLock { $0 = [] }
 
         let whole = try #require(
             await MediaFileCompletion.wholeFile(
@@ -87,7 +148,7 @@ struct MediaFileCompletionTests {
             )
         )
 
-        #expect(RangeServingProtocol.requestedRanges.withLock { $0 }.isEmpty)
+        #expect(CompletionServingProtocol.requestedRanges.withLock { $0 }.isEmpty)
         #expect(try Data(contentsOf: whole) == source)
     }
 
@@ -110,7 +171,7 @@ struct MediaFileCompletionTests {
 
         // Four blocks, of which the first two were left by watching it.
         let source = body(blockSize * 4)
-        RangeServingProtocol.reset(body: source)
+        CompletionServingProtocol.reset(body: source)
         seed(source, upToBlock: 2, for: url, in: store)
 
         let reports = Mutex([Int64]())
@@ -144,7 +205,7 @@ struct MediaFileCompletionTests {
         let store = MediaBlockStore(directory: blockDirectory, blockSize: blockSize)
         let cache = MediaCache(directory: cacheDirectory, byteLimit: 1 << 30, blocks: store)
         let url = URL(string: "https://example.invalid/unwatched.webm")!
-        RangeServingProtocol.reset(body: body(blockSize * 3))
+        CompletionServingProtocol.reset(body: body(blockSize * 3))
 
         let whole = await MediaFileCompletion.wholeFile(
             for: url, referer: nil, cache: cache, store: store, session: makeSession()
