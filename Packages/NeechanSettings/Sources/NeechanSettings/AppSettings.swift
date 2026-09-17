@@ -13,6 +13,12 @@ public final class AppSettings {
 
     @ObservationIgnored private let storedDefaults: UserDefaults
 
+    /// Whether this is the build meant for the App Store.
+    ///
+    /// It changes two things and only two: boards for adults start hidden
+    /// rather than shown, and posting is off and cannot be turned on.
+    @ObservationIgnored private let isAppStoreBuild: Bool
+
     /// Bumped by every write.
     ///
     /// Observation tracks stored properties, and every preference below is a
@@ -57,8 +63,15 @@ public final class AppSettings {
     /// every post on screen.
     private var statisticsRevision = 0
 
-    public init(defaults: UserDefaults = .standard) {
+    /// - Parameter isAppStoreBuild: read from the bundle by default, and
+    ///   injectable only so a test can ask what that build does without being
+    ///   that build.
+    public init(
+        defaults: UserDefaults = .standard,
+        isAppStoreBuild: Bool = BuildVariant.isAppStore
+    ) {
         self.storedDefaults = defaults
+        self.isAppStoreBuild = isAppStoreBuild
         self.storedImageboard = Self.readImageboard(defaults)
         self.storedDomain = Self.readDomain(defaults)
         self.storedTextScale = Self.clampScale(
@@ -336,16 +349,37 @@ public final class AppSettings {
     /// list, favourites, history, saved threads and every open route all
     /// re-evaluate at once, and a stored property gives observation without
     /// that blanket invalidation.
+    /// The App Store build starts with this off. It is still a preference
+    /// there: a reader who turns it on gets the same 21+ prompt and it stays
+    /// on. Only where it begins is different.
     public var allowsMatureBoards: Bool {
-        get { bool(Key.allowsMature, default: true) }
+        get { bool(Key.allowsMature, default: !isAppStoreBuild) }
         set { write(newValue, forKey: Key.allowsMature) }
     }
 
     /// Whether the reader can post at all, on either imageboard.
+    ///
+    /// The App Store build fixes this off, and a constant is the only thing
+    /// that can fix it: `bool(_:default:)` deliberately honours the argument
+    /// domain so a launch argument can pin a preference, which means neither a
+    /// changed default nor `register(defaults:)` would win. The setter stops
+    /// writing for the same reason — a stored `true` the getter then ignored
+    /// would come back the moment the lock was lifted.
+    ///
+    /// One consequence worth knowing: fixed, this no longer reads `defaults`
+    /// and so no longer observes `revision`. That is right — a constant has
+    /// nothing to announce — but it is the one preference here that does not.
     public var allowsPosting: Bool {
-        get { bool(Key.allowsPosting, default: true) }
-        set { write(newValue, forKey: Key.allowsPosting) }
+        get { isAppStoreBuild ? false : bool(Key.allowsPosting, default: true) }
+        set {
+            guard !isAppStoreBuild else { return }
+            write(newValue, forKey: Key.allowsPosting)
+        }
     }
+
+    /// Whether posting is fixed off by this build rather than by the reader,
+    /// for the screen that shows the switch.
+    public var postingIsFixed: Bool { isAppStoreBuild }
 
     /// Carries a reader's `interface.safeForWork` into `nsfwMode`, once.
     ///

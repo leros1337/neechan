@@ -688,3 +688,134 @@ struct NSFWModeMigrationTests {
         #expect(settings.allowsPosting)
     }
 }
+
+/// The build meant for the App Store.
+///
+/// It changes two things: boards for adults start hidden rather than shown, and
+/// posting is off and stays off. Everything else is the same app.
+@MainActor
+@Suite("The App Store build")
+struct AppStoreBuildTests {
+    private func freshDefaults() throws -> UserDefaults {
+        try #require(UserDefaults(suiteName: "neechan.tests.\(UUID().uuidString)"))
+    }
+
+    private func appStoreSettings(_ defaults: UserDefaults) -> AppSettings {
+        AppSettings(defaults: defaults, isAppStoreBuild: true)
+    }
+
+    // MARK: Reading the flag out of the bundle
+
+    /// The case that matters most is the empty string: an undefined build
+    /// setting expands to nothing, and nothing must mean the ordinary build.
+    @Test(
+        "the plist value is read the way Xcode writes it",
+        arguments: [
+            ("YES", true), ("yes", true), ("true", true), ("1", true),
+            ("NO", false), ("no", false), ("false", false), ("0", false),
+            ("", false),
+        ]
+    )
+    func readsTheFlag(value: String, expected: Bool) {
+        #expect(BuildVariant.isAppStore(in: [BuildVariant.key: value]) == expected)
+    }
+
+    @Test("a missing key is the ordinary build")
+    func aMissingKeyIsOrdinary() {
+        #expect(!BuildVariant.isAppStore(in: [:]))
+        #expect(!BuildVariant.isAppStore(in: nil))
+        #expect(!BuildVariant.isAppStore(in: ["SomethingElse": "YES"]))
+    }
+
+    /// A plist edited by hand says `<true/>`, which is neither a string nor a
+    /// number as far as Swift is concerned until it is asked nicely.
+    @Test("a real boolean in the plist is read too")
+    func readsABoolean() {
+        #expect(BuildVariant.isAppStore(in: [BuildVariant.key: true]))
+        #expect(!BuildVariant.isAppStore(in: [BuildVariant.key: false]))
+        #expect(BuildVariant.isAppStore(in: [BuildVariant.key: NSNumber(value: 1)]))
+    }
+
+    /// Under `swift test` the main bundle is the runner, so the app's own key
+    /// is not there and everything else in this file behaves as it always has.
+    @Test("a test is never the App Store build")
+    func testsAreNotTheAppStoreBuild() {
+        #expect(!BuildVariant.isAppStore)
+    }
+
+    // MARK: Posting, which is fixed
+
+    @Test("posting is off and cannot be turned on")
+    func postingIsFixed() throws {
+        let settings = appStoreSettings(try freshDefaults())
+
+        #expect(settings.postingIsFixed)
+        #expect(!settings.allowsPosting)
+
+        settings.allowsPosting = true
+        #expect(!settings.allowsPosting, "posting was turned on in the App Store build")
+    }
+
+    /// A write that stored the value would come back the moment the lock was
+    /// lifted, which is a surprise waiting years to happen.
+    @Test("a refused write stores nothing")
+    func aRefusedWriteStoresNothing() throws {
+        let defaults = try freshDefaults()
+        appStoreSettings(defaults).allowsPosting = true
+
+        #expect(defaults.object(forKey: "posting.enabled") == nil)
+    }
+
+    /// The closest a unit test can get to the launch-argument case. An argument
+    /// domain cannot be injected into a `UserDefaults(suiteName:)` at all, so
+    /// the persistent domain stands in for it: if a stored `true` cannot win,
+    /// nor can a default, and only the constant is left.
+    @Test("a value already stored does not turn posting back on")
+    func aStoredValueDoesNotWin() throws {
+        let defaults = try freshDefaults()
+        defaults.set(true, forKey: "posting.enabled")
+
+        #expect(!appStoreSettings(defaults).allowsPosting)
+    }
+
+    // MARK: The two that only start differently
+
+    @Test("boards for adults start hidden")
+    func matureStartsOff() throws {
+        #expect(!appStoreSettings(try freshDefaults()).allowsMatureBoards)
+    }
+
+    /// Deliberately not a lock. This is the assertion that stops someone
+    /// "finishing the job" later by fixing it the way posting is fixed.
+    @Test("the reader can still show boards for adults")
+    func matureCanStillBeTurnedOn() throws {
+        let defaults = try freshDefaults()
+        let settings = appStoreSettings(defaults)
+
+        settings.allowsMatureBoards = true
+        #expect(settings.allowsMatureBoards)
+        // And it stays on, rather than being reset on the next launch.
+        #expect(appStoreSettings(defaults).allowsMatureBoards)
+    }
+
+    /// True of the ordinary build as well; asserted here so that the cautious
+    /// start is something this build promises rather than something it inherits
+    /// by luck from a default that might later move.
+    @Test("thumbnails start blurred")
+    func nsfwStartsOff() throws {
+        let settings = appStoreSettings(try freshDefaults())
+        #expect(!settings.nsfwMode)
+
+        settings.nsfwMode = true
+        #expect(settings.nsfwMode, "NSFW mode is a preference here, not a lock")
+    }
+
+    @Test("the ordinary build is unchanged")
+    func theOrdinaryBuildIsUnchanged() throws {
+        let settings = AppSettings(defaults: try freshDefaults(), isAppStoreBuild: false)
+
+        #expect(settings.allowsPosting)
+        #expect(settings.allowsMatureBoards)
+        #expect(!settings.postingIsFixed)
+    }
+}
