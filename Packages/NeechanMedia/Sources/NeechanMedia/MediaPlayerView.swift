@@ -158,6 +158,15 @@ public struct PlaybackControl: Sendable, Equatable {
 @MainActor
 final class EngineOptionsBox {
     private var built: KSOptions?
+    /// What `built` was made from, so a change can be noticed.
+    ///
+    /// Kept because one view can outlive the media it is showing: a feed that
+    /// swaps the URL of a single mounted player would otherwise carry the first
+    /// clip's options onto every later one, and those options decide
+    /// `hardwareDecode`. An MP4 followed by a WebM would then ask VideoToolbox
+    /// for VP9, which it cannot do — the same failure `KSPlayerBridge` warns
+    /// about, arriving by a different route.
+    private var builtFrom: MediaPlayerOptions?
 
     func options(for options: MediaPlayerOptions) -> KSOptions {
         // The engine choice is global to KSPlayer and read when a player is
@@ -165,9 +174,10 @@ final class EngineOptionsBox {
         // themselves are kept. It is two assignments; the options were an
         // allocation and several dictionaries.
         KSPlayerBridge.selectEngine(for: options)
-        if let built { return built }
+        if let built, builtFrom == options { return built }
         let made = KSPlayerBridge.makeOptions(from: options)
         built = made
+        builtFrom = options
         return made
     }
 }

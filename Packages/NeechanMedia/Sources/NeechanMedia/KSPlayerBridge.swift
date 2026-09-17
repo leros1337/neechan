@@ -145,6 +145,20 @@ enum KSPlayerBridge {
         #endif
     }
 
+    /// Takes the audio session back after it was handed over.
+    ///
+    /// The engine claims it inside the player's own initialiser and nowhere
+    /// else, so a player that is paused for an interruption and resumed — or
+    /// one kept alive across a trip to the background — comes back to a session
+    /// nothing has re-activated. The picture moves and there is no sound.
+    static func claimAudioSession() {
+        #if canImport(AVFAudio) && os(iOS)
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .moviePlayback, policy: .longFormVideo)
+        try? session.setActive(true)
+        #endif
+    }
+
     /// Maps the engine's state onto the app's.
     static func playbackState(from state: KSPlayerState) -> PlaybackState {
         switch state {

@@ -77,3 +77,47 @@ struct EngineSelectionTests {
         #expect(options.registerRemoteControll == false)
     }
 }
+
+/// The options one player view holds, when the media it shows changes.
+///
+/// A viewer that mounts a player per clip never meets this. A feed that keeps
+/// one player and swaps its URL meets it on the first clip after an MP4.
+@Suite("Engine options for a reused player", .serialized)
+@MainActor
+struct EngineOptionsBoxTests {
+    @Test("the same media is not rebuilt")
+    func sameOptionsAreKept() {
+        let box = EngineOptionsBox()
+        let options = MediaPlayerOptions(kind: .webmVideo)
+
+        let first = box.options(for: options)
+        let second = box.options(for: options)
+
+        #expect(first === second, "identical options were built twice")
+    }
+
+    /// The regression this exists for: VideoToolbox has no VP9 decoder, so
+    /// carrying an MP4's `hardwareDecode` onto a WebM breaks it.
+    @Test("changing the media rebuilds, so hardware decoding is not carried over")
+    func changedOptionsAreRebuilt() {
+        let box = EngineOptionsBox()
+
+        let mp4 = box.options(for: MediaPlayerOptions(kind: .mp4Video))
+        #expect(mp4.hardwareDecode, "an MP4 should be decoded in hardware")
+
+        let webm = box.options(for: MediaPlayerOptions(kind: .webmVideo))
+        #expect(webm !== mp4, "the options were reused for different media")
+        #expect(!webm.hardwareDecode, "VP9 was handed to VideoToolbox, which cannot decode it")
+    }
+
+    /// Anything the options carry, not only the kind — headers change between
+    /// sites, and a stale Referer is refused as a hotlink.
+    @Test("a change other than the kind rebuilds too")
+    func headersAreNotCarriedOver() {
+        let box = EngineOptionsBox()
+        let first = box.options(for: MediaPlayerOptions(kind: .webmVideo, referer: URL(string: "https://2ch.org")))
+        let second = box.options(for: MediaPlayerOptions(kind: .webmVideo, referer: URL(string: "https://boards.4chan.org")))
+
+        #expect(first !== second, "the referer change was ignored")
+    }
+}

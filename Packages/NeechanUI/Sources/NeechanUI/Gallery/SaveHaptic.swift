@@ -5,7 +5,7 @@ import SwiftUI
 /// Kept apart from the view because a haptic cannot be observed from a test,
 /// while the choice between the two can.
 enum SaveHaptic {
-    static func feedback(for outcome: GalleryViewModel.VideoSaveOutcome?) -> SensoryFeedback? {
+    static func feedback(for outcome: MediaTransferController.VideoSaveOutcome?) -> SensoryFeedback? {
         guard let outcome else { return nil }
         // `.success` is the light double tap, which is the small confirmation a
         // finished save wants. `.error` is unmistakably different, so a save
