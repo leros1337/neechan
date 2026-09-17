@@ -290,6 +290,16 @@ public final class AppSettings {
         set { write(newValue, forKey: Key.remembersHistory) }
     }
 
+    /// Whether the app asks who is holding the device before showing anything.
+    ///
+    /// Off unless the reader asks for it. What the check accepts is the
+    /// device's own business: a face, a fingerprint or the passcode, whichever
+    /// the device has.
+    public var locksApp: Bool {
+        get { bool(Key.appLock, default: false) }
+        set { write(newValue, forKey: Key.appLock) }
+    }
+
     /// Whether links open in the app or in the system browser.
     public var usesInternalBrowser: Bool {
         get { bool(Key.internalBrowser, default: true) }
@@ -589,6 +599,7 @@ public final class AppSettings {
         static let safeForWork = "interface.safeForWork"
         static let remembersHistory = "general.remembersHistory"
         static let internalBrowser = "general.internalBrowser"
+        static let appLock = "general.appLock"
         static let catalogByDefault = "forum.catalogByDefault"
         static let autoRefresh = "contents.autoRefresh"
         static let endlessMode = "contents.endlessMode"

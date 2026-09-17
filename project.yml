@@ -60,6 +60,8 @@ targets:
           - fetch
         BGTaskSchedulerPermittedIdentifiers:
           - com.lain.neechan.watcher
+        NSFaceIDUsageDescription: >-
+          Neechan uses Face ID to unlock the app.
         NSPhotoLibraryAddUsageDescription: >-
           Neechan needs permission to add images and videos you save to your
           photo library.

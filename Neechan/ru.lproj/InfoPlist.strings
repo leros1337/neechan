@@ -1,2 +1,5 @@
+/* Shown when the app asks to unlock itself. */
+"NSFaceIDUsageDescription" = "Neechan использует Face ID, чтобы разблокировать приложение.";
+
 /* Shown when the app first asks to write to the photo library. */
 "NSPhotoLibraryAddUsageDescription" = "Neechan нужно разрешение, чтобы добавлять сохраняемые изображения и видео в медиатеку «Фото».";

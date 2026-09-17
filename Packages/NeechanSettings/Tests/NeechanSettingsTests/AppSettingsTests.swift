@@ -21,6 +21,7 @@ struct AppSettingsTests {
         #expect(settings.textScale == 1)
         #expect(settings.thumbnailScale == 0.8, "thumbnails start a little under full size")
         #expect(settings.remembersHistory)
+        #expect(settings.locksApp == false, "the app does not lock itself until asked")
         #expect(settings.catalogByDefault, "a board opens as the catalog until told otherwise")
         #expect(settings.convertsWebMOnSave, "Photos cannot play a WebM, so it is converted by default")
         #expect(settings.showsHiddenThreads, "hiding a thread collapses it rather than removing it")
@@ -129,7 +130,7 @@ struct AppSettingsObservationTests {
         "every kind of preference is observed, not just the ones with a stored default",
         arguments: [
             "domain", "themeID", "textScale", "collapsePostLineLimit",
-            "mediaLoadPolicy", "remembersHistory", "safeForWork",
+            "mediaLoadPolicy", "remembersHistory", "safeForWork", "locksApp",
         ]
     )
     func everyPreferenceIsObserved(name: String) throws {
@@ -144,6 +145,7 @@ struct AppSettingsObservationTests {
             case "collapsePostLineLimit": _ = settings.collapsePostLineLimit
             case "mediaLoadPolicy": _ = settings.mediaLoadPolicy
             case "remembersHistory": _ = settings.remembersHistory
+            case "locksApp": _ = settings.locksApp
             default: _ = settings.safeForWork
             }
         } onChange: {
@@ -157,6 +159,7 @@ struct AppSettingsObservationTests {
         case "collapsePostLineLimit": settings.collapsePostLineLimit = 5
         case "mediaLoadPolicy": settings.mediaLoadPolicy = .never
         case "remembersHistory": settings.remembersHistory = false
+        case "locksApp": settings.locksApp = true
         default: settings.safeForWork = true
         }
 

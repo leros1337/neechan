@@ -37,6 +37,10 @@ class LiveUITestCase: XCTestCase {
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += extraArguments
+        // The app lock outlives a run the way the language does, and a run that
+        // left it on would face every later test with a lock screen it cannot
+        // answer: the device's prompt belongs to another process.
+        app.launchArguments += ["-general.appLock", "NO"]
         if pinsLanguage {
             app.launchArguments += ["-general.language", "system"]
         }

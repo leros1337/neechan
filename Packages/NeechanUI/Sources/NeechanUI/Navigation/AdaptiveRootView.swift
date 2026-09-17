@@ -10,6 +10,7 @@ import SwiftUI
 /// screen while a thread is open.
 public struct AdaptiveRootView: View {
     @Environment(AppServices.self) private var services
+    @Environment(AppLock.self) private var lock
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -22,6 +23,9 @@ public struct AdaptiveRootView: View {
 
     public var body: some View {
         shell
+            // Over everything, in a window of its own, so a sheet or the
+            // gallery cannot be left showing through it.
+            .appLockCover(lock)
             .environment(router)
             .tint(Color(theme.accent))
             .environment(\.neechanTheme, theme)
@@ -79,8 +83,18 @@ public struct AdaptiveRootView: View {
             .task(id: scenePhase) {
                 switch scenePhase {
                 case .active:
+                    // The lock first: what it decides here is whether anything
+                    // below is allowed to be on screen at all.
+                    lock.sceneBecameActive()
                     await services.startWatching()
                 case .background, .inactive:
+                    // Being made inactive covers the app; only leaving the
+                    // screen starts the clock on asking again.
+                    if scenePhase == .background {
+                        lock.sceneEnteredBackground()
+                    } else {
+                        lock.sceneBecameInactive()
+                    }
                     await services.stopWatching()
                     // Going away is the one moment there is time to tidy up and
                     // nobody is waiting on the disk.

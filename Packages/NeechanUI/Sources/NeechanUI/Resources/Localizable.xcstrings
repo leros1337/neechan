@@ -959,6 +959,23 @@
         }
       }
     },
+    "Asks for Face ID, Touch ID or your device passcode when you come back after a minute away, and every time the app is opened fresh.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asks for Face ID, Touch ID or your device passcode when you come back after a minute away, and every time the app is opened fresh."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Спрашивает Face ID, Touch ID или код-пароль устройства, когда вы возвращаетесь после минуты отсутствия, и при каждом новом запуске."
+          }
+        }
+      }
+    },
     "Attachments": {
       "extractionState": "manual",
       "localizations": {
@@ -3107,6 +3124,23 @@
         }
       }
     },
+    "Lock the app": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lock the app"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Блокировать приложение"
+          }
+        }
+      }
+    },
     "Long threads": {
       "extractionState": "manual",
       "localizations": {
@@ -4603,6 +4637,23 @@
         }
       }
     },
+    "Privacy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Приватность"
+          }
+        }
+      }
+    },
     "Quality: %lld%%": {
       "extractionState": "manual",
       "localizations": {
@@ -5415,6 +5466,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Отправлено"
+          }
+        }
+      }
+    },
+    "Set a passcode on this device to use this.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set a passcode on this device to use this."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Чтобы включить, задайте код-пароль на устройстве."
           }
         }
       }
@@ -6811,6 +6879,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Показать все"
+          }
+        }
+      }
+    },
+    "Unlock": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разблокировать"
+          }
+        }
+      }
+    },
+    "Unlock Neechan": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock Neechan"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разблокировать Neechan"
           }
         }
       }
