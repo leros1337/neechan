@@ -33,20 +33,6 @@ public struct RootTabView: View {
                 }
             }
 
-            Tab(value: AppTab.settings) {
-                NavigationStack(path: $router.settingsPath) {
-                    SettingsView()
-                        .navigationDestination(for: AppRoute.self) { RouteDestinationView(route: $0) }
-                }
-                .environment(\.layoutDirection, .leftToRight)
-            } label: {
-                Label {
-                    AppTab.settings.title
-                } icon: {
-                    Image(systemName: AppTab.settings.systemImage)
-                }
-            }
-
             Tab(value: AppTab.history) {
                 NavigationStack(path: $router.historyPath) {
                     HistoryView()
@@ -74,6 +60,20 @@ public struct RootTabView: View {
                     Image(systemName: AppTab.favorites.systemImage)
                 }
             }
+
+            Tab(value: AppTab.settings) {
+                NavigationStack(path: $router.settingsPath) {
+                    SettingsView()
+                        .navigationDestination(for: AppRoute.self) { RouteDestinationView(route: $0) }
+                }
+                .environment(\.layoutDirection, .leftToRight)
+            } label: {
+                Label {
+                    AppTab.settings.title
+                } icon: {
+                    Image(systemName: AppTab.settings.systemImage)
+                }
+            }
         }
         #if os(iOS)
         // Only iOS and iPadOS minimise the tab bar on scroll; the package builds
@@ -85,8 +85,8 @@ public struct RootTabView: View {
         // Mirroring the bar puts the pill under the thumb instead of across the
         // screen from it. Only the bar is mirrored — each tab's content sets
         // the direction back — and the tabs are declared in reverse so they
-        // still read Favorites, History, Settings, Boards from left to right,
-        // with Boards under the thumb.
+        // still read Settings, Favorites, History, Boards from left to right,
+        // with Boards under the thumb. The first one written is the rightmost.
         .environment(\.layoutDirection, .rightToLeft)
         #endif
     }
