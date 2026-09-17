@@ -43,7 +43,7 @@ public enum FilterEngine {
     /// nothing at all: the listing never consulted the rules.
     public static func hidesThread(
         openingPost: Post,
-        onBoard board: String,
+        onBoard board: BoardRef,
         rules: [AutohideRuleValue]
     ) -> Bool {
         hidesThread(
@@ -53,8 +53,8 @@ public enum FilterEngine {
             commentText: {
                 // The comment is HTML until something parses it, and a rule must
                 // match what a reader sees rather than the markup.
-                CommentHTMLParser()
-                    .parse($0.comment, inThread: $0.num, onBoard: board)
+                CommentHTMLParser(site: board.site)
+                    .parse($0.comment, inThread: $0.num, onBoard: board.code)
                     .plainText
             }
         )
@@ -71,11 +71,11 @@ public enum FilterEngine {
     ///   comment, so a board with no such rule still parses nothing.
     public static func hidesThread(
         openingPost: Post,
-        onBoard board: String,
+        onBoard board: BoardRef,
         rules: [AutohideRuleValue],
         commentText: (Post) -> String
     ) -> Bool {
-        let thread = ThreadKey(board: board, threadNum: openingPost.num)
+        let thread = ThreadKey(site: board.site, board: board.code, threadNum: openingPost.num)
         let applicable = rules.filter { $0.isUsable && $0.appliesTo(thread: thread) }
         guard !applicable.isEmpty else { return false }
 
@@ -88,7 +88,7 @@ public enum FilterEngine {
     /// Answered once for a whole board rather than per row.
     public static func hiddenThreadNums(
         in openingPosts: [Post],
-        onBoard board: String,
+        onBoard board: BoardRef,
         rules: [AutohideRuleValue],
         commentText: (Post) -> String
     ) -> Set<Int> {

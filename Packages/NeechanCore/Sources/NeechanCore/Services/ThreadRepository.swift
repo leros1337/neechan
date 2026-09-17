@@ -89,6 +89,14 @@ public actor ThreadRepository {
             }
         }
 
+        // A site with no incremental endpoint reloads instead — a path this
+        // already takes whenever the incremental reply cannot be lined up. The
+        // cost is paid back by the site's own cache headers, which answer an
+        // unchanged thread without sending the body again.
+        guard SiteCapabilities.of(key.site).incrementalThreadRefresh else {
+            return await reloadFully()
+        }
+
         let anchor = snapshot.meta.maxNum
         do {
             let response = try await client.after(

@@ -31,7 +31,7 @@ private func post(
 
 @Suite("Filter engine")
 struct FilterEngineTests {
-    private let thread = ThreadKey(board: "b", threadNum: 100)
+    private let thread = ThreadKey(site: .dvach, board: "b", threadNum: 100)
 
     private func evaluate(
         _ posts: [Post],

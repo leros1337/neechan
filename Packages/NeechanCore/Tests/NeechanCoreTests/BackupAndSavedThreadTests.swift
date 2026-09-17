@@ -100,8 +100,8 @@ struct BackupServiceTests {
     @Test("an export carries what the reader built up")
     func exportsUserData() async throws {
         let (backup, favorites, hidden) = try makeServices()
-        try await favorites.add(ThreadKey(board: "b", threadNum: 1), title: "Тред")
-        try await favorites.addBoard("po", name: "Политика")
+        try await favorites.add(ThreadKey(site: .dvach, board: "b", threadNum: 1), title: "Тред")
+        try await favorites.addBoard(BoardRef(site: .dvach, code: "po"), name: "Политика")
         try await hidden.addRule(AutohideRuleValue(pattern: "спам", matchesComment: true))
 
         let document = try await backup.export(settings: ["domain": "2ch.org"])
@@ -114,7 +114,7 @@ struct BackupServiceTests {
     @Test("an import adds what is missing without duplicating what is there")
     func importMerges() async throws {
         let (backup, favorites, _) = try makeServices()
-        try await favorites.add(ThreadKey(board: "b", threadNum: 1), title: "Уже есть")
+        try await favorites.add(ThreadKey(site: .dvach, board: "b", threadNum: 1), title: "Уже есть")
 
         let document = NeechanBackup(
             favorites: [
@@ -129,7 +129,7 @@ struct BackupServiceTests {
 
         #expect(summary.favorites == 1, "only the thread that was missing is added")
         #expect(summary.favoriteBoards == 1)
-        #expect(try await favorites.favorites().count == 2)
+        #expect(try await favorites.favorites(site: .dvach).count == 2)
     }
 
     @Test("importing the same file twice changes nothing the second time")
@@ -155,7 +155,7 @@ struct SavedThreadsRepositoryTests {
     /// Saved threads share one folder on disk, and the suite runs in parallel,
     /// so each test saves under a board nobody else is using.
     private func uniqueKey() -> ThreadKey {
-        ThreadKey(board: "test-\(UUID().uuidString)", threadNum: 1)
+        ThreadKey(site: .dvach, board: "test-\(UUID().uuidString)", threadNum: 1)
     }
 
     @Test("a saved thread can be read back without a network")
@@ -169,7 +169,7 @@ struct SavedThreadsRepositoryTests {
             response,
             rawJSON: rawJSON,
             key: key,
-            domain: .org,
+            endpoints: SiteEndpoints(.default),
             // No media is fetched, so the test stays offline.
             policy: .thumbnails,
             downloader: OfflineDownloader()
@@ -187,7 +187,7 @@ struct SavedThreadsRepositoryTests {
     @Test("an unsaved thread loads as nothing")
     func loadMissing() async throws {
         let repository = try makeRepository()
-        #expect(try await repository.load(ThreadKey(board: "b", threadNum: 999)) == nil)
+        #expect(try await repository.load(ThreadKey(site: .dvach, board: "b", threadNum: 999)) == nil)
     }
 
     @Test("removing a saved thread takes its files with it")
@@ -198,13 +198,13 @@ struct SavedThreadsRepositoryTests {
 
         _ = try await repository.save(
             response, rawJSON: try FixtureLoader.data(.thread), key: key,
-            domain: .org, policy: .thumbnails, downloader: OfflineDownloader()
+            endpoints: SiteEndpoints(.default), policy: .thumbnails, downloader: OfflineDownloader()
         )
         try await repository.remove(key)
 
         #expect(try await repository.isSaved(key) == false)
         #expect(try await repository.load(key) == nil)
-        #expect(try await repository.saved().isEmpty)
+        #expect(try await repository.saved(site: .dvach).isEmpty)
     }
 
     @Test("a server path becomes one flat file name")
@@ -219,5 +219,115 @@ struct SavedThreadsRepositoryTests {
 private struct OfflineDownloader: MediaFetching {
     func data(_ url: URL, referer: URL?) async throws -> Data {
         throw URLError(.notConnectedToInternet)
+    }
+}
+
+/// A backup written before there were two imageboards.
+///
+/// The trap this guards: `Codable`'s generated decoder throws `keyNotFound` for
+/// a missing key whatever default the property carries, and `decode` turns any
+/// throw into "not a backup" — so a non-optional `site` would have made every
+/// file an existing reader holds unreadable, and told them it was not a backup.
+@Suite("Backup compatibility")
+struct BackupCompatibilityTests {
+    private let version1File = """
+    {
+      "version": 1,
+      "exportedAt": "2026-01-01T00:00:00Z",
+      "favorites": [
+        {"board": "b", "threadNum": 1, "title": "Тред",
+         "createdAt": "2026-01-01T00:00:00Z", "isWatched": true}
+      ],
+      "favoriteBoards": ["po"],
+      "history": [
+        {"board": "b", "threadNum": 2, "title": "Кот",
+         "visitedAt": "2026-01-01T00:00:00Z"}
+      ],
+      "autohideRules": [
+        {"pattern": "spam", "isRegularExpression": false, "matchesSubject": false,
+         "matchesComment": true, "matchesName": false, "matchesFileName": false,
+         "boards": [], "appliesToOriginalPostOnly": false,
+         "appliesToSagedOnly": false, "isEnabled": true}
+      ],
+      "hiddenThreads": [{"board": "b", "threadNum": 3, "title": "Спам"}],
+      "settings": {}
+    }
+    """
+
+    @Test("a backup written before there were two imageboards still reads")
+    func version1StillDecodes() throws {
+        let backup = try BackupCodec.decode(Data(version1File.utf8))
+        #expect(backup.version == 1)
+        #expect(backup.favorites.count == 1)
+        #expect(backup.favoriteBoards == ["po"])
+        // Absent everywhere, and read as 2ch's, which is what it was.
+        #expect(backup.favorites.first?.site == nil)
+        #expect(backup.favorites.first?.key.site == .dvach)
+        #expect(backup.history.first?.key.site == .dvach)
+        #expect(backup.hiddenThreads.first?.key.site == .dvach)
+    }
+
+    @Test("importing one attributes everything to 2ch")
+    func version1ImportsAsDvach() async throws {
+        let container = try NeechanStore.makeContainer(inMemory: true)
+        let service = BackupService(modelContainer: container)
+        let favorites = FavoritesRepository(modelContainer: container)
+
+        let summary = try await service.import(BackupCodec.decode(Data(version1File.utf8)))
+        #expect(summary.total > 0)
+
+        #expect(try await favorites.favorites(site: .dvach).count == 1)
+        #expect(try await favorites.favorites(site: .fourchan).isEmpty)
+        #expect(try await favorites.favoriteBoards(site: .dvach).map(\.board) == ["po"])
+    }
+
+    /// A rule is not a record of something done on a site, so it keeps working
+    /// on both rather than being narrowed to the one that existed when it was
+    /// written.
+    @Test("a rule from an older backup applies on every imageboard")
+    func importedRulesStaySiteBlind() async throws {
+        let container = try NeechanStore.makeContainer(inMemory: true)
+        let service = BackupService(modelContainer: container)
+        let hidden = HiddenContentRepository(modelContainer: container)
+
+        _ = try await service.import(BackupCodec.decode(Data(version1File.utf8)))
+        let rule = try #require(try await hidden.rules().first)
+        #expect(rule.sites.isEmpty)
+    }
+
+    @Test("a backup this build writes carries the imageboard on every entry")
+    func version2CarriesTheSite() async throws {
+        let container = try NeechanStore.makeContainer(inMemory: true)
+        let favorites = FavoritesRepository(modelContainer: container)
+        let service = BackupService(modelContainer: container)
+
+        try await favorites.add(
+            ThreadKey(site: .fourchan, board: "g", threadNum: 1), title: "Fourchan"
+        )
+        let document = try await service.export(settings: [:])
+
+        #expect(document.version == 2)
+        #expect(document.favorites.first?.site == "fourchan")
+        #expect(document.favorites.first?.key.site == .fourchan)
+    }
+
+    /// Round trip: a file this build writes, read back by this build, puts
+    /// everything back where it came from.
+    @Test("a backup round-trips without losing which imageboard anything was on")
+    func roundTrip() async throws {
+        let source = try NeechanStore.makeContainer(inMemory: true)
+        let sourceFavorites = FavoritesRepository(modelContainer: source)
+        try await sourceFavorites.add(ThreadKey(site: .dvach, board: "b", threadNum: 1), title: "Двач")
+        try await sourceFavorites.add(ThreadKey(site: .fourchan, board: "b", threadNum: 1), title: "Fourchan")
+        let document = try await BackupService(modelContainer: source).export(settings: [:])
+
+        let destination = try NeechanStore.makeContainer(inMemory: true)
+        _ = try await BackupService(modelContainer: destination).import(
+            try BackupCodec.decode(try BackupCodec.encode(document))
+        )
+
+        let restored = FavoritesRepository(modelContainer: destination)
+        #expect(try await restored.favorites(site: .dvach).map(\.title) == ["Двач"])
+        #expect(try await restored.favorites(site: .fourchan).map(\.title) == ["Fourchan"])
     }
 }

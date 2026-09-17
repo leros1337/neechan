@@ -55,4 +55,29 @@ struct BoardCodeTests {
         #expect(BoardCode.isValid("/b/") == false)
         #expect(BoardCode.isValid("hello world") == false)
     }
+
+    // MARK: Two imageboards
+
+    /// 4chan has `/3/`, and a board code that is all digits used to be refused
+    /// outright because a bare post number looks exactly like one.
+    @Test("an all-digit board code is accepted only where such a board exists")
+    func numericBoardCodes() {
+        #expect(BoardCode.normalized("3", for: .fourchan) == "3")
+        #expect(BoardCode.normalized("/3/", for: .fourchan) == "3")
+        #expect(BoardCode.normalized("3", for: .dvach) == nil)
+    }
+
+    /// The reason the rule exists in the first place.
+    @Test("a post number is still not a board, even where digits are allowed")
+    func postNumbersAreNotBoards() {
+        #expect(BoardCode.normalized("336654150", for: .fourchan) == nil)
+        #expect(BoardCode.normalized("123", for: .fourchan) == nil)
+    }
+
+    @Test("4chan's ordinary board codes are unremarkable")
+    func fourchanCodes() {
+        for code in ["g", "po", "vg", "lgbt", "trash", "wsr"] {
+            #expect(BoardCode.normalized(code, for: .fourchan) == code)
+        }
+    }
 }

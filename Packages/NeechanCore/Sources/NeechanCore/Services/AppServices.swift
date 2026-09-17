@@ -1,4 +1,5 @@
 import Foundation
+import os
 import Synchronization
 import NeechanAPI
 import NeechanSettings
@@ -47,9 +48,10 @@ public final class AppServices {
     @ObservationIgnored private var threadRepositories: [ThreadKey: ThreadRepository] = [:]
     /// Thread keys in the order they were last asked for, oldest first.
     @ObservationIgnored private var threadOrder: [ThreadKey] = []
-    /// Bridges the main-actor settings to the client, which reads the domain
-    /// from its own executor.
-    @ObservationIgnored private let domainHolder: DomainHolder
+    /// Bridges the main-actor settings to the client, which reads the site and
+    /// mirror from its own executor.
+    @ObservationIgnored private let siteHolder: SiteHolder
+    @ObservationIgnored private let policyHolder: ContentPolicyHolder
     @ObservationIgnored private let challenges: ChallengeRelay
 
     public init(
@@ -59,10 +61,18 @@ public final class AppServices {
     ) {
         self.settings = settings
 
-        // The mirror is read on every request, so switching it in settings takes
-        // effect without rebuilding the client.
-        let domainHolder = DomainHolder(settings.domain)
-        self.domainHolder = domainHolder
+        // The site and mirror are read on every request, so switching either in
+        // settings takes effect without rebuilding the client.
+        let siteHolder = SiteHolder(settings.siteSelection)
+        self.siteHolder = siteHolder
+
+        // Read the same way and for the same reason: the repositories ask it
+        // per query, from their own actor, so turning a restriction on takes
+        // effect without rebuilding any of them.
+        let policyHolder = ContentPolicyHolder(
+            ContentPolicy(allowsMatureBoards: settings.allowsMatureBoards)
+        )
+        self.policyHolder = policyHolder
         let suppliedTransport = transport
         let transport = suppliedTransport ?? URLSessionTransport(
             cookieStorage: .shared,
@@ -78,28 +88,39 @@ public final class AppServices {
         let challenges = ChallengeRelay()
         let client = DvachClient(
             transport: transport,
-            domain: domainHolder.provider,
+            site: siteHolder.provider,
             onChallenge: { [challenges] url in challenges.report(url) }
         )
         self.challenges = challenges
 
         self.client = client
-        self.boards = BoardsRepository(client: client)
+        self.boards = BoardsRepository(
+            client: client, site: siteHolder.provider, policy: policyHolder.provider
+        )
         self.catalog = CatalogRepository(client: client)
-        self.history = HistoryRepository(modelContainer: modelContainer)
+        self.history = HistoryRepository(
+            modelContainer: modelContainer, policy: policyHolder.provider
+        )
 
         let drafts = DraftRepository(modelContainer: modelContainer)
         let ownPosts = OwnPostsRepository(modelContainer: modelContainer)
         self.drafts = drafts
         self.ownPosts = ownPosts
         self.captchaClient = client
-        let favorites = FavoritesRepository(modelContainer: modelContainer)
+        let favorites = FavoritesRepository(
+            modelContainer: modelContainer, policy: policyHolder.provider
+        )
         let watchedThreads = WatchedThreadStore(modelContainer: modelContainer)
         self.favorites = favorites
         self.watchedThreads = watchedThreads
-        self.hidden = HiddenContentRepository(modelContainer: modelContainer)
+        self.hidden = HiddenContentRepository(
+            modelContainer: modelContainer, policy: policyHolder.provider
+        )
         self.watcher = ThreadWatcher(
-            client: client, favorites: favorites, states: watchedThreads
+            client: client,
+            site: siteHolder.provider,
+            favorites: favorites,
+            states: watchedThreads
         )
         #if canImport(UserNotifications)
         self.notifications = NotificationScheduler()
@@ -107,15 +128,17 @@ public final class AppServices {
 
         self.search = SearchService(client: client)
         self.archive = ArchiveRepository(client: client)
-        self.savedThreads = SavedThreadsRepository(modelContainer: modelContainer)
+        self.savedThreads = SavedThreadsRepository(
+            modelContainer: modelContainer, policy: policyHolder.provider
+        )
         self.themes = ThemeRepository(modelContainer: modelContainer)
         self.backup = BackupService(modelContainer: modelContainer)
-        self.cookies = CookieManager(domain: domainHolder.provider)
+        self.cookies = CookieManager(site: siteHolder.provider)
         self.downloader = Downloader()
 
         self.posting = PostingCoordinator(
             postingService: PostingService(
-                client: client, transport: transport, domain: domainHolder.provider
+                client: client, transport: transport, site: siteHolder.provider
             ),
             drafts: drafts,
             ownPosts: ownPosts
@@ -160,6 +183,15 @@ public final class AppServices {
         }
         challenges.onReport = { [weak self] url in
             guard let self, pendingChallengeURL == nil else { return }
+            // Not straight back up after being dismissed. A gate that refuses
+            // the retry as well would otherwise reopen the check the instant it
+            // closed, over and over, with nothing for the reader to answer.
+            // Whatever failed says so in its own error instead.
+            if let dismissedAt = challengeDismissedAt,
+               Date.now.timeIntervalSince(dismissedAt) < Self.challengeCooldown {
+                return
+            }
+            Self.log.notice("raising a check for \(url.absoluteString, privacy: .public)")
             pendingChallengeURL = url
         }
     }
@@ -171,10 +203,59 @@ public final class AppServices {
         Task { await history.setRecordingEnabled(enabled) }
     }
 
-    /// Called once the reader has passed the check, so the next failure can
-    /// raise it again.
+    private static let log = Logger(subsystem: Signposts.subsystem, category: "browser-check")
+
+    /// How long after a check closes before another may be raised.
+    private static let challengeCooldown: TimeInterval = 10
+
+    /// When the last check was closed, passed or cancelled.
+    @ObservationIgnored private var challengeDismissedAt: Date?
+
+    /// Bumped whenever a browser check is passed.
+    ///
+    /// A screen that was refused because of one keys its own reload on this:
+    /// passing the check in a sheet is the moment its request would succeed,
+    /// and without a signal it sits on the error it was left with.
+    public private(set) var challengesPassed = 0
+
+    /// Waiters for the next browser check to be passed.
+    @ObservationIgnored private var challengeWaiters: [CheckedContinuation<Void, Never>] = []
+
+    /// Waits until a browser check is passed.
+    ///
+    /// For the screens whose request a gate refused: they can wait for the
+    /// moment it would succeed and ask again. Deliberately not left to a view
+    /// noticing `challengesPassed` change — the check is answered in a window of
+    /// its own, and a screen underneath it does not reliably re-evaluate while
+    /// that window is key, which left the reader looking at an error after they
+    /// had already passed the check.
+    public func awaitChallengePass() async {
+        await withCheckedContinuation { continuation in
+            challengeWaiters.append(continuation)
+        }
+    }
+
+    /// Takes the cookies a web view collected and tells the app it happened.
+    public func adoptChallengeCookies(_ cookies: [HTTPCookie]) async {
+        Self.log.notice(
+            "adopting \(cookies.count, privacy: .public) cookies: \(cookies.map(\.name).sorted().joined(separator: ","), privacy: .public)"
+        )
+        await self.cookies.adopt(cookies)
+        // Passing one earns a fresh go: the cooldown is there to stop a check
+        // nobody answered from reappearing, not to hold up one that worked.
+        challengeDismissedAt = nil
+        challengesPassed += 1
+
+        let waiters = challengeWaiters
+        challengeWaiters.removeAll()
+        Self.log.notice("waking \(waiters.count, privacy: .public) waiter(s)")
+        for waiter in waiters { waiter.resume() }
+    }
+
     public func clearPendingChallenge() {
+        guard pendingChallengeURL != nil else { return }
         pendingChallengeURL = nil
+        challengeDismissedAt = .now
     }
 
     /// A captcha session for one post. Each post gets its own, because a
@@ -227,7 +308,7 @@ public final class AppServices {
         #if canImport(UserNotifications)
         guard results.contains(where: \.hasNews) else { return }
 
-        let titles = ((try? await favorites.favorites()) ?? [])
+        let titles = ((try? await favorites.favorites(site: site)) ?? [])
             .reduce(into: [ThreadKey: String]()) { $0[$1.key] = $1.title }
         await notifications.notify(
             about: results,
@@ -240,13 +321,14 @@ public final class AppServices {
     /// Starts the foreground poll at the interval the reader chose.
     public func startWatching() async {
         let setting = settings.watcherNotifications
+        let site = self.site
         await watcher.startPolling(
             every: .seconds(settings.watcherIntervalSeconds)
         ) { [weak self] results in
             guard let self, results.contains(where: \.hasNews) else { return }
             #if canImport(UserNotifications)
             let titles = await MainActor.run { () -> FavoritesRepository in self.favorites }
-            let items = (try? await titles.favorites()) ?? []
+            let items = (try? await titles.favorites(site: site)) ?? []
             await self.notifications.notify(
                 about: results,
                 titles: items.reduce(into: [ThreadKey: String]()) { $0[$1.key] = $1.title },
@@ -274,9 +356,112 @@ public final class AppServices {
         // The session lives in cookies pinned to a host, so the few that are
         // the reader's own are copied across before anything is fetched.
         await cookies.mirror(names: CookieManager.portableCookieNames, to: target)
-        domainHolder.set(target)
+        siteHolder.set(settings.siteSelection)
         await boards.invalidate()
         releaseThreads()
+    }
+
+    /// Chooses the imageboard.
+    ///
+    /// The one way to change it, because the change has to happen in a
+    /// particular order: the client is re-pointed *here*, synchronously, before
+    /// the setting is observable to anything else. Writing the setting on its
+    /// own left a race — the board list reloads the moment it sees the new
+    /// value, and if the client had not been re-pointed yet it fetched the site
+    /// the reader had just left and cached the answer against the new one.
+    ///
+    /// Everything that can wait — stopping the watcher, dropping open threads,
+    /// clearing notifications — is left to `handleSiteChange()`, which the
+    /// shell runs straight afterwards.
+    public func select(_ site: Imageboard) {
+        guard site != settings.imageboard else { return }
+        settings.imageboard = site
+        siteHolder.set(settings.siteSelection)
+    }
+
+    /// Points everything at the imageboard now selected.
+    ///
+    /// Unlike a mirror change, nothing survives: the client is re-pointed at a
+    /// different site's API, so every cached board list, open thread and
+    /// in-flight poll belongs somewhere else.
+    ///
+    /// Cookies are deliberately not carried across. A 2ch passcode is a paid
+    /// session token, and copying it onto another imageboard's host would put
+    /// it in a third party's access logs; `CookieManager.mirror` is for mirrors
+    /// and is not called from here.
+    ///
+    /// The media caches are deliberately *not* cleared either. They key on the
+    /// absolute URL, and 4chan's paths arrive absolute while 2ch's resolve
+    /// against 2ch's host, so the two cannot collide — and throwing away the
+    /// reader's cached images every time they flip a control they will flip
+    /// often would cost a great deal for no correctness at all.
+    public func handleSiteChange() async {
+        // Already done by `select(_:)` on the way in; repeated because this is
+        // also reached when the setting is restored from elsewhere, and setting
+        // it twice costs nothing.
+        siteHolder.set(settings.siteSelection)
+
+        // A poll already awaiting a reply would otherwise finish against the
+        // new site and write its count onto the old site's thread. The holder
+        // is set before this, so the guard inside the watcher's own poll drops
+        // any answer that arrives from here on.
+        await stopWatching()
+        await watcher.reset()
+
+        await boards.invalidate()
+        // Keeping nothing: each cached thread repository holds the one client,
+        // which has just been pointed somewhere else.
+        releaseThreads()
+        pendingChallengeURL = nil
+        #if canImport(UserNotifications)
+        await notifications.clearAll()
+        #endif
+
+        await startWatching()
+    }
+
+    /// The imageboard everything is pointed at. The one place views read it.
+    public var site: Imageboard { settings.imageboard }
+
+    /// What the selected imageboard can do. Views gate on this rather than on
+    /// the site, so a third one needs no edits to any view.
+    ///
+    /// Deliberately a pure function of the site: what the reader has turned off
+    /// is a separate question, asked through `allowsPosting` and
+    /// `contentPolicy`. Folding the two together would make "4chan cannot do
+    /// this" and "this reader asked us not to" indistinguishable.
+    public var capabilities: SiteCapabilities { .of(settings.imageboard) }
+
+    /// Whether a reply can be written at all: the site has to offer posting and
+    /// the reader has to have left it on.
+    public var allowsPosting: Bool { capabilities.posting && settings.allowsPosting }
+
+    /// What the reader has said they are willing to be shown. For main-actor
+    /// readers; the repositories get the same value through their provider.
+    public var contentPolicy: ContentPolicy {
+        ContentPolicy(allowsMatureBoards: settings.allowsMatureBoards)
+    }
+
+    /// Turns the gate on boards meant for adults on or off.
+    ///
+    /// Goes through here rather than through `settings` directly so the holder
+    /// the repositories read moves in the same synchronous step: a list rebuilt
+    /// in this same turn would otherwise still be filtering on the old answer.
+    /// The same discipline `select(_:)` needs for the imageboard.
+    public func setMatureAllowed(_ allowed: Bool) {
+        guard allowed != settings.allowsMatureBoards else { return }
+        settings.allowsMatureBoards = allowed
+        policyHolder.set(contentPolicy)
+    }
+
+    /// Re-reads the restrictions into the value the repositories share.
+    ///
+    /// `setMatureAllowed` already does this, and is the only writer today. The
+    /// shell calls this whenever the preference moves so that a second writer
+    /// added later cannot leave the repositories answering the old question
+    /// while every view answers the new one.
+    public func refreshContentPolicy() {
+        policyHolder.set(contentPolicy)
     }
 
     /// The theme the reader picked, or the built-in one.

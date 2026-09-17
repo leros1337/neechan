@@ -33,6 +33,17 @@ public struct ThreadSnapshot: Sendable {
     /// the whole list of attachments and look at its count.
     public let hasAttachments: Bool
 
+    /// Whether any post carries a video.
+    ///
+    /// Stored for the same reason as `hasAttachments`, and asked by the thread
+    /// view to decide whether a feed of the thread's videos is worth offering.
+    ///
+    /// Answered from the declared type, because this module cannot see
+    /// `MediaKind` — NeechanCore does not depend on NeechanMedia. That makes it
+    /// a *cheap* answer rather than the last word: a screen acting on it should
+    /// still cope with finding nothing once it resolves the files properly.
+    public let hasVideos: Bool
+
     private let positionByNum: [Int: Int]
 
     public init(
@@ -55,6 +66,7 @@ public struct ThreadSnapshot: Sendable {
             uniqueKeysWithValues: posts.enumerated().map { ($0.element.num, $0.offset) }
         )
         self.hasAttachments = posts.contains { !$0.files.isEmpty }
+        self.hasVideos = posts.contains { $0.files.contains(where: \.isVideo) }
     }
 
     public static func empty(key: ThreadKey) -> ThreadSnapshot {

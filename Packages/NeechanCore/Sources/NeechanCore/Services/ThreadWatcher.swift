@@ -18,6 +18,9 @@ public actor ThreadWatcher {
     }
 
     private let client: DvachClient
+    /// Which imageboard the watcher is following, read fresh each pass: the
+    /// reader can switch sites while this actor is asleep.
+    private let site: SiteProvider
     private let favorites: FavoritesRepository
     private let states: WatchedThreadStore
     private var pollTask: Task<Void, Never>?
@@ -52,14 +55,29 @@ public actor ThreadWatcher {
 
     public init(
         client: DvachClient,
+        site: @escaping SiteProvider,
         favorites: FavoritesRepository,
         states: WatchedThreadStore,
         conditions: @escaping @Sendable () async -> PollConditions = { .unrestricted }
     ) {
         self.client = client
+        self.site = site
         self.favorites = favorites
         self.states = states
         self.conditions = conditions
+    }
+
+    /// Drops everything in flight and everything scheduled.
+    ///
+    /// Called when the imageboard changes. A poll already awaiting a reply
+    /// would otherwise come back against the new site and write its count onto
+    /// the old site's thread — so the answer has to be abandoned, not merely
+    /// ignored. The per-thread guard in `poll` is the second half of that.
+    public func reset() {
+        pollTask?.cancel()
+        pollTask = nil
+        inFlight.removeAll()
+        scheduleStates.removeAll()
     }
 
     /// Points the watcher at the live device and preference state.
@@ -95,7 +113,7 @@ public actor ThreadWatcher {
     ) async -> [Result] {
         let conditions = await conditions()
         guard conditions.allowsPolling else { return [] }
-        guard let keys = try? await favorites.watchedKeys(), !keys.isEmpty else { return [] }
+        guard let keys = try? await favorites.watchedKeys(site: site().site), !keys.isEmpty else { return [] }
 
         await seedSchedule(for: keys)
         let due = schedule
@@ -109,7 +127,9 @@ public actor ThreadWatcher {
     /// How long to sleep before the next pass.
     public func timeUntilNextPoll(now: Date = .now) async -> Duration {
         let conditions = await conditions()
-        guard let keys = try? await favorites.watchedKeys(), !keys.isEmpty else {
+        guard
+            let keys = try? await favorites.watchedKeys(site: site().site), !keys.isEmpty
+        else {
             return schedule.baseInterval
         }
         guard
@@ -135,7 +155,7 @@ public actor ThreadWatcher {
     @discardableResult
     public func pollOnce(skippingPolledWithin age: Duration?) async -> [Result] {
         guard await conditions().allowsPolling else { return [] }
-        guard let keys = try? await favorites.watchedKeys(), !keys.isEmpty else { return [] }
+        guard let keys = try? await favorites.watchedKeys(site: site().site), !keys.isEmpty else { return [] }
 
         var results: [Result] = []
         for key in keys {
@@ -188,6 +208,13 @@ public actor ThreadWatcher {
         _ keys: [ThreadKey],
         deadline: ContinuousClock.Instant?
     ) async -> [Result] {
+        // A site that answers for a whole board at once is asked that way
+        // instead: twenty favourites across three boards cost three requests
+        // rather than twenty, which is cheaper than the per-thread poll it
+        // replaces rather than a compromise for the lack of one.
+        if site().capabilities.boardWidePoll {
+            return await pollByBoard(keys)
+        }
         var pending = ArraySlice(keys)
         var results: [Result] = []
 
@@ -218,12 +245,73 @@ public actor ThreadWatcher {
         return results
     }
 
+    /// Asks each board once and reads every watched thread out of the answer.
+    private func pollByBoard(_ keys: [ThreadKey]) async -> [Result] {
+        var results: [Result] = []
+        for (board, keys) in Dictionary(grouping: keys, by: \.boardRef) {
+            guard !Task.isCancelled else { break }
+            for key in keys { inFlight.insert(key) }
+            defer { for key in keys { inFlight.remove(key) } }
+
+            let counts: [Int: ThreadCount]
+            do {
+                counts = try await client.boardThreadCounts(board: board.code)
+            } catch {
+                for key in keys {
+                    try? await states.recordFailure(key, message: error.readableWatcherMessage)
+                    record(key, outcome: isRateLimited(error) ? .rateLimited : .failure)
+                }
+                continue
+            }
+            // The reader can switch imageboards while this is in the air.
+            guard board.site == site().site else { continue }
+
+            for key in keys {
+                guard let count = counts[key.threadNum] else {
+                    // Absent from the board's list means it has fallen off the
+                    // last page, not that it was deleted: it may still be
+                    // readable in the archive. Recorded as closed, which is
+                    // also the longest the schedule will leave it.
+                    try? await states.record(
+                        key: key,
+                        postsCount: (try? await states.state(for: key))?.lastKnownPostsCount ?? 0,
+                        maxNum: 0,
+                        isDeleted: false,
+                        isClosed: true
+                    )
+                    record(key, outcome: .quiet)
+                    continue
+                }
+
+                let known = try? await states.state(for: key)
+                let previous = known?.lastKnownPostsCount ?? count.postsCount
+                let newPosts = max(0, count.postsCount - previous)
+                try? await states.record(
+                    key: key,
+                    postsCount: count.postsCount,
+                    maxNum: known?.lastKnownMaxNum ?? 0,
+                    isDeleted: false
+                )
+                record(key, outcome: newPosts > 0 ? .news : .quiet)
+                if newPosts > 0 || known == nil {
+                    results.append(Result(key: key, newPostCount: newPosts, isDeleted: false))
+                }
+            }
+        }
+        return results
+    }
+
     /// Polls one thread.
     private func poll(_ key: ThreadKey) async -> Result? {
+        // The reader can switch imageboards mid-pass. A reply that arrives
+        // after that belongs to a site this key is not on, and writing it would
+        // corrupt the other site's unread count.
+        guard key.site == site().site else { return nil }
         let known = try? await states.state(for: key)
 
         do {
             let response = try await client.threadInfo(board: key.board, thread: key.threadNum)
+            guard key.site == site().site else { return nil }
             guard let info = response.thread else {
                 record(key, outcome: .quiet)
                 return nil
@@ -321,6 +409,7 @@ extension DvachError {
         case .http(let status, _): "server error \(status)"
         case .api(let error): error.message
         case .decoding: "unexpected response"
+        case .unsupported: "not available on this imageboard"
         }
     }
 }

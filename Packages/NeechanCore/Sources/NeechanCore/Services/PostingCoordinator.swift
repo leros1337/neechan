@@ -35,21 +35,29 @@ public actor PostingCoordinator {
     /// - Parameters:
     ///   - captchaToken: the solved emoji captcha, or nil when none is needed.
     ///   - proofOfWork: the challenge answer that accompanies the captcha.
+    ///   - sliderAnswer: what the reader read off 4chan's slider puzzle, with
+    ///     the token it was issued against. Solved by them, never by the app.
+    ///   - deletionPassword: what lets them delete the post afterwards, on a
+    ///     site that asks for one.
     ///   - onStage: progress, for the sending overlay.
     public func send(
         _ draft: DraftState,
-        board: String,
+        board: BoardRef,
         thread: Int?,
         captchaToken: String?,
         proofOfWork: Int?,
+        sliderAnswer: (challenge: String, response: String)? = nil,
         usesPasscode: Bool = false,
+        deletionPassword: String? = nil,
         onStage: (@Sendable (Stage) -> Void)? = nil
     ) async throws -> PostingOutcome {
         onStage?(.preparingFiles)
         let attachments = try prepareAttachments(draft.attachments)
 
         let captcha: PostingRequest.Captcha
-        if let captchaToken {
+        if let sliderAnswer {
+            captcha = .slider(challenge: sliderAnswer.challenge, response: sliderAnswer.response)
+        } else if let captchaToken {
             captcha = .emoji(token: captchaToken, proofOfWork: proofOfWork)
         } else if usesPasscode {
             captcha = .passcode
@@ -58,7 +66,7 @@ public actor PostingCoordinator {
         }
 
         var request = PostingRequest(
-            board: board,
+            board: board.code,
             thread: thread,
             comment: draft.comment,
             captcha: captcha
@@ -71,6 +79,7 @@ public actor PostingCoordinator {
         request.isSage = draft.isSage
         request.isOriginalPoster = draft.isOriginalPoster
         request.attachments = attachments
+        request.deletionPassword = deletionPassword
 
         onStage?(.uploading)
         let outcome = try await postingService.send(request)
@@ -82,9 +91,11 @@ public actor PostingCoordinator {
         let threadNum = outcome.threadNum(repliedTo: thread)
         switch outcome {
         case .posted(let num):
-            try? await ownPosts.record(board: board, threadNum: threadNum, postNum: num)
+            let key = ThreadKey(site: board.site, board: board.code, threadNum: threadNum)
+            try? await ownPosts.record(key, postNum: num)
         case .threadCreated(let num):
-            try? await ownPosts.record(board: board, threadNum: num, postNum: num)
+            let key = ThreadKey(site: board.site, board: board.code, threadNum: num)
+            try? await ownPosts.record(key, postNum: num)
         }
 
         onStage?(.done)

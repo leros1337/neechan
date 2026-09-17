@@ -11,15 +11,15 @@ struct HiddenThreadTests {
         HiddenContentRepository(modelContainer: try NeechanStore.makeContainer(inMemory: true))
     }
 
-    private let key = ThreadKey(board: "b", threadNum: 123)
+    private let key = ThreadKey(site: .dvach, board: "b", threadNum: 123)
 
     @Test("a hidden thread is listed as hidden on its board")
     func hideAndList() async throws {
         let repository = try makeRepository()
         try await repository.hideThread(key, title: "Тред")
 
-        #expect(try await repository.hiddenThreadNums(on: "b") == [123])
-        #expect(try await repository.hiddenThreadNums(on: "po").isEmpty)
+        #expect(try await repository.hiddenThreadNums(on: BoardRef(site: .dvach, code: "b")) == [123])
+        #expect(try await repository.hiddenThreadNums(on: BoardRef(site: .dvach, code: "po")).isEmpty)
     }
 
     @Test("hiding the same thread twice does not duplicate it")
@@ -28,7 +28,7 @@ struct HiddenThreadTests {
         try await repository.hideThread(key, title: "Тред")
         try await repository.hideThread(key, title: "Тред")
 
-        #expect(try await repository.hiddenThreads().count == 1)
+        #expect(try await repository.hiddenThreads(site: .dvach).count == 1)
     }
 
     @Test("unhiding brings it back")
@@ -37,17 +37,17 @@ struct HiddenThreadTests {
         try await repository.hideThread(key, title: "Тред")
         try await repository.unhideThread(key)
 
-        #expect(try await repository.hiddenThreadNums(on: "b").isEmpty)
-        #expect(try await repository.hiddenThreads().isEmpty)
+        #expect(try await repository.hiddenThreadNums(on: BoardRef(site: .dvach, code: "b")).isEmpty)
+        #expect(try await repository.hiddenThreads(site: .dvach).isEmpty)
     }
 
     @Test("the list carries what is needed to show and undo it, newest first")
     func listContents() async throws {
         let repository = try makeRepository()
-        try await repository.hideThread(ThreadKey(board: "b", threadNum: 1), title: "Первый")
-        try await repository.hideThread(ThreadKey(board: "po", threadNum: 2), title: "Второй")
+        try await repository.hideThread(ThreadKey(site: .dvach, board: "b", threadNum: 1), title: "Первый")
+        try await repository.hideThread(ThreadKey(site: .dvach, board: "po", threadNum: 2), title: "Второй")
 
-        let items = try await repository.hiddenThreads()
+        let items = try await repository.hiddenThreads(site: .dvach)
         #expect(items.count == 2)
         #expect(items.first?.title == "Второй", "the most recently hidden comes first")
         #expect(items.first?.key.board == "po")
@@ -57,11 +57,11 @@ struct HiddenThreadTests {
     @Test("everything can be brought back at once")
     func unhideAll() async throws {
         let repository = try makeRepository()
-        try await repository.hideThread(ThreadKey(board: "b", threadNum: 1), title: "Один")
-        try await repository.hideThread(ThreadKey(board: "po", threadNum: 2), title: "Два")
+        try await repository.hideThread(ThreadKey(site: .dvach, board: "b", threadNum: 1), title: "Один")
+        try await repository.hideThread(ThreadKey(site: .dvach, board: "po", threadNum: 2), title: "Два")
 
-        try await repository.unhideAllThreads()
-        #expect(try await repository.hiddenThreads().isEmpty)
+        try await repository.unhideAllThreads(site: .dvach)
+        #expect(try await repository.hiddenThreads(site: .dvach).isEmpty)
     }
 }
 
@@ -89,7 +89,7 @@ struct BoardAutohideTests {
         #expect(
             FilterEngine.hidesThread(
                 openingPost: try opening(subject: "Тред про политика"),
-                onBoard: "b",
+                onBoard: BoardRef(site: .dvach, code: "b"),
                 rules: [rule]
             )
         )
@@ -102,7 +102,7 @@ struct BoardAutohideTests {
         #expect(
             FilterEngine.hidesThread(
                 openingPost: try opening(subject: "Тред про котов"),
-                onBoard: "b",
+                onBoard: BoardRef(site: .dvach, code: "b"),
                 rules: [rule]
             ) == false
         )
@@ -115,7 +115,7 @@ struct BoardAutohideTests {
         #expect(
             FilterEngine.hidesThread(
                 openingPost: try opening(subject: "кот"),
-                onBoard: "b",
+                onBoard: BoardRef(site: .dvach, code: "b"),
                 rules: [rule]
             ) == false
         )
@@ -134,7 +134,7 @@ struct BoardAutohideTests {
         #expect(
             FilterEngine.hidesThread(
                 openingPost: try opening(subject: "кот"),
-                onBoard: "b",
+                onBoard: BoardRef(site: .dvach, code: "b"),
                 rules: [rule]
             )
         )
@@ -146,7 +146,7 @@ struct BoardAutohideTests {
         rule.isEnabled = false
 
         #expect(
-            FilterEngine.hidesThread(openingPost: try opening(subject: "кот"), onBoard: "b", rules: [rule])
+            FilterEngine.hidesThread(openingPost: try opening(subject: "кот"), onBoard: BoardRef(site: .dvach, code: "b"), rules: [rule])
                 == false
         )
     }
@@ -154,7 +154,7 @@ struct BoardAutohideTests {
     @Test("with no rules at all nothing is hidden")
     func noRules() throws {
         #expect(
-            FilterEngine.hidesThread(openingPost: try opening(subject: "кот"), onBoard: "b", rules: [])
+            FilterEngine.hidesThread(openingPost: try opening(subject: "кот"), onBoard: BoardRef(site: .dvach, code: "b"), rules: [])
                 == false
         )
     }

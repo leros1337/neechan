@@ -31,7 +31,7 @@ public final class AppSettings {
 
     // MARK: Preferences read while drawing
     //
-    // These eight are stored rather than computed, and they are the only ones
+    // These nine are stored rather than computed, and they are the only ones
     // that are. Everything else shares `revision`, which means a write to any
     // preference is indistinguishable from a write to every other: the post
     // cells and thumbnails that read these were being rebuilt whenever an
@@ -40,11 +40,12 @@ public final class AppSettings {
     // `UserDefaults` lookup out of the render path, which is the other half of
     // what made these expensive to read.
 
+    private var storedImageboard: Imageboard
     private var storedDomain: DvachDomain
     private var storedTextScale: Double
     private var storedThumbnailScale: Double
     private var storedCollapsePostLineLimit: Int
-    private var storedSafeForWork: Bool
+    private var storedNSFWMode: Bool
     private var storedMediaLoadPolicy: MediaLoadPolicy
     private var storedAutoRefreshIntervalSeconds: Int
     private var storedShowsHiddenThreads: Bool
@@ -58,6 +59,7 @@ public final class AppSettings {
 
     public init(defaults: UserDefaults = .standard) {
         self.storedDefaults = defaults
+        self.storedImageboard = Self.readImageboard(defaults)
         self.storedDomain = Self.readDomain(defaults)
         self.storedTextScale = Self.clampScale(
             Self.readDouble(defaults, Key.textScale, default: 1)
@@ -68,7 +70,8 @@ public final class AppSettings {
         self.storedCollapsePostLineLimit = Self.readInt(
             defaults, Key.collapseLines, default: 12
         )
-        self.storedSafeForWork = Self.readBool(defaults, Key.safeForWork, default: false)
+        Self.migrateSafeForWork(defaults)
+        self.storedNSFWMode = Self.readBool(defaults, Key.nsfwMode, default: false)
         self.storedMediaLoadPolicy = defaults.string(forKey: Key.mediaLoadPolicy)
             .flatMap(MediaLoadPolicy.init(rawValue:)) ?? .always
         self.storedAutoRefreshIntervalSeconds = Self.readInt(
@@ -114,6 +117,11 @@ public final class AppSettings {
         defaults.object(forKey: key) == nil ? fallback : defaults.double(forKey: key)
     }
 
+    private static func readImageboard(_ defaults: UserDefaults) -> Imageboard {
+        defaults.string(forKey: Key.imageboard)
+            .flatMap(Imageboard.init(rawValue:)) ?? .default
+    }
+
     private static func readDomain(_ defaults: UserDefaults) -> DvachDomain {
         defaults.string(forKey: Key.domain)
             .flatMap(DvachDomain.init(rawValue:)) ?? .default
@@ -128,7 +136,42 @@ public final class AppSettings {
         defaults.object(forKey: key) == nil ? fallback : defaults.bool(forKey: key)
     }
 
-    /// The 2ch mirror all requests go to.
+    /// Lets the reader delete their own posts on a site that asks for one.
+    ///
+    /// 4chan's reply form generates a password per browser and sends it with
+    /// every post; deleting a post later means presenting the same one. Kept
+    /// per install, made once and never shown.
+    public var postDeletionPassword: String {
+        if let stored = defaults.string(forKey: Key.postDeletionPassword), !stored.isEmpty {
+            return stored
+        }
+        let generated = Self.randomFileName()
+        write(generated, forKey: Key.postDeletionPassword)
+        return generated
+    }
+
+    /// The imageboard all requests go to.
+    ///
+    /// Stored rather than computed, like `domain`: it is read on the way to
+    /// every repository call a screen makes, so routing it through `revision`
+    /// would redraw every board row and post cell whenever any unrelated
+    /// preference moved.
+    public var imageboard: Imageboard {
+        get { storedImageboard }
+        set {
+            guard newValue != storedImageboard else { return }
+            storedImageboard = newValue
+            storedDefaults.set(newValue.rawValue, forKey: Key.imageboard)
+        }
+    }
+
+    /// Which imageboard, and which of its mirrors — what the client needs to
+    /// build a URL.
+    public var siteSelection: SiteSelection {
+        SiteSelection(site: imageboard, mirror: domain)
+    }
+
+    /// The 2ch mirror all requests go to. Meaningless off 2ch.
     public var domain: DvachDomain {
         get { storedDomain }
         set {
@@ -272,14 +315,65 @@ public final class AppSettings {
         }
     }
 
-    /// Hides attachments and blurs thumbnails, for reading in public.
-    public var safeForWork: Bool {
-        get { storedSafeForWork }
+    /// Whether material not safe for work is shown as it comes.
+    ///
+    /// Off blurs every thumbnail until it is tapped, which is what a reader on
+    /// a train wants. The inverse of the `interface.safeForWork` preference
+    /// this replaces — see `migrateSafeForWork`.
+    public var nsfwMode: Bool {
+        get { storedNSFWMode }
         set {
-            guard newValue != storedSafeForWork else { return }
-            storedSafeForWork = newValue
-            storedDefaults.set(newValue, forKey: Key.safeForWork)
+            guard newValue != storedNSFWMode else { return }
+            storedNSFWMode = newValue
+            storedDefaults.set(newValue, forKey: Key.nsfwMode)
         }
+    }
+
+    /// Whether boards meant for adults are shown at all.
+    ///
+    /// Computed rather than stored although the board list reads it, because
+    /// sharing `revision` is the point: turning this off has to make the board
+    /// list, favourites, history, saved threads and every open route all
+    /// re-evaluate at once, and a stored property gives observation without
+    /// that blanket invalidation.
+    public var allowsMatureBoards: Bool {
+        get { bool(Key.allowsMature, default: true) }
+        set { write(newValue, forKey: Key.allowsMature) }
+    }
+
+    /// Whether the reader can post at all, on either imageboard.
+    public var allowsPosting: Bool {
+        get { bool(Key.allowsPosting, default: true) }
+        set { write(newValue, forKey: Key.allowsPosting) }
+    }
+
+    /// Carries a reader's `interface.safeForWork` into `nsfwMode`, once.
+    ///
+    /// The two mean opposite things, so the value has to be inverted rather
+    /// than copied, and the *defaults* disagree too: `safeForWork` defaulted to
+    /// off, which meant no blur, while `nsfwMode` defaults to off, which means
+    /// blur. So a reader who never touched the old toggle cannot be served by
+    /// either the stored value (there is none) or the new default (it reverses
+    /// their experience).
+    ///
+    /// Hence the middle case: if the app has been used before, keep what they
+    /// had. `recordThreadOpened()` is called for every thread opened and
+    /// `secondsInApp` accumulates on every trip to the background, so anyone
+    /// who has actually read anything has one of them. Deliberately a narrow
+    /// probe of two keys rather than a survey of the whole domain — it is a
+    /// judgement about one preference, and it should be readable as one.
+    private static func migrateSafeForWork(_ defaults: UserDefaults) {
+        guard defaults.object(forKey: Key.nsfwMode) == nil else { return }
+
+        if defaults.object(forKey: LegacyKey.safeForWork) != nil {
+            defaults.set(!defaults.bool(forKey: LegacyKey.safeForWork), forKey: Key.nsfwMode)
+        } else if defaults.object(forKey: Key.threadsOpened) != nil
+            || defaults.object(forKey: Key.secondsInApp) != nil {
+            defaults.set(true, forKey: Key.nsfwMode)
+        }
+        // Anything else is a fresh install, and the new default is right for it.
+
+        defaults.removeObject(forKey: LegacyKey.safeForWork)
     }
 
     // MARK: General
@@ -589,10 +683,12 @@ public final class AppSettings {
 
     /// A `Sendable` copy safe to hand to actors and background work.
     public var snapshot: SettingsSnapshot {
-        SettingsSnapshot(domain: domain, defaultBoard: defaultBoard)
+        SettingsSnapshot(imageboard: imageboard, domain: domain, defaultBoard: defaultBoard)
     }
 
     private enum Key {
+        static let imageboard = "imageboard"
+        static let postDeletionPassword = "posting.deletionPassword"
         static let domain = "domain"
         static let defaultBoard = "defaultBoard"
         static let uniqueHash = "attachment.uniqueHash"
@@ -607,7 +703,9 @@ public final class AppSettings {
         static let textScale = "interface.textScale"
         static let thumbnailScale = "interface.thumbnailScale"
         static let collapseLines = "interface.collapseLines"
-        static let safeForWork = "interface.safeForWork"
+        static let nsfwMode = "restrictions.nsfwMode"
+        static let allowsMature = "restrictions.allowsMature"
+        static let allowsPosting = "posting.enabled"
         static let remembersHistory = "general.remembersHistory"
         static let internalBrowser = "general.internalBrowser"
         static let appLock = "general.appLock"
@@ -636,6 +734,12 @@ public final class AppSettings {
         static let postsSent = "stats.postsSent"
         static let threadsOpened = "stats.threadsOpened"
     }
+
+    /// Keys no longer written, kept only so their values can be migrated.
+    private enum LegacyKey {
+        /// Replaced by `Key.nsfwMode`, which means the opposite.
+        static let safeForWork = "interface.safeForWork"
+    }
 }
 
 /// What the reader has done with the app.
@@ -653,11 +757,22 @@ public struct UsageStatistics: Sendable, Equatable {
 
 /// An immutable view of the settings, safe to cross isolation boundaries.
 public struct SettingsSnapshot: Sendable, Equatable {
+    public var imageboard: Imageboard
     public var domain: DvachDomain
     public var defaultBoard: String?
 
-    public init(domain: DvachDomain = .default, defaultBoard: String? = nil) {
+    public init(
+        imageboard: Imageboard = .default,
+        domain: DvachDomain = .default,
+        defaultBoard: String? = nil
+    ) {
+        self.imageboard = imageboard
         self.domain = domain
         self.defaultBoard = defaultBoard
+    }
+
+    /// What the client needs to build a URL.
+    public var siteSelection: SiteSelection {
+        SiteSelection(site: imageboard, mirror: domain)
     }
 }

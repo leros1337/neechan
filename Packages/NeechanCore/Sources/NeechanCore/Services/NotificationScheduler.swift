@@ -63,12 +63,15 @@ public actor NotificationScheduler {
             content.threadIdentifier = Self.threadCategory
             // Carried so tapping the notification can open the right thread.
             content.userInfo = [
+                "site": result.key.site.rawValue,
                 "board": result.key.board,
                 "threadNum": result.key.threadNum,
             ]
 
             let request = UNNotificationRequest(
-                identifier: "\(result.key.board)-\(result.key.threadNum)",
+                // Qualified by the site: two imageboards' /b/12345 are two
+                // threads, and one banner must not replace the other's.
+                identifier: result.key.identifier,
                 content: content,
                 trigger: nil
             )
@@ -79,7 +82,13 @@ public actor NotificationScheduler {
     /// Clears a thread's notification once it has been opened.
     public func clearNotification(for key: ThreadKey) {
         center()?.removeDeliveredNotifications(
-            withIdentifiers: ["\(key.board)-\(key.threadNum)"]
+            withIdentifiers: [
+                key.identifier,
+                // The unqualified name banners were delivered under before
+                // there were two sites. Without this a notification from an
+                // older build would sit in Notification Centre for good.
+                "\(key.board)-\(key.threadNum)",
+            ]
         )
     }
 

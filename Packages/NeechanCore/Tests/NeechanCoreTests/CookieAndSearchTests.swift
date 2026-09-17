@@ -35,7 +35,7 @@ struct CookieManagerTests {
     func listsCookies() async throws {
         let storage = makeStorage()
         storage.setCookie(try makeCookie(name: "ageallow", value: "1"))
-        let manager = CookieManager(storage: storage, domain: { .org })
+        let manager = CookieManager(storage: storage, site: { .init(site: .dvach, mirror: .org) })
 
         let cookies = await manager.cookies()
         #expect(cookies.map(\.name) == ["ageallow"])
@@ -47,7 +47,7 @@ struct CookieManagerTests {
         let storage = makeStorage()
         storage.setCookie(try makeCookie(name: "passcode_auth"))
         storage.setCookie(try makeCookie(name: "_ym_uid"))
-        let manager = CookieManager(storage: storage, domain: { .org })
+        let manager = CookieManager(storage: storage, site: { .init(site: .dvach, mirror: .org) })
 
         let cookies = await manager.cookies()
         let significant = cookies.filter(\.isSignificant).map(\.name)
@@ -59,7 +59,7 @@ struct CookieManagerTests {
         let storage = makeStorage()
         storage.setCookie(try makeCookie(name: "ageallow"))
         storage.setCookie(try makeCookie(name: "passcode_auth"))
-        let manager = CookieManager(storage: storage, domain: { .org })
+        let manager = CookieManager(storage: storage, site: { .init(site: .dvach, mirror: .org) })
 
         let host = try #require(DvachDomain.org.baseURL.host())
         await manager.remove(name: "ageallow", domain: host)
@@ -75,7 +75,7 @@ struct CookieManagerTests {
         storage.setCookie(try makeCookie(name: "passcode_auth", value: "abc"))
         storage.setCookie(try makeCookie(name: "ageallow", value: "1"))
         storage.setCookie(try makeCookie(name: "_ym_uid", value: "junk"))
-        let manager = CookieManager(storage: storage, domain: { .org })
+        let manager = CookieManager(storage: storage, site: { .init(site: .dvach, mirror: .org) })
 
         await manager.mirror(names: CookieManager.portableCookieNames, to: .life)
 
@@ -87,7 +87,7 @@ struct CookieManagerTests {
     @Test("cookies a browser check produced are taken over")
     func adoptsWebViewCookies() async throws {
         let storage = makeStorage()
-        let manager = CookieManager(storage: storage, domain: { .org })
+        let manager = CookieManager(storage: storage, site: { .init(site: .dvach, mirror: .org) })
 
         await manager.adopt([try makeCookie(name: "cf_clearance", value: "token")])
 
@@ -99,7 +99,7 @@ struct CookieManagerTests {
         let storage = makeStorage()
         storage.setCookie(try makeCookie(name: "ageallow"))
         storage.setCookie(try makeCookie(name: "passcode_auth", domain: .life))
-        let manager = CookieManager(storage: storage, domain: { .org })
+        let manager = CookieManager(storage: storage, site: { .init(site: .dvach, mirror: .org) })
 
         await manager.removeAll()
         #expect(await manager.cookies().isEmpty)
@@ -109,7 +109,7 @@ struct CookieManagerTests {
 @Suite("Server search")
 struct SearchServiceTests {
     private func makeClient(_ transport: StubTransport) -> DvachClient {
-        DvachClient(transport: transport, domain: { .org })
+        DvachClient(transport: transport, site: { .init(site: .dvach, mirror: .org) })
     }
 
     @Test("a search returns the posts the site found")
@@ -152,7 +152,7 @@ struct SearchServiceTests {
 @Suite("Archive")
 struct ArchiveRepositoryTests {
     private func makeClient(_ transport: StubTransport) -> DvachClient {
-        DvachClient(transport: transport, domain: { .org })
+        DvachClient(transport: transport, site: { .init(site: .dvach, mirror: .org) })
     }
 
     @Test("the index page lists archived threads and knows there is more")

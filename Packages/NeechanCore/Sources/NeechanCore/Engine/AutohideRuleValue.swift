@@ -1,4 +1,5 @@
 import Foundation
+import NeechanAPI
 
 /// A rule that hides posts matching it.
 ///
@@ -19,6 +20,9 @@ public struct AutohideRuleValue: Sendable, Hashable, Identifiable {
 
     /// Boards this applies to. Empty means every board.
     public var boards: Set<String>
+    /// Imageboards this applies to. Empty means every one, the way `boards`
+    /// does — and that is what a rule written before there were two says.
+    public var sites: Set<Imageboard>
     /// A single thread this applies to, when the rule was made from one.
     public var threadNum: Int?
     public var appliesToOriginalPostOnly: Bool
@@ -33,6 +37,7 @@ public struct AutohideRuleValue: Sendable, Hashable, Identifiable {
         matchesName: Bool = false,
         matchesFileName: Bool = false,
         boards: Set<String> = [],
+        sites: Set<Imageboard> = [],
         threadNum: Int? = nil,
         appliesToOriginalPostOnly: Bool = false,
         appliesToSagedOnly: Bool = false,
@@ -46,6 +51,7 @@ public struct AutohideRuleValue: Sendable, Hashable, Identifiable {
         self.matchesName = matchesName
         self.matchesFileName = matchesFileName
         self.boards = boards
+        self.sites = sites
         self.threadNum = threadNum
         self.appliesToOriginalPostOnly = appliesToOriginalPostOnly
         self.appliesToSagedOnly = appliesToSagedOnly
@@ -74,6 +80,9 @@ public struct AutohideRuleValue: Sendable, Hashable, Identifiable {
     /// True when this rule applies in the given thread at all.
     func appliesTo(thread: ThreadKey) -> Bool {
         guard isEnabled else { return false }
+        // Every rule funnels through here, so this one clause is what makes the
+        // whole filter engine site-aware.
+        if !sites.isEmpty, !sites.contains(thread.site) { return false }
         if !boards.isEmpty, !boards.contains(thread.board) { return false }
         if let threadNum, threadNum != thread.threadNum { return false }
         return true

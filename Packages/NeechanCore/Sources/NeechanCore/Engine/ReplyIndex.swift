@@ -9,7 +9,9 @@ import NeechanAPI
 /// parses HTML while scrolling.
 public struct ReplyIndex: Sendable {
     private let thread: ThreadKey
-    private let parser = CommentHTMLParser()
+    /// The dialect follows the thread's own imageboard: the two sites do not
+    /// write a quote link, or a spoiler, the same way.
+    private let parser: CommentHTMLParser
 
     /// Post number to the numbers of posts replying to it, in arrival order.
     private var incoming: [Int: [Int]] = [:]
@@ -20,6 +22,7 @@ public struct ReplyIndex: Sendable {
 
     public init(posts: [Post] = [], thread: ThreadKey) {
         self.thread = thread
+        self.parser = CommentHTMLParser(site: thread.site)
         append(posts)
     }
 

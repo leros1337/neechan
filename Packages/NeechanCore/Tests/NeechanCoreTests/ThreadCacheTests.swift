@@ -11,7 +11,7 @@ struct ThreadCacheTests {
     }
 
     private func key(_ num: Int) -> ThreadKey {
-        ThreadKey(board: "b", threadNum: num)
+        ThreadKey(site: .dvach, board: "b", threadNum: num)
     }
 
     @Test("a thread opened twice is the same repository, so it is not refetched")

@@ -87,6 +87,18 @@ public enum DownloadNaming {
 public enum DownloadPathTemplate {
     public static let defaultTemplate = "<board>/<thread>"
 
+    /// Where a site's downloads go when the reader has not said.
+    ///
+    /// Site-dependent rather than one shared `<site>/<board>/<thread>`, because
+    /// changing the shared default would silently re-home every download an
+    /// existing reader makes from now on. 2ch keeps the path it always had.
+    public static func defaultTemplate(for site: Imageboard) -> String {
+        switch site {
+        case .dvach: defaultTemplate
+        case .fourchan: "4chan/<board>/<thread>"
+        }
+    }
+
     /// Turns a template into path components, dropping anything unsafe.
     ///
     /// The result can only ever go deeper: a template containing `..` cannot
@@ -102,6 +114,7 @@ public enum DownloadPathTemplate {
             .compactMap { component -> String? in
                 let expanded: String
                 switch component.trimmingCharacters(in: .whitespaces) {
+                case "<site>": expanded = thread.site.displayName
                 case "<board>": expanded = thread.board
                 case "<thread>": expanded = String(thread.threadNum)
                 case "<title>": expanded = threadTitle

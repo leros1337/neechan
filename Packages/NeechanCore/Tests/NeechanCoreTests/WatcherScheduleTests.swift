@@ -6,8 +6,8 @@ import Testing
 struct WatcherScheduleTests {
     private let schedule = WatcherSchedule(baseInterval: .seconds(60), maxInterval: .seconds(900))
     private let now = Date(timeIntervalSince1970: 1_000_000)
-    private let a = ThreadKey(board: "b", threadNum: 1)
-    private let b = ThreadKey(board: "b", threadNum: 2)
+    private let a = ThreadKey(site: .dvach, board: "b", threadNum: 1)
+    private let b = ThreadKey(site: .dvach, board: "b", threadNum: 2)
 
     private func state(
         polledSecondsAgo seconds: TimeInterval,

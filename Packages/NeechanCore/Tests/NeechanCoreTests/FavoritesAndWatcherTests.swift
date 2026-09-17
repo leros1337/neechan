@@ -12,14 +12,14 @@ struct FavoritesRepositoryTests {
         FavoritesRepository(modelContainer: try NeechanStore.makeContainer(inMemory: true))
     }
 
-    private let key = ThreadKey(board: "b", threadNum: 1)
+    private let key = ThreadKey(site: .dvach, board: "b", threadNum: 1)
 
     @Test("a thread can be added and read back")
     func addAndList() async throws {
         let repository = try makeRepository()
         #expect(try await repository.add(key, title: "Тред"))
 
-        let items = try await repository.favorites()
+        let items = try await repository.favorites(site: .dvach)
         #expect(items.count == 1)
         #expect(items.first?.key == key)
         #expect(items.first?.title == "Тред")
@@ -30,7 +30,7 @@ struct FavoritesRepositoryTests {
         let repository = try makeRepository()
         #expect(try await repository.add(key, title: "Тред"))
         #expect(try await repository.add(key, title: "Тред") == false)
-        #expect(try await repository.favorites().count == 1)
+        #expect(try await repository.favorites(site: .dvach).count == 1)
     }
 
     @Test("toggling adds then removes")
@@ -47,11 +47,11 @@ struct FavoritesRepositoryTests {
         let repository = try makeRepository()
         try await repository.add(key, title: "Длинное название треда")
         try await repository.rename(key, to: "Моё")
-        #expect(try await repository.favorites().first?.title == "Моё")
+        #expect(try await repository.favorites(site: .dvach).first?.title == "Моё")
 
         // Clearing the name falls back to the site's.
         try await repository.rename(key, to: "   ")
-        #expect(try await repository.favorites().first?.title == "Длинное название треда")
+        #expect(try await repository.favorites(site: .dvach).first?.title == "Длинное название треда")
     }
 
     @Test("ordering follows the reader's choice", arguments: [
@@ -59,11 +59,11 @@ struct FavoritesRepositoryTests {
     ])
     func ordering(order: FavoritesOrder) async throws {
         let repository = try makeRepository()
-        try await repository.add(ThreadKey(board: "b", threadNum: 1), title: "Бета")
+        try await repository.add(ThreadKey(site: .dvach, board: "b", threadNum: 1), title: "Бета")
         try await Task.sleep(for: .milliseconds(10))
-        try await repository.add(ThreadKey(board: "b", threadNum: 2), title: "Альфа")
+        try await repository.add(ThreadKey(site: .dvach, board: "b", threadNum: 2), title: "Альфа")
 
-        let items = try await repository.favorites(order: order)
+        let items = try await repository.favorites(site: .dvach, order: order)
         switch order {
         case .newestFirst: #expect(items.map(\.key.threadNum) == [2, 1])
         case .oldestFirst: #expect(items.map(\.key.threadNum) == [1, 2])
@@ -75,21 +75,21 @@ struct FavoritesRepositoryTests {
     @Test("only watched threads are handed to the watcher")
     func watchedKeys() async throws {
         let repository = try makeRepository()
-        try await repository.add(ThreadKey(board: "b", threadNum: 1), title: "A")
-        try await repository.add(ThreadKey(board: "b", threadNum: 2), title: "B", watch: false)
+        try await repository.add(ThreadKey(site: .dvach, board: "b", threadNum: 1), title: "A")
+        try await repository.add(ThreadKey(site: .dvach, board: "b", threadNum: 2), title: "B", watch: false)
 
-        #expect(try await repository.watchedKeys().map(\.threadNum) == [1])
+        #expect(try await repository.watchedKeys(site: .dvach).map(\.threadNum) == [1])
     }
 
     @Test("boards can be pinned separately from threads")
     func favoriteBoards() async throws {
         let repository = try makeRepository()
-        #expect(try await repository.toggleBoard("b", name: "Бред"))
-        #expect(try await repository.isFavoriteBoard("b"))
-        #expect(try await repository.favoriteBoards().map(\.board) == ["b"])
+        #expect(try await repository.toggleBoard(BoardRef(site: .dvach, code: "b"), name: "Бред"))
+        #expect(try await repository.isFavoriteBoard(BoardRef(site: .dvach, code: "b")))
+        #expect(try await repository.favoriteBoards(site: .dvach).map(\.board) == ["b"])
 
-        #expect(try await repository.toggleBoard("b", name: "Бред") == false)
-        #expect(try await repository.favoriteBoards().isEmpty)
+        #expect(try await repository.toggleBoard(BoardRef(site: .dvach, code: "b"), name: "Бред") == false)
+        #expect(try await repository.favoriteBoards(site: .dvach).isEmpty)
     }
 }
 
@@ -107,7 +107,7 @@ struct UnreadCountTests {
     @Test("unread counts the posts that arrived since the reader left")
     func countsPostsSinceReading() async throws {
         let store = try makeStore()
-        let key = ThreadKey(board: "b", threadNum: 1)
+        let key = ThreadKey(site: .dvach, board: "b", threadNum: 1)
 
         try await store.markRead(key, upTo: 100, totalPosts: 10)
         try await store.record(key: key, postsCount: 13, maxNum: 130, isDeleted: false)
@@ -118,7 +118,7 @@ struct UnreadCountTests {
     @Test("being part way through a thread is not the same as having read none of it")
     func partWayThroughIsNotUnreadEverything() async throws {
         let store = try makeStore()
-        let key = ThreadKey(board: "b", threadNum: 1)
+        let key = ThreadKey(site: .dvach, board: "b", threadNum: 1)
 
         // Read to post 90 of a thread whose newest is 100: not caught up.
         try await store.markRead(key, upTo: 90, totalPosts: 10)
@@ -130,7 +130,7 @@ struct UnreadCountTests {
     @Test("a thread never opened counts as all unread")
     func neverOpenedIsAllUnread() async throws {
         let store = try makeStore()
-        let key = ThreadKey(board: "b", threadNum: 1)
+        let key = ThreadKey(site: .dvach, board: "b", threadNum: 1)
 
         try await store.record(key: key, postsCount: 7, maxNum: 70, isDeleted: false)
 
@@ -140,7 +140,7 @@ struct UnreadCountTests {
     @Test("reading it again clears the count")
     func readingClearsIt() async throws {
         let store = try makeStore()
-        let key = ThreadKey(board: "b", threadNum: 1)
+        let key = ThreadKey(site: .dvach, board: "b", threadNum: 1)
         try await store.markRead(key, upTo: 100, totalPosts: 10)
         try await store.record(key: key, postsCount: 13, maxNum: 130, isDeleted: false)
 
@@ -160,7 +160,8 @@ struct ThreadWatcherTests {
         let favorites = FavoritesRepository(modelContainer: container)
         let states = WatchedThreadStore(modelContainer: container)
         let watcher = ThreadWatcher(
-            client: DvachClient(transport: transport, domain: { .org }),
+            client: DvachClient(transport: transport, site: { .init(site: .dvach, mirror: .org) }),
+            site: { .init(site: .dvach, mirror: .org) },
             favorites: favorites,
             states: states,
             conditions: { conditions }
@@ -178,12 +179,12 @@ struct ThreadWatcherTests {
         let transport = StubTransport()
         await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 10))
         let (watcher, favorites, states) = try makeWatcher(transport)
-        try await favorites.add(ThreadKey(board: "b", threadNum: 1), title: "Тред")
+        try await favorites.add(ThreadKey(site: .dvach, board: "b", threadNum: 1), title: "Тред")
 
         let results = await watcher.pollOnce()
         #expect(results.count == 1)
         #expect(results.first?.newPostCount == 0, "a thread seen for the first time has no news")
-        #expect(try await states.state(for: ThreadKey(board: "b", threadNum: 1))?.lastKnownPostsCount == 11)
+        #expect(try await states.state(for: ThreadKey(site: .dvach, board: "b", threadNum: 1))?.lastKnownPostsCount == 11)
     }
 
     @Test("a second poll reports the posts that arrived between them")
@@ -191,7 +192,7 @@ struct ThreadWatcherTests {
         let transport = StubTransport()
         await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 10))
         let (watcher, favorites, _) = try makeWatcher(transport)
-        try await favorites.add(ThreadKey(board: "b", threadNum: 1), title: "Тред")
+        try await favorites.add(ThreadKey(site: .dvach, board: "b", threadNum: 1), title: "Тред")
         _ = await watcher.pollOnce()
 
         await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 13))
@@ -207,7 +208,7 @@ struct ThreadWatcherTests {
         let transport = StubTransport()
         await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 10))
         let (watcher, favorites, _) = try makeWatcher(transport)
-        try await favorites.add(ThreadKey(board: "b", threadNum: 1), title: "Тред")
+        try await favorites.add(ThreadKey(site: .dvach, board: "b", threadNum: 1), title: "Тред")
         _ = await watcher.pollOnce()
 
         await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 13))
@@ -221,7 +222,7 @@ struct ThreadWatcherTests {
         let transport = StubTransport()
         await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 10))
         let (watcher, favorites, _) = try makeWatcher(transport)
-        try await favorites.add(ThreadKey(board: "b", threadNum: 1), title: "Тред")
+        try await favorites.add(ThreadKey(site: .dvach, board: "b", threadNum: 1), title: "Тред")
         _ = await watcher.pollOnce()
 
         await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 13))
@@ -236,11 +237,11 @@ struct ThreadWatcherTests {
         let transport = StubTransport()
         await transport.stub(pathSuffix: "/info/b/1", data: Data(), statusCode: 404)
         let (watcher, favorites, states) = try makeWatcher(transport)
-        try await favorites.add(ThreadKey(board: "b", threadNum: 1), title: "Тред")
+        try await favorites.add(ThreadKey(site: .dvach, board: "b", threadNum: 1), title: "Тред")
 
         let results = await watcher.pollOnce()
         #expect(results.first?.isDeleted == true)
-        #expect(try await states.state(for: ThreadKey(board: "b", threadNum: 1))?.isDeleted == true)
+        #expect(try await states.state(for: ThreadKey(site: .dvach, board: "b", threadNum: 1))?.isDeleted == true)
     }
 
     @Test("being offline is remembered as a failure, not as a deletion")
@@ -248,10 +249,10 @@ struct ThreadWatcherTests {
         let transport = StubTransport()
         await transport.stub(pathSuffix: "/info/b/1", failingWith: URLError(.notConnectedToInternet))
         let (watcher, favorites, states) = try makeWatcher(transport)
-        try await favorites.add(ThreadKey(board: "b", threadNum: 1), title: "Тред")
+        try await favorites.add(ThreadKey(site: .dvach, board: "b", threadNum: 1), title: "Тред")
 
         #expect(await watcher.pollOnce().isEmpty)
-        let state = try await states.state(for: ThreadKey(board: "b", threadNum: 1))
+        let state = try await states.state(for: ThreadKey(site: .dvach, board: "b", threadNum: 1))
         #expect(state?.isDeleted == false)
         #expect(state?.lastError != nil)
     }
@@ -261,7 +262,7 @@ struct ThreadWatcherTests {
         let transport = StubTransport()
         await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 1))
         let (watcher, favorites, _) = try makeWatcher(transport)
-        try await favorites.add(ThreadKey(board: "b", threadNum: 1), title: "Тред", watch: false)
+        try await favorites.add(ThreadKey(site: .dvach, board: "b", threadNum: 1), title: "Тред", watch: false)
 
         _ = await watcher.pollOnce()
         #expect(await transport.recordedRequests().isEmpty)
@@ -280,7 +281,7 @@ struct ThreadWatcherTests {
         let transport = StubTransport()
         await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 10))
         let (watcher, favorites, states) = try makeWatcher(transport)
-        let key = ThreadKey(board: "b", threadNum: 1)
+        let key = ThreadKey(site: .dvach, board: "b", threadNum: 1)
         try await favorites.add(key, title: "Тред")
         _ = await watcher.pollOnce()
 
@@ -297,20 +298,20 @@ struct ThreadWatcherTests {
         let transport = StubTransport()
         await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 10))
         let (watcher, favorites, _) = try makeWatcher(transport)
-        try await favorites.add(ThreadKey(board: "b", threadNum: 1), title: "Тред")
+        try await favorites.add(ThreadKey(site: .dvach, board: "b", threadNum: 1), title: "Тред")
         _ = await watcher.pollOnce()
 
         await transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 15))
         _ = await watcher.pollOnce()
 
-        let item = try await favorites.favorites().first
+        let item = try await favorites.favorites(site: .dvach).first
         #expect(item?.unreadCount ?? 0 > 0)
     }
 }
 
 @Suite("Watcher restraint")
 struct ThreadWatcherRestraintTests {
-    private let key = ThreadKey(board: "b", threadNum: 1)
+    private let key = ThreadKey(site: .dvach, board: "b", threadNum: 1)
 
     private func makeWatcher(
         _ transport: StubTransport,
@@ -320,7 +321,8 @@ struct ThreadWatcherRestraintTests {
         let favorites = FavoritesRepository(modelContainer: container)
         let states = WatchedThreadStore(modelContainer: container)
         let watcher = ThreadWatcher(
-            client: DvachClient(transport: transport, domain: { .org }),
+            client: DvachClient(transport: transport, site: { .init(site: .dvach, mirror: .org) }),
+            site: { .init(site: .dvach, mirror: .org) },
             favorites: favorites,
             states: states,
             conditions: { conditions }
@@ -421,7 +423,7 @@ struct ThreadWatcherRestraintTests {
         }
         let (watcher, favorites, _) = try makeWatcher(transport)
         for num in 1...5 {
-            try await favorites.add(ThreadKey(board: "b", threadNum: num), title: "Тред \(num)")
+            try await favorites.add(ThreadKey(site: .dvach, board: "b", threadNum: num), title: "Тред \(num)")
         }
 
         let results = await watcher.pollDue()
@@ -451,7 +453,7 @@ struct ThreadWatcherRestraintTests {
         let (watcher, favorites, _) = try makeWatcher(transport)
         for num in 1...10 {
             await transport.stub(pathSuffix: "/info/b/\(num)", data: infoData(posts: 10))
-            try await favorites.add(ThreadKey(board: "b", threadNum: num), title: "Тред")
+            try await favorites.add(ThreadKey(site: .dvach, board: "b", threadNum: num), title: "Тред")
         }
 
         _ = await watcher.pollDue(deadline: .now - .seconds(1))

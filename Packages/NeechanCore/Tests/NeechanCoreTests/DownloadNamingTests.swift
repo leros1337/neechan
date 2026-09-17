@@ -25,7 +25,7 @@ private func attachment(
 
 @Suite("Download naming")
 struct DownloadNamingTests {
-    private let key = ThreadKey(board: "b", threadNum: 123)
+    private let key = ThreadKey(site: .dvach, board: "b", threadNum: 123)
 
     @Test("the original name is used when the reader asked for it")
     func originalName() throws {
@@ -92,7 +92,7 @@ struct DownloadNamingTests {
 
 @Suite("Download path template")
 struct DownloadPathTemplateTests {
-    private let key = ThreadKey(board: "b", threadNum: 123)
+    private let key = ThreadKey(site: .dvach, board: "b", threadNum: 123)
 
     @Test("the board and thread placeholders expand")
     func expandsPlaceholders() {

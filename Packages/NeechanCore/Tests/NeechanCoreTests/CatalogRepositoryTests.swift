@@ -9,7 +9,10 @@ import Testing
 @Suite("Boards repository")
 struct BoardsRepositoryTests {
     private func makeRepository(_ transport: StubTransport) -> BoardsRepository {
-        BoardsRepository(client: DvachClient(transport: transport, domain: { .org }))
+        BoardsRepository(
+            client: DvachClient(transport: transport, site: { .init(site: .dvach, mirror: .org) }),
+            site: { .init(site: .dvach, mirror: .org) }
+        )
     }
 
     @Test("boards are fetched and grouped by category")
@@ -73,7 +76,7 @@ struct BoardsRepositoryTests {
 @Suite("Catalog repository")
 struct CatalogRepositoryTests {
     private func makeRepository(_ transport: StubTransport) -> CatalogRepository {
-        CatalogRepository(client: DvachClient(transport: transport, domain: { .org }))
+        CatalogRepository(client: DvachClient(transport: transport, site: { .init(site: .dvach, mirror: .org) }))
     }
 
     @Test("the catalog is fetched and returned in the server's order")

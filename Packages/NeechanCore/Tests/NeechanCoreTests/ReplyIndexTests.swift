@@ -16,7 +16,7 @@ private func post(_ num: Int, replyingTo targets: [Int] = [], inThread thread: I
 
 @Suite("Reply index")
 struct ReplyIndexTests {
-    private let thread = ThreadKey(board: "b", threadNum: 100)
+    private let thread = ThreadKey(site: .dvach, board: "b", threadNum: 100)
 
     @Test("a reply registers a backlink on its target")
     func buildsBacklinks() throws {
@@ -91,7 +91,7 @@ struct ReplyIndexTests {
     @Test("the whole recorded thread indexes and finds real backlinks")
     func indexesRecordedThread() throws {
         let response = try FixtureLoader.decode(ThreadResponse.self, from: .thread)
-        let key = ThreadKey(board: "po", threadNum: response.currentThread)
+        let key = ThreadKey(site: .dvach, board: "po", threadNum: response.currentThread)
         let index = ReplyIndex(posts: response.posts, thread: key)
 
         let linked = response.posts.filter { !index.references(from: $0.num).isEmpty }
@@ -111,7 +111,7 @@ struct ReplyIndexTests {
 struct ThreadSearchTests {
     private func snapshot() throws -> ThreadSnapshot {
         let response = try FixtureLoader.decode(ThreadResponse.self, from: .thread)
-        let key = ThreadKey(board: "po", threadNum: response.currentThread)
+        let key = ThreadKey(site: .dvach, board: "po", threadNum: response.currentThread)
         return ThreadSnapshot(
             key: key,
             posts: response.posts,
@@ -189,7 +189,7 @@ struct ThreadSearchTests {
 struct ThreadPositionTests {
     private func snapshot() throws -> ThreadSnapshot {
         let response = try FixtureLoader.decode(ThreadResponse.self, from: .thread)
-        let key = ThreadKey(board: "po", threadNum: response.currentThread)
+        let key = ThreadKey(site: .dvach, board: "po", threadNum: response.currentThread)
         return ThreadSnapshot(
             key: key,
             posts: response.posts,

@@ -16,7 +16,7 @@ struct ThreadRepositoryTests {
 
     init() throws {
         recorded = try FixtureLoader.decode(ThreadResponse.self, from: .thread)
-        key = ThreadKey(board: "po", threadNum: recorded.currentThread)
+        key = ThreadKey(site: .dvach, board: "po", threadNum: recorded.currentThread)
         threadPath = "/po/res/\(recorded.currentThread).json"
         afterPath = "/after/po/\(recorded.currentThread)/\(recorded.maxNum)"
     }
@@ -24,7 +24,7 @@ struct ThreadRepositoryTests {
     private func makeRepository(_ transport: StubTransport) -> ThreadRepository {
         ThreadRepository(
             key: key,
-            client: DvachClient(transport: transport, domain: { .org })
+            client: DvachClient(transport: transport, site: { .init(site: .dvach, mirror: .org) })
         )
     }
 
@@ -53,6 +53,31 @@ struct ThreadRepositoryTests {
         #expect(snapshot.hasAttachments == !snapshot.allAttachments.isEmpty)
         #expect(snapshot.hasAttachments)
         #expect(ThreadSnapshot.empty(key: key).hasAttachments == false)
+
+        // The same question for video alone, which the feed of a thread's
+        // clips asks on every render of the thread's menu.
+        let videos = snapshot.allAttachments.filter { $0.attachment.isVideo }
+        #expect(snapshot.hasVideos == !videos.isEmpty)
+        #expect(ThreadSnapshot.empty(key: key).hasVideos == false)
+    }
+
+    /// A thread of pictures should not be offered a feed of its videos.
+    @Test("a thread with attachments but no video says so")
+    func picturesAreNotVideos() throws {
+        let post = Post(
+            num: 1,
+            board: "b",
+            files: [Attachment(path: "/b/src/1/1.jpg", declaredType: .jpeg)]
+        )
+        let snapshot = ThreadSnapshot(
+            key: key,
+            posts: [post],
+            meta: ThreadMeta(maxNum: 1),
+            index: ReplyIndex(posts: [post], thread: key)
+        )
+
+        #expect(snapshot.hasAttachments)
+        #expect(!snapshot.hasVideos)
     }
 
     @Test("setting the same own posts twice rebuilds the snapshot once")

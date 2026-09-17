@@ -1,4 +1,5 @@
 import Foundation
+import NeechanAPI
 import SwiftData
 
 /// An unsent post, as a value the view can hold.
@@ -74,7 +75,7 @@ public actor DraftRepository {
     public static let attachmentsDirectoryName = "Drafts"
 
     /// The draft for a board and thread, or an empty one.
-    public func draft(for board: String, thread: Int?) throws -> DraftState {
+    public func draft(for board: BoardRef, thread: Int?) throws -> DraftState {
         guard let stored = try storedDraft(board: board, threadNum: thread ?? 0) else {
             return DraftState()
         }
@@ -82,7 +83,7 @@ public actor DraftRepository {
     }
 
     /// Saves the draft, or deletes it once there is nothing left in it.
-    public func save(_ state: DraftState, board: String, thread: Int?) throws {
+    public func save(_ state: DraftState, board: BoardRef, thread: Int?) throws {
         let threadNum = thread ?? 0
 
         guard !state.isEmpty else {
@@ -134,7 +135,7 @@ public actor DraftRepository {
     }
 
     /// Removes the draft and the files it staged.
-    public func discard(board: String, thread: Int?) throws {
+    public func discard(board: BoardRef, thread: Int?) throws {
         guard let stored = try storedDraft(board: board, threadNum: thread ?? 0) else { return }
 
         for attachment in stored.attachments {
@@ -146,12 +147,15 @@ public actor DraftRepository {
     }
 
     /// Every draft with something in it, most recent first.
-    public func allDrafts() throws -> [(board: String, thread: Int, updatedAt: Date)] {
+    ///
+    /// Site-blind, and carries the site on each row: this is a "what is
+    /// unsent anywhere" list, not a screen scoped to one imageboard.
+    public func allDrafts() throws -> [(board: BoardRef, thread: Int, updatedAt: Date)] {
         let descriptor = FetchDescriptor<Draft>(
             sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
         )
         return try modelContext.fetch(descriptor)
-            .map { ($0.board, $0.threadNum, $0.updatedAt) }
+            .map { (BoardRef(site: $0.site, code: $0.board), $0.threadNum, $0.updatedAt) }
     }
 
     /// Stores a file for a draft and returns its relative path.
@@ -175,9 +179,13 @@ public actor DraftRepository {
         URL.applicationSupportDirectory.appending(path: attachmentsDirectoryName)
     }
 
-    private func storedDraft(board: String, threadNum: Int) throws -> Draft? {
+    private func storedDraft(board: BoardRef, threadNum: Int) throws -> Draft? {
+        let site = board.site.rawValue
+        let code = board.code
         var descriptor = FetchDescriptor<Draft>(
-            predicate: #Predicate { $0.board == board && $0.threadNum == threadNum }
+            predicate: #Predicate {
+                $0.siteRaw == site && $0.board == code && $0.threadNum == threadNum
+            }
         )
         descriptor.fetchLimit = 1
         return try modelContext.fetch(descriptor).first

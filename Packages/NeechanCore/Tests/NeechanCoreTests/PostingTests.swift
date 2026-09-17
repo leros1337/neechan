@@ -128,9 +128,9 @@ struct DraftRepositoryTests {
         draft.comment = "черновик"
         draft.subject = "Тема"
         draft.isSage = true
-        try await repository.save(draft, board: "test", thread: 1)
+        try await repository.save(draft, board: BoardRef(site: .dvach, code: "test"), thread: 1)
 
-        let loaded = try await repository.draft(for: "test", thread: 1)
+        let loaded = try await repository.draft(for: BoardRef(site: .dvach, code: "test"), thread: 1)
         #expect(loaded.comment == "черновик")
         #expect(loaded.subject == "Тема")
         #expect(loaded.isSage)
@@ -139,27 +139,27 @@ struct DraftRepositoryTests {
     @Test("drafts are kept separately per board and thread")
     func separatePerThread() async throws {
         let repository = try makeRepository()
-        try await repository.save(DraftState(comment: "один"), board: "test", thread: 1)
-        try await repository.save(DraftState(comment: "два"), board: "test", thread: 2)
-        try await repository.save(DraftState(comment: "новый"), board: "test", thread: nil)
+        try await repository.save(DraftState(comment: "один"), board: BoardRef(site: .dvach, code: "test"), thread: 1)
+        try await repository.save(DraftState(comment: "два"), board: BoardRef(site: .dvach, code: "test"), thread: 2)
+        try await repository.save(DraftState(comment: "новый"), board: BoardRef(site: .dvach, code: "test"), thread: nil)
 
-        #expect(try await repository.draft(for: "test", thread: 1).comment == "один")
-        #expect(try await repository.draft(for: "test", thread: 2).comment == "два")
+        #expect(try await repository.draft(for: BoardRef(site: .dvach, code: "test"), thread: 1).comment == "один")
+        #expect(try await repository.draft(for: BoardRef(site: .dvach, code: "test"), thread: 2).comment == "два")
         // A new thread is keyed as thread zero.
-        #expect(try await repository.draft(for: "test", thread: nil).comment == "новый")
+        #expect(try await repository.draft(for: BoardRef(site: .dvach, code: "test"), thread: nil).comment == "новый")
     }
 
     @Test("an unknown draft comes back empty rather than missing")
     func unknownDraftIsEmpty() async throws {
-        let draft = try await makeRepository().draft(for: "test", thread: 999)
+        let draft = try await makeRepository().draft(for: BoardRef(site: .dvach, code: "test"), thread: 999)
         #expect(draft.isEmpty)
     }
 
     @Test("emptying a draft deletes it")
     func emptyingDeletes() async throws {
         let repository = try makeRepository()
-        try await repository.save(DraftState(comment: "что-то"), board: "test", thread: 1)
-        try await repository.save(DraftState(comment: "   "), board: "test", thread: 1)
+        try await repository.save(DraftState(comment: "что-то"), board: BoardRef(site: .dvach, code: "test"), thread: 1)
+        try await repository.save(DraftState(comment: "   "), board: BoardRef(site: .dvach, code: "test"), thread: 1)
 
         #expect(try await repository.allDrafts().isEmpty)
     }
@@ -167,12 +167,12 @@ struct DraftRepositoryTests {
     @Test("saving twice updates rather than duplicating")
     func saveIsIdempotent() async throws {
         let repository = try makeRepository()
-        try await repository.save(DraftState(comment: "раз"), board: "test", thread: 1)
-        try await repository.save(DraftState(comment: "два"), board: "test", thread: 1)
+        try await repository.save(DraftState(comment: "раз"), board: BoardRef(site: .dvach, code: "test"), thread: 1)
+        try await repository.save(DraftState(comment: "два"), board: BoardRef(site: .dvach, code: "test"), thread: 1)
 
         let all = try await repository.allDrafts()
         #expect(all.count == 1)
-        #expect(try await repository.draft(for: "test", thread: 1).comment == "два")
+        #expect(try await repository.draft(for: BoardRef(site: .dvach, code: "test"), thread: 1).comment == "два")
     }
 
     @Test("attachments keep their order and their options")
@@ -191,9 +191,9 @@ struct DraftRepositoryTests {
                 ),
             ]
         )
-        try await repository.save(draft, board: "test", thread: 1)
+        try await repository.save(draft, board: BoardRef(site: .dvach, code: "test"), thread: 1)
 
-        let loaded = try await repository.draft(for: "test", thread: 1)
+        let loaded = try await repository.draft(for: BoardRef(site: .dvach, code: "test"), thread: 1)
         #expect(loaded.attachments.map(\.fileName) == ["a.png", "b.webm"])
         #expect(loaded.attachments[0].processing.appendsUniqueHash)
         #expect(loaded.attachments[0].processing.stripsMetadata)
@@ -203,9 +203,9 @@ struct DraftRepositoryTests {
     @Test("discarding removes the draft")
     func discard() async throws {
         let repository = try makeRepository()
-        try await repository.save(DraftState(comment: "х"), board: "test", thread: 1)
-        try await repository.discard(board: "test", thread: 1)
-        #expect(try await repository.draft(for: "test", thread: 1).isEmpty)
+        try await repository.save(DraftState(comment: "х"), board: BoardRef(site: .dvach, code: "test"), thread: 1)
+        try await repository.discard(board: BoardRef(site: .dvach, code: "test"), thread: 1)
+        #expect(try await repository.draft(for: BoardRef(site: .dvach, code: "test"), thread: 1).isEmpty)
     }
 }
 
@@ -218,35 +218,35 @@ struct OwnPostsRepositoryTests {
     @Test("a recorded post is reported as the reader's own")
     func recordsPost() async throws {
         let repository = try makeRepository()
-        try await repository.record(board: "test", threadNum: 1, postNum: 10)
+        try await repository.record(ThreadKey(site: .dvach, board: "test", threadNum: 1), postNum: 10)
 
-        #expect(try await repository.isOwned(board: "test", postNum: 10))
-        #expect(try await repository.postNums(board: "test", threadNum: 1) == [10])
+        #expect(try await repository.isOwned(on: BoardRef(site: .dvach, code: "test"), postNum: 10))
+        #expect(try await repository.postNums(in: ThreadKey(site: .dvach, board: "test", threadNum: 1)) == [10])
     }
 
     @Test("recording the same post twice is harmless")
     func recordIsIdempotent() async throws {
         let repository = try makeRepository()
-        try await repository.record(board: "test", threadNum: 1, postNum: 10)
-        try await repository.record(board: "test", threadNum: 1, postNum: 10)
-        #expect(try await repository.postNums(board: "test", threadNum: 1).count == 1)
+        try await repository.record(ThreadKey(site: .dvach, board: "test", threadNum: 1), postNum: 10)
+        try await repository.record(ThreadKey(site: .dvach, board: "test", threadNum: 1), postNum: 10)
+        #expect(try await repository.postNums(in: ThreadKey(site: .dvach, board: "test", threadNum: 1)).count == 1)
     }
 
     @Test("the reader can mark and unmark a post by hand")
     func manualToggle() async throws {
         let repository = try makeRepository()
-        try await repository.setOwned(true, board: "test", threadNum: 1, postNum: 7)
-        #expect(try await repository.isOwned(board: "test", postNum: 7))
+        try await repository.setOwned(true, in: ThreadKey(site: .dvach, board: "test", threadNum: 1), postNum: 7)
+        #expect(try await repository.isOwned(on: BoardRef(site: .dvach, code: "test"), postNum: 7))
 
-        try await repository.setOwned(false, board: "test", threadNum: 1, postNum: 7)
-        #expect(try await repository.isOwned(board: "test", postNum: 7) == false)
+        try await repository.setOwned(false, in: ThreadKey(site: .dvach, board: "test", threadNum: 1), postNum: 7)
+        #expect(try await repository.isOwned(on: BoardRef(site: .dvach, code: "test"), postNum: 7) == false)
     }
 
     @Test("posts are scoped to their board")
     func scopedToBoard() async throws {
         let repository = try makeRepository()
-        try await repository.record(board: "test", threadNum: 1, postNum: 10)
-        #expect(try await repository.isOwned(board: "b", postNum: 10) == false)
+        try await repository.record(ThreadKey(site: .dvach, board: "test", threadNum: 1), postNum: 10)
+        #expect(try await repository.isOwned(on: BoardRef(site: .dvach, code: "b"), postNum: 10) == false)
     }
 }
 
@@ -256,11 +256,11 @@ struct PostingCoordinatorTests {
         _ transport: StubTransport
     ) throws -> (PostingCoordinator, DraftRepository, OwnPostsRepository) {
         let container = try NeechanStore.makeContainer(inMemory: true)
-        let client = DvachClient(transport: transport, domain: { .org })
+        let client = DvachClient(transport: transport, site: { .init(site: .dvach, mirror: .org) })
         let drafts = DraftRepository(modelContainer: container)
         let ownPosts = OwnPostsRepository(modelContainer: container)
         let coordinator = PostingCoordinator(
-            postingService: PostingService(client: client, transport: transport, domain: { .org }),
+            postingService: PostingService(client: client, transport: transport, site: { .init(site: .dvach, mirror: .org) }),
             drafts: drafts,
             ownPosts: ownPosts
         )
@@ -275,15 +275,15 @@ struct PostingCoordinatorTests {
 
         let outcome = try await coordinator.send(
             DraftState(comment: "привет"),
-            board: "test", thread: 4242,
+            board: BoardRef(site: .dvach, code: "test"), thread: 4242,
             captchaToken: "token", proofOfWork: 1
         )
         guard case .posted(let num) = outcome else {
             Issue.record("expected a posted reply")
             return
         }
-        #expect(try await ownPosts.isOwned(board: "test", postNum: num))
-        #expect(try await ownPosts.postNums(board: "test", threadNum: 4242).contains(num))
+        #expect(try await ownPosts.isOwned(on: BoardRef(site: .dvach, code: "test"), postNum: num))
+        #expect(try await ownPosts.postNums(in: ThreadKey(site: .dvach, board: "test", threadNum: 4242)).contains(num))
     }
 
     @Test("a created thread records its opening post as the reader's own")
@@ -294,14 +294,14 @@ struct PostingCoordinatorTests {
 
         let outcome = try await coordinator.send(
             DraftState(comment: "новый тред"),
-            board: "test", thread: nil,
+            board: BoardRef(site: .dvach, code: "test"), thread: nil,
             captchaToken: "token", proofOfWork: 1
         )
         guard case .threadCreated(let num) = outcome else {
             Issue.record("expected a new thread")
             return
         }
-        #expect(try await ownPosts.postNums(board: "test", threadNum: num) == [num])
+        #expect(try await ownPosts.postNums(in: ThreadKey(site: .dvach, board: "test", threadNum: num)) == [num])
     }
 
     @Test("the draft is cleared once the post is accepted")
@@ -310,13 +310,13 @@ struct PostingCoordinatorTests {
         await transport.stub(pathSuffix: "/user/posting", data: try FixtureLoader.data(.postingPostOK))
         let (coordinator, drafts, _) = try makeCoordinator(transport)
 
-        try await drafts.save(DraftState(comment: "привет"), board: "test", thread: 4242)
+        try await drafts.save(DraftState(comment: "привет"), board: BoardRef(site: .dvach, code: "test"), thread: 4242)
         _ = try await coordinator.send(
             DraftState(comment: "привет"),
-            board: "test", thread: 4242,
+            board: BoardRef(site: .dvach, code: "test"), thread: 4242,
             captchaToken: "token", proofOfWork: 1
         )
-        #expect(try await drafts.draft(for: "test", thread: 4242).isEmpty)
+        #expect(try await drafts.draft(for: BoardRef(site: .dvach, code: "test"), thread: 4242).isEmpty)
     }
 
     @Test("a refused post keeps the draft, so nothing the reader wrote is lost")
@@ -326,17 +326,17 @@ struct PostingCoordinatorTests {
             pathSuffix: "/user/posting", data: try FixtureLoader.data(.postingErrorCaptcha)
         )
         let (coordinator, drafts, ownPosts) = try makeCoordinator(transport)
-        try await drafts.save(DraftState(comment: "важное"), board: "test", thread: 4242)
+        try await drafts.save(DraftState(comment: "важное"), board: BoardRef(site: .dvach, code: "test"), thread: 4242)
 
         await #expect(throws: PostingError.self) {
             _ = try await coordinator.send(
                 DraftState(comment: "важное"),
-                board: "test", thread: 4242,
+                board: BoardRef(site: .dvach, code: "test"), thread: 4242,
                 captchaToken: "stale", proofOfWork: 1
             )
         }
-        #expect(try await drafts.draft(for: "test", thread: 4242).comment == "важное")
-        #expect(try await ownPosts.postNums(board: "test", threadNum: 4242).isEmpty)
+        #expect(try await drafts.draft(for: BoardRef(site: .dvach, code: "test"), thread: 4242).comment == "важное")
+        #expect(try await ownPosts.postNums(in: ThreadKey(site: .dvach, board: "test", threadNum: 4242)).isEmpty)
     }
 
     @Test("progress is reported so the overlay can explain the wait")
@@ -348,7 +348,7 @@ struct PostingCoordinatorTests {
         let stages = StageRecorder()
         _ = try await coordinator.send(
             DraftState(comment: "привет"),
-            board: "test", thread: 1,
+            board: BoardRef(site: .dvach, code: "test"), thread: 1,
             captchaToken: "token", proofOfWork: 1,
             onStage: { stages.record($0) }
         )

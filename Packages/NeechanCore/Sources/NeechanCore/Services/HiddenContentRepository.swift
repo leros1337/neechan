@@ -1,4 +1,5 @@
 import Foundation
+import NeechanAPI
 import SwiftData
 
 /// A thread the reader hid, as a value.
@@ -19,13 +20,21 @@ public struct HiddenThreadItem: Sendable, Hashable, Identifiable {
 /// Threads and posts the reader has hidden, and the rules that hide them.
 @ModelActor
 public actor HiddenContentRepository {
+
+    /// What the reader is willing to be shown. Read per query, so turning a
+    /// restriction on takes effect without rebuilding this actor.
+    private nonisolated let policyPort = ContentPolicyPort()
+
+    /// - Parameter policy: read on every listing, never stored as a value.
+    public init(modelContainer: ModelContainer, policy: @escaping ContentPolicyProvider) {
+        self.init(modelContainer: modelContainer)
+        policyPort.use(policy)
+    }
     // MARK: Threads
 
     public func hideThread(_ key: ThreadKey, title: String) throws {
         guard try storedHiddenThread(key) == nil else { return }
-        modelContext.insert(
-            HiddenThread(board: key.board, threadNum: key.threadNum, title: title)
-        )
+        modelContext.insert(HiddenThread(key: key, title: title))
         try modelContext.save()
     }
 
@@ -36,38 +45,45 @@ public actor HiddenContentRepository {
     }
 
     /// Thread numbers hidden on one board.
-    public func hiddenThreadNums(on board: String) throws -> Set<Int> {
+    public func hiddenThreadNums(on board: BoardRef) throws -> Set<Int> {
+        let site = board.site.rawValue
+        let code = board.code
         let descriptor = FetchDescriptor<HiddenThread>(
-            predicate: #Predicate { $0.board == board }
+            predicate: #Predicate { $0.siteRaw == site && $0.board == code }
         )
         return Set(try modelContext.fetch(descriptor).map(\.threadNum))
     }
 
-    /// Everything hidden, most recently hidden first.
-    public func hiddenThreads() throws -> [HiddenThreadItem] {
-        try modelContext.fetch(
-            FetchDescriptor<HiddenThread>(sortBy: [SortDescriptor(\.hiddenAt, order: .reverse)])
-        )
-        .map {
-            HiddenThreadItem(
-                key: ThreadKey(board: $0.board, threadNum: $0.threadNum),
-                title: $0.title,
-                hiddenAt: $0.hiddenAt
+    /// Everything hidden on one imageboard, most recently hidden first.
+    public func hiddenThreads(site: Imageboard) throws -> [HiddenThreadItem] {
+        let siteRaw = site.rawValue
+        return try modelContext.fetch(
+            FetchDescriptor<HiddenThread>(
+                predicate: #Predicate { $0.siteRaw == siteRaw },
+                sortBy: [SortDescriptor(\.hiddenAt, order: .reverse)]
             )
-        }
+        )
+        .filter { policyPort.policy.allows(code: $0.board, on: site) }
+        .map { HiddenThreadItem(key: $0.key, title: $0.title, hiddenAt: $0.hiddenAt) }
     }
 
-    public func unhideAllThreads() throws {
-        try modelContext.delete(model: HiddenThread.self)
+    /// Unhides everything on one imageboard.
+    ///
+    /// Scoped, because the screen offering it lists one site: unhiding threads
+    /// the reader cannot see is not what the button says.
+    public func unhideAllThreads(site: Imageboard) throws {
+        let siteRaw = site.rawValue
+        try modelContext.delete(
+            model: HiddenThread.self,
+            where: #Predicate { $0.siteRaw == siteRaw }
+        )
         try modelContext.save()
     }
 
     // MARK: Per-thread post rules
 
     public func addLocalRule(_ rule: LocalHideRule, in thread: ThreadKey) throws {
-        modelContext.insert(
-            HiddenPostRule(board: thread.board, threadNum: thread.threadNum, rule: rule)
-        )
+        modelContext.insert(HiddenPostRule(key: thread, rule: rule))
         try modelContext.save()
     }
 
@@ -117,6 +133,12 @@ public actor HiddenContentRepository {
         try modelContext.save()
     }
 
+    /// Every autohide rule, on every imageboard.
+    ///
+    /// Site-blind on purpose. A rule carries its own scope, and the editor
+    /// shows that scope: a list that hid half the reader's rules depending on
+    /// which site was selected would be the wrong screen. `FilterEngine` does
+    /// the filtering, through `AutohideRuleValue.appliesTo(thread:)`.
     public func rules() throws -> [AutohideRuleValue] {
         try modelContext.fetch(
             FetchDescriptor<AutohideRule>(sortBy: [SortDescriptor(\.sortOrder)])
@@ -127,21 +149,27 @@ public actor HiddenContentRepository {
     // MARK: Internals
 
     private func storedHiddenThread(_ key: ThreadKey) throws -> HiddenThread? {
+        let site = key.site.rawValue
         let board = key.board
         let threadNum = key.threadNum
         var descriptor = FetchDescriptor<HiddenThread>(
-            predicate: #Predicate { $0.board == board && $0.threadNum == threadNum }
+            predicate: #Predicate {
+                $0.siteRaw == site && $0.board == board && $0.threadNum == threadNum
+            }
         )
         descriptor.fetchLimit = 1
         return try modelContext.fetch(descriptor).first
     }
 
     private func storedLocalRules(in thread: ThreadKey) throws -> [HiddenPostRule] {
+        let site = thread.site.rawValue
         let board = thread.board
         let threadNum = thread.threadNum
         return try modelContext.fetch(
             FetchDescriptor<HiddenPostRule>(
-                predicate: #Predicate { $0.board == board && $0.threadNum == threadNum },
+                predicate: #Predicate {
+                    $0.siteRaw == site && $0.board == board && $0.threadNum == threadNum
+                },
                 sortBy: [SortDescriptor(\.createdAt)]
             )
         )

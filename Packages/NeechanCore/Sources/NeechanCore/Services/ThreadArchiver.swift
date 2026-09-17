@@ -18,6 +18,16 @@ public struct SavedThreadItem: Sendable, Hashable, Identifiable {
 /// Saves threads to the device and reads them back without a network.
 @ModelActor
 public actor SavedThreadsRepository {
+
+    /// What the reader is willing to be shown. Read per query, so turning a
+    /// restriction on takes effect without rebuilding this actor.
+    private nonisolated let policyPort = ContentPolicyPort()
+
+    /// - Parameter policy: read on every listing, never stored as a value.
+    public init(modelContainer: ModelContainer, policy: @escaping ContentPolicyProvider) {
+        self.init(modelContainer: modelContainer)
+        policyPort.use(policy)
+    }
     public enum SaveError: Error {
         case cannotWrite(String)
     }
@@ -42,12 +52,15 @@ public actor SavedThreadsRepository {
         _ response: ThreadResponse,
         rawJSON: Data,
         key: ThreadKey,
-        domain: DvachDomain,
+        endpoints: SiteEndpoints,
         policy: MediaPolicy,
         downloader: any MediaFetching,
         onProgress: (@Sendable (Double) -> Void)? = nil
     ) async throws -> SavedThreadItem {
-        let relative = "\(key.board)-\(key.threadNum)"
+        // Qualified by the site so two imageboards' /b/12345 do not share a
+        // folder. Folders written before this are found by the path stored on
+        // their own row, so nothing on disk has to move.
+        let relative = key.identifier
         let directory = Self.rootDirectory.appending(path: relative)
         let media = directory.appending(path: "media")
 
@@ -73,8 +86,8 @@ public actor SavedThreadsRepository {
                 : [attachment.thumbnail]
 
             for path in paths {
-                guard let url = domain.url(forPath: path) else { continue }
-                if let data = try? await downloader.data(url, referer: domain.baseURL) {
+                guard let url = endpoints.url(forPath: path) else { continue }
+                if let data = try? await downloader.data(url, referer: endpoints.web) {
                     let destination = media.appending(path: Self.fileName(for: path))
                     try? data.write(to: destination, options: .atomic)
                 }
@@ -85,8 +98,7 @@ public actor SavedThreadsRepository {
 
         let stored = try storedThread(key) ?? {
             let new = SavedThread(
-                board: key.board,
-                threadNum: key.threadNum,
+                key: key,
                 title: response.title,
                 directoryRelativePath: relative
             )
@@ -131,10 +143,15 @@ public actor SavedThreadsRepository {
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
 
-    public func saved() throws -> [SavedThreadItem] {
-        try modelContext.fetch(
-            FetchDescriptor<SavedThread>(sortBy: [SortDescriptor(\.savedAt, order: .reverse)])
+    public func saved(site: Imageboard) throws -> [SavedThreadItem] {
+        let siteRaw = site.rawValue
+        return try modelContext.fetch(
+            FetchDescriptor<SavedThread>(
+                predicate: #Predicate { $0.siteRaw == siteRaw },
+                sortBy: [SortDescriptor(\.savedAt, order: .reverse)]
+            )
         )
+        .filter { policyPort.policy.allows(code: $0.board, on: site) }
         .map(SavedThreadItem.init)
     }
 
@@ -151,13 +168,29 @@ public actor SavedThreadsRepository {
         try modelContext.save()
     }
 
-    public func removeAll() throws {
-        try? FileManager.default.removeItem(at: Self.rootDirectory)
-        try modelContext.delete(model: SavedThread.self)
+    /// Deletes every thread saved from one imageboard.
+    ///
+    /// Row by row rather than by emptying the root folder: the screen that
+    /// offers this shows one site, and wiping the directory would take the
+    /// other site's threads with it.
+    public func removeAll(site: Imageboard) throws {
+        let siteRaw = site.rawValue
+        let stored = try modelContext.fetch(
+            FetchDescriptor<SavedThread>(predicate: #Predicate { $0.siteRaw == siteRaw })
+        )
+        for thread in stored {
+            try? FileManager.default.removeItem(
+                at: Self.rootDirectory.appending(path: thread.directoryRelativePath)
+            )
+            modelContext.delete(thread)
+        }
         try modelContext.save()
     }
 
-    /// Total bytes held by every saved thread.
+    /// Total bytes held by every saved thread, on every imageboard.
+    ///
+    /// Site-blind on purpose: this backs the storage row in the media settings,
+    /// and disk usage is disk usage whichever site filled it.
     public func totalBytesOnDisk() throws -> Int {
         try modelContext.fetch(FetchDescriptor<SavedThread>())
             .reduce(0) { $0 + $1.bytesOnDisk }
@@ -193,10 +226,13 @@ public actor SavedThreadsRepository {
     }
 
     private func storedThread(_ key: ThreadKey) throws -> SavedThread? {
+        let site = key.site.rawValue
         let board = key.board
         let threadNum = key.threadNum
         var descriptor = FetchDescriptor<SavedThread>(
-            predicate: #Predicate { $0.board == board && $0.threadNum == threadNum }
+            predicate: #Predicate {
+                $0.siteRaw == site && $0.board == board && $0.threadNum == threadNum
+            }
         )
         descriptor.fetchLimit = 1
         return try modelContext.fetch(descriptor).first
@@ -206,7 +242,7 @@ public actor SavedThreadsRepository {
 extension SavedThreadItem {
     init(_ stored: SavedThread) {
         self.init(
-            key: ThreadKey(board: stored.board, threadNum: stored.threadNum),
+            key: stored.key,
             title: stored.title,
             savedAt: stored.savedAt,
             postsCount: stored.postsCount,

@@ -130,7 +130,8 @@ struct AppSettingsObservationTests {
         "every kind of preference is observed, not just the ones with a stored default",
         arguments: [
             "domain", "themeID", "textScale", "collapsePostLineLimit",
-            "mediaLoadPolicy", "remembersHistory", "safeForWork", "locksApp",
+            "mediaLoadPolicy", "remembersHistory", "nsfwMode", "locksApp",
+            "allowsMatureBoards", "allowsPosting",
         ]
     )
     func everyPreferenceIsObserved(name: String) throws {
@@ -146,7 +147,9 @@ struct AppSettingsObservationTests {
             case "mediaLoadPolicy": _ = settings.mediaLoadPolicy
             case "remembersHistory": _ = settings.remembersHistory
             case "locksApp": _ = settings.locksApp
-            default: _ = settings.safeForWork
+            case "allowsMatureBoards": _ = settings.allowsMatureBoards
+            case "allowsPosting": _ = settings.allowsPosting
+            default: _ = settings.nsfwMode
             }
         } onChange: {
             observed.raise()
@@ -160,7 +163,9 @@ struct AppSettingsObservationTests {
         case "mediaLoadPolicy": settings.mediaLoadPolicy = .never
         case "remembersHistory": settings.remembersHistory = false
         case "locksApp": settings.locksApp = true
-        default: settings.safeForWork = true
+        case "allowsMatureBoards": settings.allowsMatureBoards = false
+        case "allowsPosting": settings.allowsPosting = false
+        default: settings.nsfwMode = true
         }
 
         #expect(observed.wasRaised, "\(name) was changed without telling anyone")
@@ -225,7 +230,7 @@ struct PreferenceIsolationTests {
         }
 
         settings.thumbnailScale = 1.5
-        settings.safeForWork = true
+        settings.nsfwMode = true
         settings.collapsePostLineLimit = 20
 
         #expect(observed.wasRaised == false)
@@ -254,13 +259,13 @@ struct PreferenceIsolationTests {
         let defaults = try #require(UserDefaults(suiteName: name))
         defaults.set(1.5, forKey: "interface.textScale")
         defaults.set(20, forKey: "interface.collapseLines")
-        defaults.set(true, forKey: "interface.safeForWork")
+        defaults.set(true, forKey: "restrictions.nsfwMode")
 
         let settings = AppSettings(defaults: defaults)
 
         #expect(settings.textScale == 1.5)
         #expect(settings.collapsePostLineLimit == 20)
-        #expect(settings.safeForWork)
+        #expect(settings.nsfwMode)
     }
 
     /// How a UI test pins a preference: launch arguments arrive as strings, and
@@ -608,5 +613,78 @@ struct RandomFileNameTests {
     func uniqueness() {
         let names = Set((0..<200).map { _ in AppSettings.randomFileName() })
         #expect(names.count == 200)
+    }
+}
+
+/// Carrying `interface.safeForWork` into `nsfwMode`, which means the opposite.
+///
+/// The awkward case is a reader who never touched the old toggle: there is no
+/// value to invert, and the new default would reverse what they have been
+/// seeing. Each test here is one row of that table.
+@MainActor
+@Suite("Safe for work becomes NSFW mode")
+struct NSFWModeMigrationTests {
+    private func freshDefaults() throws -> UserDefaults {
+        try #require(UserDefaults(suiteName: "neechan.tests.\(UUID().uuidString)"))
+    }
+
+    @Test("a reader who turned safe for work on keeps their blur")
+    func safeForWorkOnMeansNSFWModeOff() throws {
+        let defaults = try freshDefaults()
+        defaults.set(true, forKey: "interface.safeForWork")
+
+        #expect(AppSettings(defaults: defaults).nsfwMode == false)
+    }
+
+    @Test("a reader who turned it off explicitly keeps their unblurred thumbnails")
+    func safeForWorkOffMeansNSFWModeOn() throws {
+        let defaults = try freshDefaults()
+        defaults.set(false, forKey: "interface.safeForWork")
+
+        #expect(AppSettings(defaults: defaults).nsfwMode)
+    }
+
+    /// The row that needs the probe: nothing was ever stored for this reader,
+    /// but they have been using the app and seeing unblurred thumbnails.
+    @Test("a reader who never touched it, but has used the app, keeps what they had")
+    func anUpgradeKeepsTodaysBehaviour() throws {
+        let defaults = try freshDefaults()
+        defaults.set(12, forKey: "stats.threadsOpened")
+
+        #expect(AppSettings(defaults: defaults).nsfwMode)
+    }
+
+    @Test("a fresh install gets the new default, which blurs")
+    func aFreshInstallBlurs() throws {
+        #expect(AppSettings(defaults: try freshDefaults()).nsfwMode == false)
+    }
+
+    /// The migration must not be able to undo a choice made after it ran.
+    @Test("a choice made after the migration survives the next launch")
+    func theMigrationRunsOnlyOnce() throws {
+        let defaults = try freshDefaults()
+        defaults.set(true, forKey: "interface.safeForWork")
+
+        let first = AppSettings(defaults: defaults)
+        #expect(first.nsfwMode == false)
+        first.nsfwMode = true
+
+        #expect(AppSettings(defaults: defaults).nsfwMode, "the migration ran a second time")
+    }
+
+    @Test("the old key is not left behind to be migrated again")
+    func theLegacyKeyIsCleanedUp() throws {
+        let defaults = try freshDefaults()
+        defaults.set(true, forKey: "interface.safeForWork")
+        _ = AppSettings(defaults: defaults)
+
+        #expect(defaults.object(forKey: "interface.safeForWork") == nil)
+    }
+
+    @Test("the two new gates are open until the reader closes them")
+    func theGatesDefaultOpen() throws {
+        let settings = AppSettings(defaults: try freshDefaults())
+        #expect(settings.allowsMatureBoards)
+        #expect(settings.allowsPosting)
     }
 }
