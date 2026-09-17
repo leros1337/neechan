@@ -1634,52 +1634,6 @@
         }
       }
     },
-    "Both mirrors serve the same content.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Both mirrors serve the same content."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Оба зеркала отдают одно и то же."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Beide Spiegel liefern denselben Inhalt."
-          }
-        }
-      }
-    },
-    "Both mirrors serve the same content. Your passcode and age confirmation move with you.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Both mirrors serve the same content. Your passcode and age confirmation move with you."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Оба зеркала отдают одно и то же. Пасскод и подтверждение возраста переносятся с вами."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Beide Spiegel liefern denselben Inhalt. Passcode und Altersbestätigung kommen mit."
-          }
-        }
-      }
-    },
     "Bring every hidden thread back?": {
       "extractionState": "manual",
       "localizations": {
@@ -3108,6 +3062,29 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "Every mirror serves the same content. Your passcode and age confirmation move with you.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every mirror serves the same content. Your passcode and age confirmation move with you."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Все зеркала отдают одно и то же. Пасскод и подтверждение возраста переезжают вместе с вами."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Spiegel liefern denselben Inhalt. Passcode und Altersbestätigung kommen mit."
           }
         }
       }

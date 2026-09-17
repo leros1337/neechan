@@ -3,12 +3,19 @@ import Synchronization
 
 /// The 2ch domain the app talks to.
 ///
-/// 2ch serves byte-identical JSON from several mirrors. Neechan deliberately
-/// exposes only these two. Every model stores server paths *relative* to the
-/// domain, so switching domains needs no data migration.
+/// 2ch serves byte-identical JSON from several mirrors, and these are the ones
+/// Neechan offers. Every model stores server paths *relative* to the domain, so
+/// switching between them needs no data migration.
+///
+/// Adding one here is enough: the cookie jars this site owns, the mirror picker
+/// in Forum settings, and the cookies carried across when the reader switches
+/// are all derived from `allCases`. A pasted link naming any of 2ch's hosts
+/// already resolves whether or not it is offered here — see
+/// `Imageboard.linkHosts`, which is a longer list on purpose.
 public enum DvachDomain: String, CaseIterable, Sendable, Codable {
     case org = "2ch.org"
     case life = "2ch.life"
+    case su = "2ch.su"
 
     public static let `default` = DvachDomain.org
 

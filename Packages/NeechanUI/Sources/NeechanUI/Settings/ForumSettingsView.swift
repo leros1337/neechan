@@ -45,7 +45,7 @@ struct ForumSettingsView: View {
                     }
                 } footer: {
                     Text(
-                        "Both mirrors serve the same content. Your passcode and age confirmation move with you.",
+                        "Every mirror serves the same content. Your passcode and age confirmation move with you.",
                         bundle: .module
                     )
                 }
