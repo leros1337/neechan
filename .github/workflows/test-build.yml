@@ -15,13 +15,22 @@ name: Test build
 # `macos-26` tops out at Xcode 26.6. So a green run here says the app still
 # builds; the summary below is what says whether the Duo code was in it.
 on:
+  # Temporary, and only this branch. `workflow_dispatch` is not dispatchable
+  # until the file reaches the default branch -- the API answers 404 for a
+  # workflow it cannot see there -- so until this merges, a push is the only
+  # way to run it. Delete this trigger on the way in; the dispatch below is
+  # what it is meant to be driven by.
+  push:
+    branches: [feat/iphone-duo]
   workflow_dispatch:
     inputs:
       runner:
         description: "Runner image to probe"
         type: choice
         required: false
-        default: macos-26
+        # The newest SDK is the question this workflow exists to ask, so it is
+        # the default. `macos-26` is what release.yml already proves.
+        default: xcode-27
         options: [xcode-27, macos-26, macos-latest, macos-15]
       xcode:
         description: "Xcode version, e.g. 27.1. Empty picks the newest installed."
@@ -38,7 +47,8 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ${{ inputs.runner || 'macos-26' }}
+    # `inputs` is empty on a push, so the fallback is what that run uses.
+    runs-on: ${{ inputs.runner || 'xcode-27' }}
     # A resolve of FFmpegKit that hangs would otherwise burn macOS minutes,
     # which bill at ten times the Linux rate.
     timeout-minutes: 90
@@ -54,7 +64,7 @@ jobs:
           {
             echo "### Runner"
             echo '```'
-            echo "image: ${{ inputs.runner || 'macos-26' }}"
+            echo "image: ${{ inputs.runner || 'xcode-27' }}"
             sw_vers
             echo '```'
             echo "### Xcode versions installed"
@@ -82,7 +92,7 @@ jobs:
           if [ -n "$want" ]; then
             app="/Applications/Xcode_$want.app"
             if [ ! -d "$app" ]; then
-              echo "::error::Xcode_$want is not on ${{ inputs.runner || 'macos-26' }}"
+              echo "::error::Xcode_$want is not on ${{ inputs.runner || 'xcode-27' }}"
               exit 1
             fi
           else
