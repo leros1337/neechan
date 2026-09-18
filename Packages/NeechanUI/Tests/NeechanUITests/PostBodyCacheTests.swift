@@ -15,9 +15,15 @@ struct PostBodyCacheTests {
     private func options(
         postNum: Int = 1,
         revealSpoilers: Bool = false,
-        palette: PostTextRenderer.Palette = .init()
+        palette: PostTextRenderer.Palette = .init(),
+        ownPostNums: Set<Int> = []
     ) -> PostTextRenderer.Options {
-        .init(postNum: postNum, revealSpoilers: revealSpoilers, palette: palette)
+        .init(
+            postNum: postNum,
+            revealSpoilers: revealSpoilers,
+            palette: palette,
+            ownPostNums: ownPostNums
+        )
     }
 
     /// Counts renders. Not a `var`: the cache's closure escapes.
@@ -94,6 +100,49 @@ struct PostBodyCacheTests {
         _ = cache.body(for: body, board: "po", options: options())
 
         #expect(counter.calls == 2)
+    }
+
+    /// A post read before the reader replied was rendered without its marker.
+    /// Nothing in the key changes when they post, so without this the body from
+    /// before would be served for as long as it survives eviction.
+    @Test("a reference that became the reader's own is rendered again")
+    func newlyOwnedReferenceIsRenderedAgain() {
+        let (cache, counter) = makeCache()
+        let body = content(Self.reply(to: 99))
+
+        _ = cache.body(for: body, board: "b", options: options())
+        _ = cache.body(for: body, board: "b", options: options(ownPostNums: [99]))
+
+        #expect(counter.calls == 2)
+    }
+
+    @Test("the same marked reference twice still renders once")
+    func markedReferenceIsStillCached() {
+        let (cache, counter) = makeCache()
+        let body = content(Self.reply(to: 99))
+
+        _ = cache.body(for: body, board: "b", options: options(ownPostNums: [99]))
+        _ = cache.body(for: body, board: "b", options: options(ownPostNums: [99]))
+
+        #expect(counter.calls == 1)
+    }
+
+    /// Only the numbers this post actually points at can change how it draws.
+    /// Keying on the whole set would re-render every post in the thread each
+    /// time the reader posted.
+    @Test("posting elsewhere in the thread does not re-render a post that never quoted you")
+    func unrelatedOwnPostsDoNotInvalidate() {
+        let (cache, counter) = makeCache()
+        let body = content(Self.reply(to: 99))
+
+        _ = cache.body(for: body, board: "b", options: options())
+        _ = cache.body(for: body, board: "b", options: options(ownPostNums: [4321]))
+
+        #expect(counter.calls == 1)
+    }
+
+    private static func reply(to postNum: Int) -> String {
+        #"<a class="post-reply-link" data-thread="100" data-num="\#(postNum)">&gt;&gt;\#(postNum)</a>"#
     }
 
     @Test("the cache stays inside its capacity")

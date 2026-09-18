@@ -18,6 +18,9 @@ struct QuotePopupView: View {
     /// and the index will then answer confidently with the *local* post's
     /// replies. Counting it would put one post's replies on another.
     let replyCount: Int
+    /// Posts the reader wrote in the thread behind this popup, so a `>>N` in the
+    /// quoted body can be marked. Empty when the quote came from another thread.
+    let ownPostNums: Set<Int>
     /// Opens the window listing those replies.
     var onOpenReplies: () -> Void = {}
     var onDismiss: () -> Void
@@ -227,7 +230,8 @@ struct QuotePopupView: View {
             options: .init(
                 postNum: quoted.post.num,
                 revealSpoilers: revealSpoilers,
-                palette: .init(theme: theme)
+                palette: .init(theme: theme),
+                ownPostNums: ownPostNums
             )
         )
     }
@@ -356,6 +360,7 @@ struct RepliesSheet: View {
             backlinks: [],
             isOwn: snapshot.isOwn(post.num),
             repliesToOwn: false,
+            ownPostNums: snapshot.ownPostNums,
             isDeleted: snapshot.isDeleted(post.num),
             isNew: false,
             revealSpoilers: revealedSpoilers.contains(post.num),

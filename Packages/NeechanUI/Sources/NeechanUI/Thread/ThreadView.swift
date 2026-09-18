@@ -113,6 +113,7 @@ public struct ThreadView: View {
                         backlinks: model.snapshot.index.backlinks(to: post.num),
                         isOwn: model.snapshot.isOwn(post.num),
                         repliesToOwn: model.snapshot.repliesToOwnPost(post.num),
+                        ownPostNums: model.snapshot.ownPostNums,
                         isDeleted: model.snapshot.isDeleted(post.num),
                         isNew: model.isNew(post.num),
                         revealSpoilers: model.isRevealed(post.num),
@@ -578,6 +579,11 @@ public struct ThreadView: View {
                     quoted: quoted,
                     depth: model.quotePopups.count,
                     replyCount: model.snapshot.index.backlinks(to: quoted.post.num).count,
+                    // Empty for a post fetched from elsewhere, for the same
+                    // reason the reply count above is withheld: its references
+                    // are numbered against another thread, where a number the
+                    // reader owns here belongs to somebody else.
+                    ownPostNums: quoted.isRemote ? [] : model.snapshot.ownPostNums,
                     onOpenReplies: { model.repliesSheetPostNum = quoted.post.num },
                     onDismiss: {
                         withAnimation(.snappy(duration: 0.2)) { model.dismissTopQuote() }

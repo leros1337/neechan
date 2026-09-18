@@ -23,6 +23,10 @@ struct PostCellView: View {
     let backlinks: [Int]
     let isOwn: Bool
     let repliesToOwn: Bool
+    /// Every post in this thread the reader wrote, so a `>>N` in this body that
+    /// points at one of them can be marked. The whole set rather than a flag,
+    /// because the marking is per reference, not per post.
+    let ownPostNums: Set<Int>
     let isDeleted: Bool
     let isNew: Bool
     let revealSpoilers: Bool
@@ -185,7 +189,8 @@ struct PostCellView: View {
             options: .init(
                 postNum: post.num,
                 revealSpoilers: revealSpoilers,
-                palette: .init(theme: theme)
+                palette: .init(theme: theme),
+                ownPostNums: ownPostNums
             )
         )
     }

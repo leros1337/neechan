@@ -26,6 +26,14 @@ final class PostBodyCache {
         /// the node tree, which is shared with the reply index and so usually
         /// settles on identical storage and costs nothing.
         let content: PostContent
+        /// Which of this post's references were drawn with the reader's mark.
+        ///
+        /// Nothing in `Key` moves when the reader posts, so a body rendered
+        /// before they replied would otherwise be served unmarked for as long as
+        /// it survived eviction. Kept as the marked subset rather than the whole
+        /// set of own posts, so posting in a thread only re-renders the handful
+        /// of posts that quoted you rather than all of them.
+        let markedRefs: Set<Int>
         let text: AttributedString
         var usedAt: UInt64
     }
@@ -65,14 +73,21 @@ final class PostBodyCache {
         )
         clock &+= 1
 
-        if var hit = entries[key], hit.content == content {
+        // Over the references parsed with the post, not over its tree.
+        let markedRefs = Set(
+            content.references.lazy.filter(options.marks).map(\.postNum)
+        )
+
+        if var hit = entries[key], hit.content == content, hit.markedRefs == markedRefs {
             hit.usedAt = clock
             entries[key] = hit
             return hit.text
         }
 
         let text = render(content, options)
-        entries[key] = Entry(content: content, text: text, usedAt: clock)
+        entries[key] = Entry(
+            content: content, markedRefs: markedRefs, text: text, usedAt: clock
+        )
         evictIfNeeded()
         return text
     }

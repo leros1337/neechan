@@ -34,15 +34,26 @@ public struct PostTextRenderer: Sendable {
         public var postNum: Int
         /// The colours to draw with.
         public var palette: Palette
+        /// Posts in this thread the reader wrote, so a `>>N` pointing at one can
+        /// say so. Thread-scoped on purpose: post numbers are board-wide, and a
+        /// reference into another thread can carry a number the reader owns.
+        public var ownPostNums: Set<Int>
 
         public init(
             postNum: Int,
             revealSpoilers: Bool = false,
-            palette: Palette = Palette()
+            palette: Palette = Palette(),
+            ownPostNums: Set<Int> = []
         ) {
             self.postNum = postNum
             self.revealSpoilers = revealSpoilers
             self.palette = palette
+            self.ownPostNums = ownPostNums
+        }
+
+        /// Whether a `>>N` points at a post the reader wrote in this thread.
+        func marks(_ reference: PostReference) -> Bool {
+            reference.isSameThread && ownPostNums.contains(reference.postNum)
         }
     }
 
@@ -111,9 +122,31 @@ public struct PostTextRenderer: Sendable {
                 var inner = context
                 inner.link = NeechanURL.post(reference)
                 append(children, to: &result, style: style, context: inner)
+
+                if context.options.marks(reference) {
+                    // Built from `context` rather than `inner`, so it carries no
+                    // link: the marker is not a tap target, and anything looking
+                    // a reference up by its label still sees ">>N" alone. Going
+                    // through `run` is what keeps it inside a spoiler's blackout
+                    // instead of sitting on top of it.
+                    result.append(
+                        run(" " + Self.ownReferenceMark, style: style, context: context)
+                    )
+                }
             }
         }
     }
+
+    /// Appended to a `>>N` pointing at a post the reader wrote.
+    ///
+    /// 2ch marks a reference to the opening post the same way, but does it
+    /// server-side by shipping " (OP)" inside the anchor; this is the app's own
+    /// half of the same idea.
+    private static let ownReferenceMark = String(
+        localized: "(Y)",
+        bundle: .module,
+        comment: "Follows a >>N reference that points at a post the reader wrote"
+    )
 
     private func run(_ text: String, style: PostStyle, context: Context) -> AttributedString {
         var run = AttributedString(text)

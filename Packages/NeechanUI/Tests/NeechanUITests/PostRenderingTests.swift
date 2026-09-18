@@ -45,11 +45,19 @@ struct PostTextRendererTests {
     private let parser = CommentHTMLParser()
     private let renderer = PostTextRenderer()
 
-    private func render(_ html: String, revealSpoilers: Bool = false) -> AttributedString {
+    private func render(
+        _ html: String,
+        revealSpoilers: Bool = false,
+        ownPostNums: Set<Int> = []
+    ) -> AttributedString {
         let content = parser.parse(html, inThread: 100, onBoard: "b")
         return renderer.render(
             content,
-            options: .init(postNum: 101, revealSpoilers: revealSpoilers)
+            options: .init(
+                postNum: 101,
+                revealSpoilers: revealSpoilers,
+                ownPostNums: ownPostNums
+            )
         )
     }
 
@@ -123,6 +131,66 @@ struct PostTextRendererTests {
     @Test("an empty body renders to nothing")
     func emptyBody() {
         #expect(render("").characters.isEmpty)
+    }
+
+    // MARK: References to the reader's own posts
+
+    private static let ownReply =
+        #"<a class="post-reply-link" data-thread="100" data-num="99">&gt;&gt;99</a>"#
+
+    @Test("a reference to one of the reader's posts is marked")
+    func ownReferenceIsMarked() {
+        let rendered = render(Self.ownReply, ownPostNums: [99])
+        #expect(String(rendered.characters) == ">>99 (Y)")
+    }
+
+    /// The marker sits beside the link rather than inside it, so a tap on it
+    /// does nothing and anything matching the link by its label still finds
+    /// ">>99" and not ">>99 (Y)".
+    @Test("the marker is not part of the link")
+    func markerIsNotPartOfTheLink() {
+        let rendered = render(Self.ownReply, ownPostNums: [99])
+        let linked = rendered.runs.filter { $0.link != nil }
+
+        #expect(linked.map { String(rendered[$0.range].characters) } == [">>99"])
+    }
+
+    @Test("a reference to someone else's post is left alone")
+    func foreignReferenceIsNotMarked() {
+        #expect(String(render(Self.ownReply, ownPostNums: [1234]).characters) == ">>99")
+    }
+
+    /// Post numbers are board-wide, so a thread the reader never posted in can
+    /// carry a number they own elsewhere. Marking it would claim someone else's
+    /// post as theirs.
+    @Test("a reference into another thread is not marked, even on a number the reader owns")
+    func crossThreadReferenceIsNotMarked() {
+        let rendered = render(
+            #"<a class="post-reply-link" data-thread="777" data-num="99">&gt;&gt;99</a>"#,
+            ownPostNums: [99]
+        )
+        #expect(String(rendered.characters) == ">>99")
+    }
+
+    @Test("a reader with no posts of their own renders exactly as before")
+    func noOwnPostsChangesNothing() {
+        #expect(render(Self.ownReply) == render(Self.ownReply, ownPostNums: []))
+        #expect(String(render(Self.ownReply).characters) == ">>99")
+    }
+
+    /// The marker is drawn through the same run builder as the text around it,
+    /// so it is blacked out with the rest of a spoiler instead of sitting on top
+    /// of it announcing that the hidden post is the reader's.
+    @Test("a marked reference inside a spoiler stays hidden")
+    func markerInsideASpoilerIsHidden() {
+        let rendered = render(
+            #"<span class="spoiler">"# + Self.ownReply + "</span>",
+            ownPostNums: [99]
+        )
+        let marker = rendered.runs.first { String(rendered[$0.range].characters).contains("(Y)") }
+
+        #expect(marker?.backgroundColor == .defaultSpoilerHidden)
+        #expect(marker?.foregroundColor == .defaultSpoilerHidden)
     }
 }
 

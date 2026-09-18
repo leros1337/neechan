@@ -712,6 +712,30 @@
         }
       }
     },
+    "(Y)": {
+      "comment": "Follows a >>N reference that points at a post the reader wrote",
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(Y)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(Y)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(Y)"
+          }
+        }
+      }
+    },
     "1 day": {
       "extractionState": "manual",
       "localizations": {
