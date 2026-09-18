@@ -78,7 +78,23 @@ struct BuiltInThemeTests {
     @Test("the app ships more than one scheme to choose from")
     func shipsSeveral() {
         #expect(NeechanTheme.builtIns.count >= 5)
-        #expect(NeechanTheme.builtIns.first == .builtIn, "the system look stays the first row")
+        #expect(NeechanTheme.builtIns.first == .builtIn, "the default look stays the first row")
+    }
+
+    @Test("the app opens on Amber")
+    func amberIsTheDefault() {
+        #expect(NeechanTheme.builtIn.name == "Amber")
+        #expect(NeechanTheme.builtIn.id == "neechan.amber")
+    }
+
+    /// The look the app used to open on. A reader who chose it explicitly has
+    /// its id on disk, so the id outlives the rename.
+    @Test("the old default is still offered, as Midnight")
+    func midnightIsOffered() throws {
+        let midnight = try #require(NeechanTheme.builtIn(id: "neechan.system"))
+        #expect(midnight.name == "Midnight")
+        #expect(midnight.accent == ThemeColor(red: 0.30, green: 0.68, blue: 0.95))
+        #expect(midnight.isDark)
     }
 
     @Test("every built-in is marked as one, and imported themes are not")

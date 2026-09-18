@@ -91,17 +91,19 @@ public struct NeechanTheme: Sendable, Hashable, Codable, Identifiable {
         self.isDark = isDark
     }
 
-    /// The look the app ships with, and the one every unknown theme id falls
-    /// back to.
+    /// The cool light-blue look the app used to open on, offered as "Midnight",
+    /// and the palette every other shipped scheme borrows its neutrals from.
     ///
-    /// This is the palette that used to ship as "Midnight": a cool light-blue
-    /// accent and the post colours that suit a dark board, which is how the app
-    /// is mostly read. Light and dark mode are still the reader's Appearance
-    /// setting — a theme here is only the accent and the colours inside a post,
-    /// since Liquid Glass supplies the chrome.
-    public static let builtIn = NeechanTheme(
+    /// The id is the one it has always had. A reader who chose this look has
+    /// that id on disk, and a rename that changed it would quietly move them
+    /// onto the new default instead.
+    ///
+    /// Light and dark mode are still the reader's Appearance setting — a theme
+    /// here is only the accent and the colours inside a post, since Liquid
+    /// Glass supplies the chrome.
+    static let midnight = NeechanTheme(
         id: "neechan.system",
-        name: "System",
+        name: "Midnight",
         accent: ThemeColor(red: 0.30, green: 0.68, blue: 0.95),
         background: ThemeColor(red: 0.07, green: 0.09, blue: 0.11),
         card: ThemeColor(red: 0.11, green: 0.14, blue: 0.17),
@@ -111,6 +113,15 @@ public struct NeechanTheme: Sendable, Hashable, Codable, Identifiable {
         quote: ThemeColor(red: 0.50, green: 0.76, blue: 0.50),
         spoiler: ThemeColor(red: 0.18, green: 0.22, blue: 0.26),
         isDark: true
+    )
+
+    /// The look the app ships with, and the one every unknown theme id falls
+    /// back to.
+    public static let builtIn = scheme(
+        id: "neechan.amber",
+        name: "Amber",
+        accent: ThemeColor(red: 0.85, green: 0.58, blue: 0.13),
+        quote: ThemeColor(red: 0.38, green: 0.53, blue: 0.28)
     )
 
     /// Whether this is one of the shipped looks, which cannot be deleted.
@@ -147,12 +158,7 @@ public struct NeechanTheme: Sendable, Hashable, Codable, Identifiable {
             accent: ThemeColor(red: 0.55, green: 0.35, blue: 0.82),
             quote: ThemeColor(red: 0.40, green: 0.54, blue: 0.33)
         ),
-        scheme(
-            id: "neechan.amber",
-            name: "Amber",
-            accent: ThemeColor(red: 0.85, green: 0.58, blue: 0.13),
-            quote: ThemeColor(red: 0.38, green: 0.53, blue: 0.28)
-        ),
+        midnight,
     ]
 
     /// A built-in with this id, if there is one.
@@ -160,7 +166,7 @@ public struct NeechanTheme: Sendable, Hashable, Codable, Identifiable {
         builtIns.first { $0.id == id }
     }
 
-    /// A light scheme that differs from the shipped one only where it has to.
+    /// A scheme that differs from the Midnight palette only where it has to.
     ///
     /// The backgrounds stay the system's, so the app keeps following light and
     /// dark mode; only the colours a reader actually notices are changed.
@@ -174,13 +180,13 @@ public struct NeechanTheme: Sendable, Hashable, Codable, Identifiable {
             id: id,
             name: name,
             accent: accent,
-            background: builtIn.background,
-            card: builtIn.card,
-            postText: builtIn.postText,
-            secondaryText: builtIn.secondaryText,
+            background: midnight.background,
+            card: midnight.card,
+            postText: midnight.postText,
+            secondaryText: midnight.secondaryText,
             link: accent,
             quote: quote,
-            spoiler: builtIn.spoiler,
+            spoiler: midnight.spoiler,
             isDark: false
         )
     }

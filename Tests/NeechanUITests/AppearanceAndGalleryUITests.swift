@@ -40,21 +40,21 @@ final class AppearanceAndGalleryUITests: LiveUITestCase {
             app.navigationBars["Theme"].waitForExistence(timeout: 5),
             "the theme screen did not open"
         )
-        for scheme in ["System", "Crimson", "Forest", "Amber"] {
+        for scheme in ["Amber", "Crimson", "Forest", "Midnight"] {
             XCTAssertTrue(
                 app.staticTexts[scheme].exists,
                 "\(scheme) is not offered"
             )
         }
-        // Midnight became the System scheme, and Solarized went with it.
-        for gone in ["Midnight", "Solarized"] {
+        // The blue scheme is called Midnight again, and Solarized is long gone.
+        for gone in ["System", "Solarized"] {
             XCTAssertFalse(app.staticTexts[gone].exists, "\(gone) should no longer be offered")
         }
 
         // From a known scheme: a failed run stops before its own reset, so the
         // next one would start on the very scheme it is about to pick and see
         // nothing change.
-        app.staticTexts["System"].tap()
+        app.staticTexts["Midnight"].tap()
         Thread.sleep(forTimeInterval: 1.0)
 
         let before = app.screenshot().image
@@ -66,7 +66,31 @@ final class AppearanceAndGalleryUITests: LiveUITestCase {
             app.screenshot().image.pngData(),
             "picking a scheme changed nothing"
         )
-        app.staticTexts["System"].tap()
+        app.staticTexts["Amber"].tap()
+    }
+
+    /// The default heads the list, which is where a reader who has chosen
+    /// nothing will look for the scheme they are already on.
+    ///
+    /// That it is also the scheme they get is settled in NeechanCore, where the
+    /// id resolves; this is only about the order on screen.
+    func testAmberHeadsTheThemeList() throws {
+        let app = launchApp()
+        openSettings(app)
+        app.buttons["Appearance"].firstMatch.tap()
+        app.buttons["Theme"].firstMatch.tap()
+
+        XCTAssertTrue(
+            app.navigationBars["Theme"].waitForExistence(timeout: 5),
+            "the theme screen did not open"
+        )
+
+        attach(app, name: "08-theme-list")
+
+        XCTAssertEqual(
+            app.cells.staticTexts.allElementsBoundByIndex.first?.label, "Amber",
+            "Amber should head the list"
+        )
     }
 
     /// The layout picked on a board is still in force after leaving it.
