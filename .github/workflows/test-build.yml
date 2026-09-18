@@ -15,13 +15,6 @@ name: Test build
 # `macos-26` tops out at Xcode 26.6. So a green run here says the app still
 # builds; the summary below is what says whether the Duo code was in it.
 on:
-  # Temporary, and only this branch. `workflow_dispatch` is not dispatchable
-  # until the file reaches the default branch -- the API answers 404 for a
-  # workflow it cannot see there -- so until this merges, a push is the only
-  # way to run it. Delete this trigger on the way in; the dispatch below is
-  # what it is meant to be driven by.
-  push:
-    branches: [feat/iphone-duo]
   workflow_dispatch:
     inputs:
       runner:
