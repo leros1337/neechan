@@ -42,6 +42,10 @@ struct PostCellView: View {
     var onReply: (() -> Void)? = nil
     /// Hides posts by a rule made from this one.
     var onHide: (LocalHideRule) -> Void = { _ in }
+    /// Claims this post as the reader's own, or takes the claim back.
+    /// Nil where nothing is listening, so the item is left out rather than
+    /// offered and ignored.
+    var onToggleOwn: (() -> Void)? = nil
     /// This post's own address on the site, for copying and sharing.
     var postURL: URL?
 
@@ -149,6 +153,23 @@ struct PostCellView: View {
                 }
             }
             Section {
+                if let onToggleOwn {
+                    Button(action: onToggleOwn) {
+                        Label {
+                            if isOwn {
+                                Text("Not my post", bundle: .module)
+                            } else {
+                                Text("This is my post", bundle: .module)
+                            }
+                        } icon: {
+                            Image(
+                                systemName: isOwn
+                                    ? "person.crop.circle.badge.xmark"
+                                    : "person.crop.circle.badge.checkmark"
+                            )
+                        }
+                    }
+                }
                 Menu {
                     Button { onHide(.post(num: post.num)) } label: {
                         Text("This post", bundle: .module)

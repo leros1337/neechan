@@ -44,16 +44,26 @@ public actor ThreadRepository {
         keepDeletedPosts = keep
     }
 
-    /// Marks which posts were written from this device.
+    /// Marks which posts were written from this device, or claimed by hand.
     ///
-    /// Does nothing when the set is unchanged. This is read from the store
-    /// before every refresh, and rebuilding the snapshot for an answer that had
-    /// not moved was one of the two redundant re-renders each refresh caused.
-    public func setOwnPostNums(_ nums: Set<Int>) {
-        guard nums != ownPostNums else { return }
+    /// Does nothing when the set is unchanged, and answers nil to say so. This
+    /// is read from the store before every refresh, and rebuilding the snapshot
+    /// for an answer that had not moved was one of the two redundant re-renders
+    /// each refresh caused.
+    ///
+    /// Returns the update as well as yielding it, so a caller that is only
+    /// setting this — claiming a post by hand, with no refresh behind it — has
+    /// the new snapshot in hand instead of waiting on the stream to be read.
+    /// Whoever is reading the stream too will see the same generation and drop
+    /// the second copy.
+    @discardableResult
+    public func setOwnPostNums(_ nums: Set<Int>) -> ThreadUpdate? {
+        guard nums != ownPostNums else { return nil }
         ownPostNums = nums
         rebuildSnapshot()
-        continuation.yield(.metaChanged(snapshot))
+        let update = ThreadUpdate.metaChanged(snapshot)
+        continuation.yield(update)
+        return update
     }
 
     // MARK: Loading

@@ -583,6 +583,62 @@ struct RefreshAnnouncementTests {
         #expect(announcement.destinationPostNum == announcement.firstReplyToOwnPostNum)
     }
 
+    // MARK: Claiming a post by hand
+
+    /// Posting from the app is the only thing that records an own post, which
+    /// leaves no way to claim one written from a browser or a second device, and
+    /// no way back from a wrong claim.
+    @Test("a post can be claimed as the reader's own")
+    func claimingAPostMarksIt() async throws {
+        let (model, _, _) = try await loadedModel()
+        let post = try #require(model.snapshot.posts.first).num
+        #expect(model.snapshot.isOwn(post) == false, "the fixture already claimed it")
+
+        await model.setOwned(true, postNum: post)
+
+        #expect(model.snapshot.isOwn(post))
+    }
+
+    @Test("a claim can be taken back")
+    func unclaimingAPostUnmarksIt() async throws {
+        let (model, _, _) = try await loadedModel()
+        let post = try #require(model.snapshot.posts.first).num
+        await model.setOwned(true, postNum: post)
+
+        await model.setOwned(false, postNum: post)
+
+        #expect(model.snapshot.isOwn(post) == false)
+    }
+
+    /// A claim is worth nothing if it is forgotten when the thread is left, so
+    /// it goes through the same store that posting writes to.
+    @Test("a claim outlives the thread it was made in")
+    func claimIsRemembered() async throws {
+        let (model, _, services) = try await loadedModel()
+        let post = try #require(model.snapshot.posts.first).num
+
+        await model.setOwned(true, postNum: post)
+
+        #expect(try await services.ownPosts.postNums(in: key).contains(post))
+    }
+
+    /// Claiming a post is how the reader gets the marker on every `>>N` that
+    /// answers it, so the replies have to be recounted as well as the post
+    /// itself being marked.
+    @Test("claiming a post makes its replies count as replies to the reader")
+    func claimingAPostCountsItsReplies() async throws {
+        let (model, _, _) = try await loadedModel()
+        let quoted = try #require(try firstQuotedPostNum())
+        let replying = try #require(
+            model.snapshot.posts.first { model.snapshot.index.references(from: $0.num).contains(quoted) }
+        )
+        #expect(model.snapshot.repliesToOwnPost(replying.num) == false)
+
+        await model.setOwned(true, postNum: quoted)
+
+        #expect(model.snapshot.repliesToOwnPost(replying.num))
+    }
+
     @Test("a refresh that answers nobody reports no replies")
     func countsNoRepliesWhenNoneAreOwn() async throws {
         let (model, transport, _) = try await loadedModel()

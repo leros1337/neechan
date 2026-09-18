@@ -248,6 +248,9 @@ struct RepliesSheet: View {
     /// Called for a destination this window cannot show: a post in another
     /// thread, or a link out to the web.
     var onOpenOutside: (NeechanURL.Action) -> Void
+    /// Claims a post as the reader's own, or takes the claim back. Handled by
+    /// the thread behind this window, which owns the snapshot the cards read.
+    var onToggleOwn: (Int, Bool) -> Void = { _, _ in }
 
     @Environment(\.dismiss) private var dismiss
     @Environment(AppServices.self) private var services
@@ -366,7 +369,8 @@ struct RepliesSheet: View {
             revealSpoilers: revealedSpoilers.contains(post.num),
             indexInThread: snapshot.indexInThread(of: post),
             onOpenReplies: {},
-            onOpenAttachment: { attachment in openGallery(at: attachment) }
+            onOpenAttachment: { attachment in openGallery(at: attachment) },
+            onToggleOwn: { onToggleOwn(post.num, !snapshot.isOwn(post.num)) }
         )
     }
 

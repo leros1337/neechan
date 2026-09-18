@@ -337,7 +337,19 @@ public final class ThreadViewModel {
         else {
             return
         }
-        await repository.setOwnPostNums(nums)
+        if let update = await repository.setOwnPostNums(nums) { apply(update) }
+    }
+
+    /// Claims a post as the reader's own, or takes the claim back.
+    ///
+    /// Posting from this device is otherwise the only thing that records one,
+    /// which leaves a post written from a browser or a second device
+    /// unmarkable, and a post claimed by mistake stuck that way. Reloading the
+    /// set afterwards is what puts the `(Me)` badge, the border and the `(Y)` on
+    /// every `>>N` answering it in step with the store.
+    public func setOwned(_ owned: Bool, postNum: Int) async {
+        try? await services.ownPosts.setOwned(owned, in: key, postNum: postNum)
+        await loadOwnPosts()
     }
 
     /// Recomputes which posts a rule hides.

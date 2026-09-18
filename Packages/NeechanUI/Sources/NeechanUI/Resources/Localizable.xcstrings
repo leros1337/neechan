@@ -5344,6 +5344,29 @@
         }
       }
     },
+    "Not my post": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht mein Beitrag"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not my post"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не мой пост"
+          }
+        }
+      }
+    },
     "Nothing found": {
       "extractionState": "manual",
       "localizations": {
@@ -9296,6 +9319,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dieses Imageboard bietet das nicht."
+          }
+        }
+      }
+    },
+    "This is my post": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das ist mein Beitrag"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This is my post"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Это мой пост"
           }
         }
       }

@@ -125,6 +125,13 @@ public struct ThreadView: View {
                         onReply: services.allowsPosting
                             ? { replyTarget = ReplyTarget(quoting: post.num) } : nil,
                         onHide: { rule in Task { await model.hide(rule) } },
+                        onToggleOwn: {
+                            Task {
+                                await model.setOwned(
+                                    !model.snapshot.isOwn(post.num), postNum: post.num
+                                )
+                            }
+                        },
                         postURL: SiteLinks.post(
                             board: key.board,
                             threadNum: key.threadNum,
@@ -187,7 +194,10 @@ public struct ThreadView: View {
             RepliesSheet(
                 rootPostNum: target.postNum,
                 snapshot: model.snapshot,
-                onOpenOutside: { action in handle(action, model: model) }
+                onOpenOutside: { action in handle(action, model: model) },
+                onToggleOwn: { postNum, owned in
+                    Task { await model.setOwned(owned, postNum: postNum) }
+                }
             )
             .presentationDetents([.large])
         }
