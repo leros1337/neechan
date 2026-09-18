@@ -3,6 +3,40 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## 2.1.0
+
+Support for iPhone Duo, which has two displays and a hinge. The app already
+adapted to whatever width it was given, so most of this is meeting the platform
+where it genuinely differs: controls the system moves to the side, a display
+that divides down the middle while the device is part-folded, and a front
+camera in the corner it used to draw into.
+
+### iPhone Duo
+
+- **Both displays, and the poses between them.** The outer display gets the tab
+  shell and the inner one the sidebar, which is the split the guidance asks for,
+  and what you were reading carries across as the device opens and closes.
+- **Controls on the side.** The system stacks the toolbar and the tab bar down
+  the edge of the outer display. The tab bar's mirroring -- which exists to put
+  the minimized pill under your thumb -- is switched off there, because it was
+  pushing the bar to the edge opposite the camera and the status bar rather
+  than joining them.
+- **The fold.** The gallery and the doomscroll feed hand the file one plane of a
+  part-folded display and its controls the other. Grids keep an even number of
+  columns so that no column of cells straddles the crease, and anything drawn
+  edge to edge stays clear of the front camera.
+- This part needs iOS 27.1, which is where the APIs it is built on arrive.
+  Everything below applies wherever the app runs.
+
+### Everywhere
+
+- **Toolbar buttons carry a symbol as well as a title.** Sixteen of them were
+  text alone, which the system will not place on a vertical axis at all.
+- **A measure for thread posts.** A post no longer runs the whole width of a
+  wide window -- the same clamp the quote popup has always had.
+- **Replies, the attachment grid and the favorites window open to the side** on
+  a display wide enough to hold them beside the thread.
+
 ## 2.0.0
 
 The major number moves because Neechan is no longer a client for one imageboard,
