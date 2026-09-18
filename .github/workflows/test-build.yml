@@ -6,10 +6,14 @@ name: Test build
 # package suites, and the XCUITests drive the live site, which is not something
 # a toolchain probe should depend on. This exists to answer one question, which
 # `release.yml` cannot while it stays pinned to Xcode 26.6 -- whether the
-# iPhone Duo support builds on CI at all. The Duo APIs are absent from the iOS
-# 26 SDK, so they sit behind `#if compiler(>=6.4)` and compile out on an older
-# toolchain rather than failing; a green build on Xcode 26 therefore proves
-# nothing about them, and the summary below says which of the two happened.
+# iPhone Duo support builds on CI at all.
+#
+# Mind what green means here. The Duo APIs arrived in the iOS 27.1 SDK, so they
+# sit behind a `canImport(SwiftUI, _version:)` check and compile out against
+# anything older rather than failing the build. At the time of writing no
+# GitHub image ships 27.1: `xcode-27` is Xcode 27.0 with the iOS 27.0 SDK, and
+# `macos-26` tops out at Xcode 26.6. So a green run here says the app still
+# builds; the summary below is what says whether the Duo code was in it.
 on:
   workflow_dispatch:
     inputs:
@@ -18,7 +22,7 @@ on:
         type: choice
         required: false
         default: macos-26
-        options: [macos-26, macos-latest, macos-15]
+        options: [xcode-27, macos-26, macos-latest, macos-15]
       xcode:
         description: "Xcode version, e.g. 27.1. Empty picks the newest installed."
         required: false
@@ -91,22 +95,22 @@ jobs:
           xcodebuild -version
 
       - name: Say whether the Duo code will be compiled in
-        # The point of the whole run. `#if compiler(>=6.4)` is how the app asks
-        # which SDK it is being built against, because Swift has no way to ask
-        # directly and Xcode 27 is the first to ship 6.4.
+        # The point of the whole run. The guard keys off the iOS SDK, not the
+        # compiler, because Xcode 27.0 and 27.1 ship the same compiler and only
+        # 27.1 carries the APIs -- so the compiler version cannot answer this.
         run: |
           set -uo pipefail
-          version=$(swift --version 2>&1 | head -1)
-          major=$(printf '%s\n' "$version" | sed -n 's/.*version \([0-9]*\)\..*/\1/p')
-          minor=$(printf '%s\n' "$version" | sed -n 's/.*version [0-9]*\.\([0-9]*\).*/\1/p')
+          sdk=$(xcrun --sdk iphoneos --show-sdk-version 2>/dev/null || echo "unknown")
           {
             echo "### Duo support"
             echo '```'
-            echo "$version"
-            if [ "${major:-0}" -gt 6 ] || { [ "${major:-0}" -eq 6 ] && [ "${minor:-0}" -ge 4 ]; }; then
-              echo "compiler(>=6.4) is TRUE  -> iPhone Duo code is compiled in"
+            echo "iOS SDK: $sdk"
+            if [ "$sdk" = "unknown" ]; then
+              echo "could not read the SDK version"
+            elif [ "$(printf '%s\n27.1\n' "$sdk" | sort -V | head -1)" = "27.1" ]; then
+              echo "iOS 27.1 or newer -> iPhone Duo code IS compiled in"
             else
-              echo "compiler(>=6.4) is FALSE -> iPhone Duo code is compiled out"
+              echo "older than iOS 27.1 -> iPhone Duo code is COMPILED OUT"
               echo "(the build can still go green; it just does not cover that code)"
             fi
             echo '```'
