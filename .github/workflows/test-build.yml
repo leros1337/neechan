@@ -71,14 +71,22 @@ jobs:
             echo '```'
             for app in /Applications/Xcode*.app; do
               [ -d "$app" ] || continue
-              printf '%-34s ' "$app"
-              "$app/Contents/Developer/usr/bin/xcodebuild" -version 2>/dev/null | head -1 \
-                || echo "(could not read)"
+              # Read the version out of the bundle rather than by running
+              # xcodebuild: some of these paths are stubs that abort, and a
+              # crash report in the middle of a listing is only noise.
+              version=$(plutil -extract CFBundleShortVersionString raw -o - \
+                          "$app/Contents/version.plist" 2>/dev/null || echo "?")
+              printf '%-46s %s\n' "$app" "$version"
             done
             echo '```'
-            echo "### iOS SDKs of the currently selected Xcode"
+            echo "### iOS SDKs"
             echo '```'
-            xcodebuild -showsdks 2>/dev/null | sed -n '/iOS SDK/,/^$/p'
+            # Matched by name rather than with a `/iOS SDK/,/^$/` range:
+            # -showsdks puts a blank line directly under the heading, so such a
+            # range captures the heading and nothing at all after it.
+            xcodebuild -showsdks 2>/dev/null \
+              | grep -iE "iphoneos|iphonesimulator" || echo "(none reported)"
+            echo "default iphoneos SDK: $(xcrun --sdk iphoneos --show-sdk-version 2>/dev/null || echo unknown)"
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
