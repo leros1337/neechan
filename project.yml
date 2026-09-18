@@ -118,7 +118,7 @@ targets:
         # The icons the reader can switch to. Naming them here is what puts
         # them in the bundle and writes the `CFBundleAlternateIcons` entries
         # that `setAlternateIconName` looks for.
-        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: AppIcon2
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: AppIcon2 AppIcon3
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         TARGETED_DEVICE_FAMILY: "1,2"
         ENABLE_PREVIEWS: YES

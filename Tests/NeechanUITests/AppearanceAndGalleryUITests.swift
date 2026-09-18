@@ -167,6 +167,40 @@ final class AppearanceAndGalleryUITests: LiveUITestCase {
         )
     }
 
+    /// Every icon the app ships with is offered, and they sit side by side on
+    /// one row rather than taking a row of the screen each.
+    func testIconPickerOffersEveryIconOnOneRow() throws {
+        let app = launchApp()
+        openSettings(app)
+        app.buttons["Appearance"].firstMatch.tap()
+
+        let tiles = ["app-icon-original", "app-icon-neechan", "app-icon-peace"]
+            .map { app.buttons[$0] }
+
+        XCTAssertTrue(
+            tiles[0].waitForExistence(timeout: 5),
+            "the icon picker is missing"
+        )
+        for (name, tile) in zip(tiles.indices, tiles) where !tile.exists {
+            XCTFail("icon tile \(name) is missing")
+        }
+
+        attach(app, name: "07-icon-picker")
+
+        // One row: same vertical centre, increasing horizontal position.
+        let frames = tiles.map(\.frame)
+        for frame in frames.dropFirst() {
+            XCTAssertEqual(
+                frame.midY, frames[0].midY, accuracy: 1,
+                "the icon tiles are not on the same row"
+            )
+        }
+        XCTAssertTrue(
+            zip(frames, frames.dropFirst()).allSatisfy { $0.minX < $1.minX },
+            "the icon tiles are not laid out left to right"
+        )
+    }
+
     private func openSettings(_ app: XCUIApplication) {
         switchToTab(app, "Settings")
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))

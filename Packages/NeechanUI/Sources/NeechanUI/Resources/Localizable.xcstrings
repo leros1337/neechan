@@ -6218,6 +6218,29 @@
         }
       }
     },
+    "Peace": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Peace"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Мир"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frieden"
+          }
+        }
+      }
+    },
     "Pick every symbol shown above. Order does not matter, and some appear only later.": {
       "extractionState": "manual",
       "localizations": {

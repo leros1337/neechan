@@ -12,6 +12,7 @@ import UIKit
 enum AppIconChoice: String, CaseIterable, Identifiable, Sendable {
     case original
     case neechan
+    case peace
 
     var id: String { rawValue }
 
@@ -20,6 +21,7 @@ enum AppIconChoice: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .original: nil
         case .neechan: "AppIcon2"
+        case .peace: "AppIcon3"
         }
     }
 
@@ -32,6 +34,7 @@ enum AppIconChoice: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .original: "app-icon-default"
         case .neechan: "app-icon-neechan"
+        case .peace: "app-icon-peace"
         }
     }
 
@@ -45,6 +48,7 @@ enum AppIconChoice: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .original: "Original"
         case .neechan: "Neechan"
+        case .peace: "Peace"
         }
     }
 

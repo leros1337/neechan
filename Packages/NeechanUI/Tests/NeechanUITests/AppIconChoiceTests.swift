@@ -10,12 +10,14 @@ struct AppIconChoiceTests {
     func originalHasNoName() {
         #expect(AppIconChoice.original.alternateName == nil)
         #expect(AppIconChoice.neechan.alternateName == "AppIcon2")
+        #expect(AppIconChoice.peace.alternateName == "AppIcon3")
     }
 
     @Test("what the system reports reads back as a choice")
     func namedRoundTrips() {
         #expect(AppIconChoice.named(nil) == .original)
         #expect(AppIconChoice.named("AppIcon2") == .neechan)
+        #expect(AppIconChoice.named("AppIcon3") == .peace)
     }
 
     /// An icon removed from the bundle, or renamed, must not leave the settings

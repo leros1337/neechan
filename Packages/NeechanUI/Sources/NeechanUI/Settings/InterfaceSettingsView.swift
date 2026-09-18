@@ -37,15 +37,16 @@ struct InterfaceSettingsView: View {
 
             if AppIconSwitcher.isSupported {
                 Section {
-                    ForEach(AppIconChoice.allCases) { choice in
-                        Button {
-                            choose(choice)
-                        } label: {
-                            iconRow(choice)
+                    // Side by side rather than a row each: three icons as full
+                    // rows took more of the screen than the setting is worth,
+                    // and the choice is a picture, so it reads fine small.
+                    HStack(alignment: .top, spacing: 18) {
+                        ForEach(AppIconChoice.allCases) { choice in
+                            iconTile(choice)
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("app-icon-\(choice.rawValue)")
+                        Spacer(minLength: 0)
                     }
+                    .padding(.vertical, 4)
                 } header: {
                     Text("App icon", bundle: .module)
                 } footer: {
@@ -109,30 +110,43 @@ struct InterfaceSettingsView: View {
         }
     }
 
-    /// One icon, with a tick against the one in use.
+    /// One icon, ringed when it is the one in use.
+    ///
+    /// A ring rather than a tick: at this size the tick would sit on top of the
+    /// picture it is meant to be marking.
     @ViewBuilder
-    private func iconRow(_ choice: AppIconChoice) -> some View {
-        HStack(spacing: 12) {
-            if let preview = Image(iconPreview: choice) {
-                preview
-                    .resizable()
-                    .frame(width: 44, height: 44)
-                    // The same shape the home screen gives it, so the row shows
-                    // what the reader will actually get.
-                    .clipShape(.rect(cornerRadius: 10))
+    private func iconTile(_ choice: AppIconChoice) -> some View {
+        let isChosen = choice == iconChoice
+
+        Button {
+            choose(choice)
+        } label: {
+            VStack(spacing: 6) {
+                if let preview = Image(iconPreview: choice) {
+                    preview
+                        .resizable()
+                        .frame(width: 52, height: 52)
+                        // The same shape the home screen gives it, so the tile
+                        // shows what the reader will actually get.
+                        .clipShape(.rect(cornerRadius: 12))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 12)
+                                .strokeBorder(isChosen ? AnyShapeStyle(.tint)
+                                                       : AnyShapeStyle(.clear),
+                                              lineWidth: 2)
+                        }
+                }
+
+                Text(choice.title, bundle: .module)
+                    .font(.caption)
+                    .foregroundStyle(isChosen ? AnyShapeStyle(.tint)
+                                              : AnyShapeStyle(.secondary))
             }
-
-            Text(choice.title, bundle: .module)
-                .foregroundStyle(.primary)
-
-            Spacer(minLength: 0)
-
-            if choice == iconChoice {
-                Image(systemName: "checkmark")
-                    .foregroundStyle(.tint)
-            }
+            .contentShape(.rect)
         }
-        .contentShape(.rect)
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("app-icon-\(choice.rawValue)")
+        .accessibilityAddTraits(isChosen ? [.isButton, .isSelected] : .isButton)
     }
 
     private func choose(_ choice: AppIconChoice) {
