@@ -6,7 +6,12 @@
 # Usage: Tools/record-fixtures.sh [board] [domain]
 set -euo pipefail
 
-BOARD="${1:-po}"
+# Deliberately an apolitical board. The fixtures are committed and published,
+# and recording from /po/ put real posts about the war, mobilisation and
+# ethnicity into the repository -- which is a liability for whoever's name is on
+# it, quite apart from being noise in a test about JSON shapes. Pass a board as
+# the first argument to override, and look at what you are committing.
+BOARD="${1:-a}"
 DOMAIN="${2:-2ch.org}"
 UA='Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1'
 OUT="$(cd "$(dirname "$0")/.." && pwd)/Packages/NeechanTestSupport/Sources/NeechanTestSupport/Fixtures"
