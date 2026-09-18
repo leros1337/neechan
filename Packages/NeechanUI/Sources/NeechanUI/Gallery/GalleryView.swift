@@ -53,7 +53,7 @@ public struct GalleryView: View {
                     Spacer()
                     TransferCapsule(transfer: transfer) { model.cancelTransfer() }
                         // Clear of the transport, which owns the bottom strip.
-                        .padding(.bottom, model.areControlsVisible ? 112 : 24)
+                        .padding(.bottom, model.areControlsVisible ? 56 : 24)
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
@@ -209,7 +209,17 @@ public struct GalleryView: View {
             }
             .buttonStyle(.glass)
 
-            Spacer(minLength: 0)
+            // Two flexible spacers, so the card centres in the gap between the
+            // two fixed elements. Neither the button nor the counter compresses,
+            // which leaves the card the only child that can give up width: a
+            // long name shrinks the card rather than shoving the counter off.
+            Spacer(minLength: 8)
+
+            if let item = model.currentItem {
+                GalleryCaption(item: item)
+            }
+
+            Spacer(minLength: 8)
 
             Text(model.positionText)
                 .font(.footnote.monospacedDigit())
@@ -230,15 +240,11 @@ public struct GalleryView: View {
         }
     }
 
-    /// One control stack: caption, then the scrubber on its own full-width row
-    /// when there is a video, then the actions. Keeping the scrubber off the
-    /// button row is what makes it big enough to actually drag.
+    /// One control stack: the scrubber on its own full-width row when there is
+    /// a video, then the actions. Keeping the scrubber off the button row is
+    /// what makes it big enough to actually drag.
     private var bottomBar: some View {
         VStack(spacing: 12) {
-            if let item = model.currentItem {
-                GalleryCaption(item: item)
-            }
-
             // Each of these reads playback state, which the engine reports ten
             // times a second. They are separate views so that those reports
             // invalidate a button rather than the whole gallery: this body
@@ -475,7 +481,8 @@ private struct PlaybackScrubber: View {
     }
 }
 
-/// File name, size and dimensions for the item on screen.
+/// File name, size and dimensions for the item on screen, shown in the top bar
+/// between the close button and the position counter.
 private struct GalleryCaption: View {
     let item: GalleryItem
 
@@ -484,6 +491,10 @@ private struct GalleryCaption: View {
             Text(item.attachment.displayName)
                 .font(.caption.weight(.medium))
                 .lineLimit(1)
+                // The card is width-constrained here, and truncating the tail
+                // would eat the extension, which is the part that says what the
+                // file actually is.
+                .truncationMode(.middle)
             HStack(spacing: 6) {
                 if let dimensions = item.formattedDimensions {
                     Text(dimensions)
@@ -496,9 +507,13 @@ private struct GalleryCaption: View {
             .font(.caption2)
             .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .glassEffect(.regular, in: .rect(cornerRadius: 14))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .glassEffect(.regular, in: .rect(cornerRadius: 12))
+        // One element among the buttons it now shares a row with, rather than
+        // two separate texts for VoiceOver to step through.
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("gallery-info")
     }
 }
 
