@@ -2,16 +2,25 @@ import SwiftUI
 
 // iPhone Duo, and the one place in the app its APIs are named.
 //
-// Three guards, not one, and each answers a different question.
+// Two guards, and each answers a different question.
 //
 // `#available` is a runtime question and does not help the compiler at all:
-// `ArrangementView`, `ReservedRegion` and `toolbarVerticalEdge` are simply
-// absent from the iOS 26 SDK, so naming them there fails the build rather than
-// falling back. `compiler(>=6.4)` asks which SDK this is being compiled
-// against -- Xcode 27 is the first to ship Swift 6.4, and the release workflow
-// still pins Xcode 26.6. `os(iOS)` is the third: this package also builds for
-// macOS so its logic can be tested without a simulator, and the macOS SDK is a
-// version behind the iOS one, so the symbols are missing there too.
+// `ArrangementView`, `ReservedRegion` and `toolbarVerticalEdge` arrived in the
+// iOS 27.1 SDK and are absent from every SDK before it, so naming them there
+// fails the build rather than falling back.
+//
+// Asking the compiler's version does not work either, which is the trap here:
+// Xcode 27.0 and 27.1 ship the *same* compiler -- both report
+// swiftlang-6.4.0.34.1 -- while shipping different SDKs, and only 27.1 carries
+// these APIs. A `compiler(>=6.4)` guard is therefore true on Xcode 27.0, where
+// the build then breaks; GitHub's only Xcode 27 image is 27.0, so that is not
+// a hypothetical. What is asked instead is SwiftUI's own module version, which
+// moves with the SDK rather than with the compiler: 8.0.84.1.104 in the iOS
+// 27.0 SDK, 8.0.85.27 in 27.1.
+//
+// `os(iOS)` is the second: this package also builds for macOS so its logic can
+// be tested without a simulator, and the macOS SDK is a version behind the iOS
+// one, so the symbols are missing there too.
 //
 // Everything below falls back to what the app did before, so call sites read
 // as ordinary SwiftUI and carry no guards of their own. When the deployment
@@ -27,7 +36,7 @@ extension EnvironmentValues {
     /// callers ask it this way round: "not vertical" is the answer that has
     /// always been true, and the one that stays true everywhere else.
     var duoVerticalBarEdge: HorizontalEdge? {
-        #if compiler(>=6.4) && os(iOS)
+        #if canImport(SwiftUI, _version: 8.0.85) && os(iOS)
         if #available(iOS 27.1, *) {
             return toolbarVerticalEdge
         }
@@ -125,7 +134,7 @@ extension GeometryProxy {
     /// Empty everywhere but a folding iPhone, so a caller can read it and then
     /// write the same layout code for every device.
     var duoRegions: DuoRegions {
-        #if compiler(>=6.4) && os(iOS)
+        #if canImport(SwiftUI, _version: 8.0.85) && os(iOS)
         if #available(iOS 27.1, *) {
             return DuoRegions(
                 divisions: reservedRegions(kind: .division).map(\.frame),
@@ -172,7 +181,7 @@ struct DuoArrangement<Primary: View, Secondary: View>: View {
     }
 
     var body: some View {
-        #if compiler(>=6.4) && os(iOS)
+        #if canImport(SwiftUI, _version: 8.0.85) && os(iOS)
         if #available(iOS 27.1, *) {
             arranged
         } else {
@@ -183,7 +192,7 @@ struct DuoArrangement<Primary: View, Secondary: View>: View {
         #endif
     }
 
-    #if compiler(>=6.4) && os(iOS)
+    #if canImport(SwiftUI, _version: 8.0.85) && os(iOS)
     @available(iOS 27.1, *)
     @ViewBuilder
     private var arranged: some View {
@@ -251,7 +260,7 @@ enum DuoPresentationPlacement {
 extension View {
     @ViewBuilder
     func duoPresentationPlacement(_ placement: DuoPresentationPlacement) -> some View {
-        #if compiler(>=6.4) && os(iOS)
+        #if canImport(SwiftUI, _version: 8.0.85) && os(iOS)
         if #available(iOS 27.0, *) {
             presentationPlacement(placement.resolved)
         } else {
@@ -263,7 +272,7 @@ extension View {
     }
 }
 
-#if compiler(>=6.4) && os(iOS)
+#if canImport(SwiftUI, _version: 8.0.85) && os(iOS)
 @available(iOS 27.0, *)
 extension DuoPresentationPlacement {
     fileprivate var resolved: PresentationPlacement {
