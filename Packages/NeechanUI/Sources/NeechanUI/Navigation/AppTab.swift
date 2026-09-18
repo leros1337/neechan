@@ -2,8 +2,8 @@ import SwiftUI
 
 /// The top-level sections of the app.
 ///
-/// Search is deliberately not a case here: it is a `Tab(role: .search)`, which
-/// iOS 26 renders as its own floating capsule beside the minimized tab bar.
+/// Search is deliberately not a case here: it belongs to the board list, which
+/// filters in place rather than sending the reader somewhere else.
 public enum AppTab: String, CaseIterable, Identifiable, Sendable {
     case boards
     case favorites

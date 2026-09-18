@@ -166,7 +166,11 @@ struct AttachmentOptionsSheet: View {
                         onSave(attachment)
                         dismiss()
                     } label: {
-                        Text("Done", bundle: .module)
+                        Label {
+                            Text("Done", bundle: .module)
+                        } icon: {
+                            Image(systemName: "checkmark")
+                        }
                     }
                 }
             }

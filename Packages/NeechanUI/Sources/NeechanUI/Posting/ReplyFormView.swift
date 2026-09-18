@@ -249,14 +249,22 @@ public struct ReplyFormView: View {
                     dismiss()
                 }
             } label: {
-                Text("Cancel", bundle: .module)
+                Label {
+                    Text("Cancel", bundle: .module)
+                } icon: {
+                    Image(systemName: "xmark")
+                }
             }
         }
         ToolbarItem(placement: .confirmationAction) {
             Button {
                 Task { await model?.send() }
             } label: {
-                Text("Send", bundle: .module)
+                Label {
+                    Text("Send", bundle: .module)
+                } icon: {
+                    Image(systemName: "paperplane.fill")
+                }
             }
             .buttonStyle(.glassProminent)
             .disabled(model?.canSend != true)

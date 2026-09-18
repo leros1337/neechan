@@ -303,7 +303,11 @@ struct RepliesSheet: View {
     private var doneButton: some ToolbarContent {
         ToolbarItem(placement: .confirmationAction) {
             Button { dismiss() } label: {
-                Text("Done", bundle: .module)
+                Label {
+                    Text("Done", bundle: .module)
+                } icon: {
+                    Image(systemName: "checkmark")
+                }
             }
         }
     }

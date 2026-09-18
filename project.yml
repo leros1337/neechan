@@ -96,8 +96,12 @@ targets:
           photo library.
         UILaunchScreen:
           UIColorName: LaunchBackground
+        # Upside-down included for iPhone Duo, which is held and set down in
+        # poses a slab phone is not -- folded like a book, or standing on an
+        # edge. Notched iPhones ignore it, so this changes nothing on them.
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         UISupportedInterfaceOrientations~ipad:

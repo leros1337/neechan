@@ -43,7 +43,11 @@ public struct HistoryView: View {
                     Button(role: .destructive) {
                         Task { await clear() }
                     } label: {
-                        Text("Clear", bundle: .module)
+                        Label {
+                            Text("Clear", bundle: .module)
+                        } icon: {
+                            Image(systemName: "trash")
+                        }
                     }
                 }
             }

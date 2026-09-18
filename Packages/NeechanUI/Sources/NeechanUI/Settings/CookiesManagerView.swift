@@ -68,7 +68,11 @@ struct CookiesManagerView: View {
                 Button(role: .destructive) {
                     isConfirmingClear = true
                 } label: {
-                    Text("Clear all", bundle: .module)
+                    Label {
+                        Text("Clear all", bundle: .module)
+                    } icon: {
+                        Image(systemName: "trash")
+                    }
                 }
                 .disabled(cookies.isEmpty)
             }

@@ -148,6 +148,14 @@ public struct ThreadView: View {
             .scrollTargetLayout()
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
+            // A measure, rather than however wide the window happens to be.
+            // On the inner display of an iPhone Duo -- and already in the
+            // iPad detail column -- a post set edge to edge runs past the
+            // length a reader can track back from. The same clamp the quote
+            // popup has always used. The second frame is what centres it;
+            // on a phone nothing is this wide, so nothing moves there.
+            .frame(maxWidth: 560)
+            .frame(maxWidth: .infinity)
         }
         // Anchored to the top, which is both where a jump puts a post and how
         // the position reports which post the reader is on.
@@ -186,6 +194,7 @@ public struct ThreadView: View {
                 isShowingGalleryGrid = false
                 scrollToPost(postNum)
             }
+            .duoPresentationPlacement(.trailing)
         }
         .sheet(item: Binding(
             get: { model.repliesSheetPostNum.map(RepliesSheetTarget.init) },
@@ -200,6 +209,11 @@ public struct ThreadView: View {
                 }
             )
             .presentationDetents([.large])
+            // Beside the thread on a display wide enough to hold both, which
+            // is what these replies are: the thread is still the subject.
+            // Trailing is also what tells the system to stack the sheet's own
+            // bar down the side rather than across the top.
+            .duoPresentationPlacement(.trailing)
         }
         .sheet(isPresented: $isShowingHiddenPosts) {
             HiddenPostsSheet(thread: key) { await model.refreshHiddenPosts() }
@@ -210,7 +224,9 @@ public struct ThreadView: View {
             }
         }
         .sheet(isPresented: $isShowingFavorites) {
-            FavoritesWindow().presentationDetents([.large])
+            FavoritesWindow()
+                .presentationDetents([.large])
+                .duoPresentationPlacement(.trailing)
         }
         .toolbar { toolbar(model, matchCount: posts.count) }
         // Reading is a full-screen job: the tab bar under a thread only offers

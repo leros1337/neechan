@@ -39,23 +39,15 @@ public struct GalleryView: View {
 
     public var body: some View {
         ZStack {
+            // Behind the arrangement rather than inside it, so that a folded
+            // display with the chrome hidden is black on both planes instead
+            // of black on one and nothing on the other.
             Color.black.ignoresSafeArea()
 
-            pages
-
-            if model.areControlsVisible {
-                controls
-                    .transition(.opacity)
-            }
-
-            if let transfer = model.transfer {
-                VStack {
-                    Spacer()
-                    TransferCapsule(transfer: transfer) { model.cancelTransfer() }
-                        // Clear of the transport, which owns the bottom strip.
-                        .padding(.bottom, model.areControlsVisible ? 56 : 24)
-                }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+            DuoArrangement(.overlay) {
+                chrome
+            } secondary: {
+                pages
             }
         }
         // Alongside the tap and the paging rather than instead of them: a
@@ -189,6 +181,32 @@ public struct GalleryView: View {
 
     // MARK: Chrome
 
+    /// Everything drawn over the file: the two bars, and the save capsule.
+    ///
+    /// Gathered into one view because on a part-folded iPhone Duo it becomes
+    /// the other half of an arrangement -- the file on one plane of the
+    /// display, what acts on it on the other. It stays in the tree whether or
+    /// not anything is showing, so that hiding the chrome cannot rebuild the
+    /// pages underneath and lose the reader's place and zoom.
+    private var chrome: some View {
+        ZStack {
+            if model.areControlsVisible {
+                controls
+                    .transition(.opacity)
+            }
+
+            if let transfer = model.transfer {
+                VStack {
+                    Spacer()
+                    TransferCapsule(transfer: transfer) { model.cancelTransfer() }
+                        // Clear of the transport, which owns the bottom strip.
+                        .padding(.bottom, model.areControlsVisible ? 56 : 24)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+    }
+
     private var controls: some View {
         VStack {
             topBar
@@ -229,6 +247,10 @@ public struct GalleryView: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
+        // The outer front camera is always there, in a corner, and this bar
+        // runs the full width past it. Inset the controls rather than the
+        // gradient, which should still reach the edge.
+        .duoAvoidingOcclusions()
         .background {
             LinearGradient(
                 colors: [.black.opacity(0.45), .clear],

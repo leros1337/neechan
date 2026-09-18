@@ -73,7 +73,11 @@ struct SavedThreadsView: View {
                     Button(role: .destructive) {
                         isConfirmingClear = true
                     } label: {
-                        Text("Delete all", bundle: .module)
+                        Label {
+                            Text("Delete all", bundle: .module)
+                        } icon: {
+                            Image(systemName: "trash")
+                        }
                     }
                 }
             }
