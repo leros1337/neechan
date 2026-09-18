@@ -7,7 +7,10 @@ final class AppearanceAndGalleryUITests: LiveUITestCase {
     /// Picking an appearance changes the app there and then, rather than when
     /// the screen is next rebuilt.
     func testAppearanceAppliesImmediately() throws {
-        let app = launchApp()
+        // Pinned to light rather than taken as found: a run that failed before
+        // its own reset leaves the app dark, and tapping Dark on a dark screen
+        // changes nothing, which fails this test for ever after.
+        let app = launchApp(extraArguments: ["-interface.appearance", "light"])
         openSettings(app)
         app.buttons["Appearance"].firstMatch.tap()
 
