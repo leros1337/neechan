@@ -57,6 +57,7 @@ enum AppIconChoice: String, CaseIterable, Identifiable, Sendable {
 /// Puts the chosen icon on the home screen.
 enum AppIconSwitcher {
     /// Whether the device will let the icon be changed at all.
+    @MainActor
     static var isSupported: Bool {
         #if canImport(UIKit) && os(iOS)
         return UIApplication.shared.supportsAlternateIcons
@@ -66,6 +67,7 @@ enum AppIconSwitcher {
     }
 
     /// The icon the system says is on the home screen right now.
+    @MainActor
     static var current: AppIconChoice {
         #if canImport(UIKit) && os(iOS)
         return .named(UIApplication.shared.alternateIconName)

@@ -43,7 +43,7 @@ enum GalleryMediaLoader {
             // uses its own disk cache: paging back to an image is instant and
             // costs no data.
             data = try await fetcher.data(url, referer: referer)
-            try? await MediaCache.shared.store(data, for: url)
+            _ = try? await MediaCache.shared.store(data, for: url)
         }
         return try await decode(data)
     }

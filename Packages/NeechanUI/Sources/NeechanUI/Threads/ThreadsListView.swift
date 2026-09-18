@@ -469,7 +469,7 @@ public struct ThreadsListView: View {
     }
 
     private func addFavorite(_ thread: ThreadSummary) async {
-        try? await services.favorites.add(
+        _ = try? await services.favorites.add(
             ThreadKey(site: services.site, board: board, threadNum: thread.num),
             title: threadTitle(thread),
             thumbnailPath: thread.opPost.files.first?.thumbnail

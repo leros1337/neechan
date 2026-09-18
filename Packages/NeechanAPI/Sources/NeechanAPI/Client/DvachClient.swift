@@ -323,7 +323,12 @@ public actor DvachClient {
         let selection = site()
         // One attempt: the answer is a gate or a puzzle, and neither improves
         // by being asked for three times in a row.
-        let reply = try await send(.sliderCaptcha(board: board, thread: thread), policy: .none)
+        let reply = try await send(
+            .sliderCaptcha(board: board, thread: thread),
+            // Spelled out: a bare `.none` is `Optional<RetryPolicy>.none`, which
+            // is the *default* policy and four attempts, not one.
+            policy: RetryPolicy.none
+        )
         let captcha = try decode(reply, on: selection) { _, data in
             try decoder.decode(FourchanCaptcha.self, from: data)
         }

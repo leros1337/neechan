@@ -192,7 +192,10 @@ public final class ReplyFormViewModel {
                 backgroundWidth: captcha.backgroundWidth ?? 0
             )
             startSliderCountdown(seconds: captcha.ttl)
-        } catch let error as DvachError {
+        } catch {
+            // Untyped on purpose: `fourchanCaptcha` is `throws(DvachError)`, so
+            // `error` is already a `DvachError` and matching on one explicitly
+            // was a test that could never fail.
             self.captcha = .failed(error.readableMessage)
             // A gate is the one failure the reader can do something about, and
             // the app is about to put the check in front of them. Rather than
@@ -201,8 +204,6 @@ public final class ReplyFormViewModel {
             if case .cloudflareChallenge = error, !isWaitingForCheck {
                 await waitForCheckThenReload()
             }
-        } catch {
-            self.captcha = .failed(error.readableMessage)
         }
     }
 
