@@ -5,37 +5,89 @@ Notable changes per release. Earlier releases are listed under
 
 ## 2.1.0
 
-Support for iPhone Duo, which has two displays and a hinge. The app already
-adapted to whatever width it was given, so most of this is meeting the platform
-where it genuinely differs: controls the system moves to the side, a display
-that divides down the middle while the device is part-folded, and a front
-camera in the corner it used to draw into.
+iPhone Duo is the headline, and the rest is what landed alongside it: two ways
+to mark which posts are yours, a quieter gallery viewer, a new default look, and
+a third mirror.
 
 ### iPhone Duo
 
+The device has two displays and a hinge. The app already adapted to whatever
+width it was given, so most of this is meeting the platform where it genuinely
+differs.
+
 - **Both displays, and the poses between them.** The outer display gets the tab
-  shell and the inner one the sidebar, which is the split the guidance asks for,
-  and what you were reading carries across as the device opens and closes.
+  shell and the inner one the sidebar, and what you were reading carries across
+  as the device opens and closes.
 - **Controls on the side.** The system stacks the toolbar and the tab bar down
   the edge of the outer display. The tab bar's mirroring -- which exists to put
   the minimized pill under your thumb -- is switched off there, because it was
-  pushing the bar to the edge opposite the camera and the status bar rather
-  than joining them.
+  pushing the bar to the edge opposite the camera and the status bar rather than
+  joining them.
 - **The fold.** The gallery and the doomscroll feed hand the file one plane of a
   part-folded display and its controls the other. Grids keep an even number of
-  columns so that no column of cells straddles the crease, and anything drawn
-  edge to edge stays clear of the front camera.
-- This part needs iOS 27.1, which is where the APIs it is built on arrive.
-  Everything below applies wherever the app runs.
+  columns so no column of cells straddles the crease, and anything drawn edge to
+  edge stays clear of the front camera.
+- This part needs **iOS 27.1**, which is where the APIs it is built on arrive.
+  Everything else in this release works wherever the app runs.
 
-### Everywhere
+### Threads
 
-- **Toolbar buttons carry a symbol as well as a title.** Sixteen of them were
-  text alone, which the system will not place on a vertical axis at all.
-- **A measure for thread posts.** A post no longer runs the whole width of a
-  wide window -- the same clamp the quote popup has always had.
-- **Replies, the attachment grid and the favorites window open to the side** on
-  a display wide enough to hold them beside the thread.
+- **Claim a post as your own**, from its menu, in the thread and in the replies
+  window. Posting from this device was the only thing that ever recorded an own
+  post, which left no way to claim one written from a browser or a second
+  device, and no way back from a wrong claim. A claim drives everything the
+  badge already drives: the (Me) mark, the border, and the (Y) on every `>>N`
+  answering it.
+- **A `>>N` that answers one of your posts is marked.** 2ch already marks a
+  reference to the opening post this way, so the shape is familiar. Only
+  same-thread references are marked: post numbers are board-wide, so a `>>N`
+  into another thread can carry a number you own here and would otherwise claim
+  a stranger's post as yours.
+
+### Gallery
+
+- **The file info moved to the top of the viewer.** The name, size and
+  dimensions sat on the bottom edge above the scrubber and the transport, which
+  on a video made three rows of chrome over the picture -- and the card was the
+  one row you never interact with. It now sits in the empty middle of the top
+  bar. The name truncates in the middle, so the extension survives.
+
+### Appearance
+
+- **Amber is the default theme.** The app used to open on the cool light-blue
+  scheme; that look stays, at the end of the list, under the name **Midnight**
+  it carried before it became the default. If you chose it explicitly you keep
+  it -- a rename is not a reason to take somebody's choice away.
+- **A third app icon**, a hand throwing a peace sign, called Peace. The three
+  icons now sit side by side as one row rather than three full-width rows, and
+  the one in use is ringed rather than ticked.
+
+### Forum
+
+- **2ch.su is offered as a mirror**, alongside the other two. Links from it
+  already opened when pasted; now it can be read on.
+
+### Fixed
+
+- The replies pill was missing from a post opened as a quote popup, so whether a
+  post had replies depended on how you had arrived at it.
+- The 4chan slider captcha was requested up to four times instead of once. A
+  bare `.none` against an optional retry policy is `Optional.none`, not
+  `RetryPolicy.none`, so the request fell through to the client's default -- the
+  opposite of the intent, since a puzzle does not improve by being asked for
+  three times in a row.
+- Toolbar buttons that were text alone now carry a symbol as well. Sixteen of
+  them did, which the system will not place on a vertical axis at all.
+- A post no longer runs the whole width of a wide window; it gets the same
+  measure the quote popup has always had.
+
+### Also
+
+- Replies, the attachment grid and the favorites window open to the side on a
+  display wide enough to hold them beside the thread.
+- A build can start cautious, with posting fixed off, and Settings says so when
+  it does.
+- Every compiler warning in a clean build is gone.
 
 ## 2.0.0
 
