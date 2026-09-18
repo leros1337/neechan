@@ -186,8 +186,12 @@ class LiveUITestCase: XCTestCase {
     /// gallery on screen.
     func openFirstAttachment(_ app: XCUIApplication) {
         openFirstThread(app)
-        // Attachment thumbnails are the buttons inside the post cells.
-        let thumbnail = app.scrollViews.buttons.firstMatch
+        // By identifier rather than by position: posts carry buttons of their
+        // own now — the replies pill among them — and the first button in the
+        // scroll view is as likely to open a sheet as an attachment.
+        let thumbnail = app.scrollViews.buttons
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "attachment-"))
+            .firstMatch
         XCTAssertTrue(
             thumbnail.waitForExistence(timeout: Self.networkTimeout),
             "the thread had no attachment to open"
