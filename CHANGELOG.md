@@ -3,6 +3,35 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## 2.3.0
+
+Threads read as threads. The posts in one run together as a single list instead
+of a column of separate panels, and the board list stops drawing a line through
+a gap that was already there.
+
+### Threads
+
+- **A thread is one list now.** Every post sat on a rounded card of its own,
+  which read as a stack of windows rather than a conversation. Posts run
+  together, divided by a hairline, the way imageboard clients have always shown
+  them.
+- **Cards are still there if you preferred them.** Settings -> Appearance ->
+  Post layout chooses between the two, and the list is the default.
+- **Your own posts keep their mark.** The border that traced a card becomes a
+  bar down the leading edge, in two weights: one for a post you wrote, a lighter
+  one for a reply to it -- which had nothing else marking it at all.
+- **Posts you have not read keep their tint**, now a band across the full width
+  rather than a tinted card.
+- **The replies window still shows cards.** It lifts a handful of posts out of
+  the thread they came from, where being separate is the point.
+
+### Boards
+
+- **No line between thread cards.** In the Cards layout a thread already sits on
+  a panel of its own, so the divider drew a boundary the card had drawn already.
+  The compact List layout keeps its dividers, which are the only thing between
+  one row and the next.
+
 ## 2.2.0
 
 Quieter threads: a post's files take one line instead of a row, a post you hide
