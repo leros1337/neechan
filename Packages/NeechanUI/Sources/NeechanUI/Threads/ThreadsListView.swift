@@ -148,6 +148,11 @@ public struct ThreadsListView: View {
                     }
                 }
                 .listRowInsets(.init(top: 8, leading: 16, bottom: 8, trailing: 16))
+                // A card carries its own rounded background, so the list's
+                // hairline only doubles a separation the card already makes.
+                // The compact row has no background of its own and the stub is
+                // meant to stand apart, so both keep theirs.
+                .listRowSeparator(viewMode == .cards && !isHidden(thread) ? .hidden : .automatic)
                 .swipeActions(edge: .trailing) { hideSwipeAction(for: thread) }
                 .contextMenu { threadActions(for: thread) }
             }
