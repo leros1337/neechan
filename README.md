@@ -11,7 +11,8 @@ system for the navigation layer.
 
 Unofficial and unaffiliated with either site.
 
-<img src="preview.png" alt="The board list, in the app's dark theme" width="320">
+<img src="preview-1.png" alt="A board's threads as cards, in the app's dark theme" width="320">
+<img src="preview-2.png" alt="Every attachment in a thread, as a grid" width="320">
 
 ## Install
 
