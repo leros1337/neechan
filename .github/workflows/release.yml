@@ -1,18 +1,23 @@
 name: Release
 
-# Builds an unsigned .ipa and publishes it.
+# Builds an unsigned .ipa, and publishes it when asked to.
 #
-# A version tag makes a release; the manual run is for trying the build without
-# committing to a version, and leaves the .ipa as a workflow artifact instead.
+# Started by hand only. It used to run itself on a `v*` tag, which meant a tag
+# pushed for any other reason spent an hour of macOS minutes -- they bill at ten
+# times the Linux rate -- and a release could be cut by a slip of `git push
+# --tags`. Releasing is now a thing someone chooses in the run form.
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
     inputs:
       version:
         description: "Version the build reports, e.g. 0.2.0"
         required: false
         default: ""
+      publish:
+        description: "Create the GitHub release and tag it v<version>"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   # Creating the release is the only thing this needs beyond reading the code.
@@ -39,13 +44,9 @@ jobs:
         id: version
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "push" ]; then
-            version="${GITHUB_REF_NAME#v}"
-          else
-            version="${{ inputs.version }}"
-          fi
-          # Falls back to whatever project.yml already says, so a manual run
-          # with no input still produces a sensibly named file.
+          version="${{ inputs.version }}"
+          # Falls back to whatever project.yml already says, so a run with no
+          # input still produces a sensibly named file.
           if [ -z "$version" ]; then
             version=$(awk '/MARKETING_VERSION:/ { gsub(/["[:space:]]/, "", $2); print $2; exit }' project.yml)
           fi
@@ -89,7 +90,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish the release
-        if: github.event_name == 'push'
+        if: inputs.publish
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
@@ -120,7 +121,9 @@ jobs:
               echo "No CHANGELOG.md section for $VERSION; publishing without one." >&2
             fi
           fi
-          gh release create "$GITHUB_REF_NAME" \
+          # The tag, not the ref: a dispatch runs on a branch, so `GITHUB_REF_NAME`
+          # is `main` here. `gh` creates the tag at this commit if it is new.
+          gh release create "v$VERSION" \
             ".build/Neechan-$VERSION.ipa" \
             --title "Neechan $VERSION" \
             --notes-file .build/notes.md \
