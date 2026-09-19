@@ -1865,6 +1865,29 @@
         }
       }
     },
+    "By turning on NSFW content you are enabling potentially sensitive text, images, and videos to be surfaced. You must be 18+ to enable this setting.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By turning on NSFW content you are enabling potentially sensitive text, images, and videos to be surfaced. You must be 18+ to enable this setting."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Включая контент NSFW, вы разрешаете показ потенциально чувствительных текстов, изображений и видео. Чтобы включить эту настройку, вам должно быть 18 лет или больше."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wenn du NSFW-Inhalte einschaltest, erlaubst du die Anzeige potenziell sensibler Texte, Bilder und Videos. Du musst 18 oder älter sein, um diese Einstellung zu aktivieren."
+          }
+        }
+      }
+    },
     "Cancel": {
       "extractionState": "manual",
       "localizations": {
@@ -9047,29 +9070,6 @@
         }
       }
     },
-    "The board list carries anime, manga and comics. With this on you can also open any other board by typing its code.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The board list carries anime, manga and comics. With this on you can also open any other board by typing its code."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "В списке досок — аниме, манга и комиксы. Когда включено, можно также открыть любую другую доску, введя её код."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die Boardliste führt Anime, Manga und Comics. Wenn das an ist, kannst du außerdem jedes andere Board über seinen Code öffnen."
-          }
-        }
-      }
-    },
     "The board you typed is turned off in Restrictions.": {
       "extractionState": "manual",
       "localizations": {
@@ -10770,29 +10770,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Was darin steht"
-          }
-        }
-      }
-    },
-    "With this off, boards meant for adults cannot be opened, and threads on them disappear from Favorites, History and Saved threads until you turn it back on. Nothing is deleted.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "With this off, boards meant for adults cannot be opened, and threads on them disappear from Favorites, History and Saved threads until you turn it back on. Nothing is deleted."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Когда выключено, доски для взрослых нельзя открыть, а треды с них исчезают из избранного, истории и сохранённых, пока вы не включите это обратно. Ничего не удаляется."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wenn das aus ist, lassen sich Boards für Erwachsene nicht öffnen, und Threads darauf verschwinden aus Favoriten, Verlauf und gesicherten Threads, bis du es wieder einschaltest. Nichts wird gelöscht."
           }
         }
       }

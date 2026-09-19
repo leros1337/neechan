@@ -34,22 +34,17 @@ struct RestrictionsSettingsView: View {
                 }
                 .accessibilityIdentifier("mature-toggle")
             } footer: {
-                // The two builds mean different things by this switch, so they
-                // cannot share a footer. The App Store wording is also how the
-                // UI tests recognise which build they are running against.
-                if settings.isAppStore {
-                    Text(
-                        "The board list carries anime, manga and comics. With this on you can also open any other board by typing its code.",
-                        bundle: .module
-                    )
-                    .accessibilityIdentifier("adult-gate-note-appstore")
-                } else {
-                    Text(
-                        "With this off, boards meant for adults cannot be opened, and threads on them disappear from Favorites, History and Saved threads until you turn it back on. Nothing is deleted.",
-                        bundle: .module
-                    )
-                    .accessibilityIdentifier("adult-gate-note")
-                }
+                Text(
+                    "By turning on NSFW content you are enabling potentially sensitive text, images, and videos to be surfaced. You must be 18+ to enable this setting.",
+                    bundle: .module
+                )
+                // One wording for both builds; only the name differs, so the
+                // UI tests can still tell which build they are running
+                // against without the reader being shown two sentences that
+                // say the same thing.
+                .accessibilityIdentifier(
+                    settings.isAppStore ? "adult-gate-note-appstore" : "adult-gate-note"
+                )
             }
         }
         .navigationTitle(Text("Restrictions", bundle: .module))
