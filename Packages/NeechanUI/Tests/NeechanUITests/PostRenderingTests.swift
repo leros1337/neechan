@@ -48,7 +48,8 @@ struct PostTextRendererTests {
     private func render(
         _ html: String,
         revealSpoilers: Bool = false,
-        ownPostNums: Set<Int> = []
+        ownPostNums: Set<Int> = [],
+        hiddenPostNums: Set<Int> = []
     ) -> AttributedString {
         let content = parser.parse(html, inThread: 100, onBoard: "b")
         return renderer.render(
@@ -56,7 +57,8 @@ struct PostTextRendererTests {
             options: .init(
                 postNum: 101,
                 revealSpoilers: revealSpoilers,
-                ownPostNums: ownPostNums
+                ownPostNums: ownPostNums,
+                hiddenPostNums: hiddenPostNums
             )
         )
     }
@@ -176,6 +178,66 @@ struct PostTextRendererTests {
     func noOwnPostsChangesNothing() {
         #expect(render(Self.ownReply) == render(Self.ownReply, ownPostNums: []))
         #expect(String(render(Self.ownReply).characters) == ">>99")
+    }
+
+    // MARK: References to a hidden post
+
+    /// A reader who hid a post should be able to see, without opening
+    /// anything, that a reply points at something they chose not to read.
+    @Test("a reference to a hidden post is struck through")
+    func hiddenReferenceIsStruck() {
+        let rendered = render(Self.ownReply, hiddenPostNums: [99])
+        let struck = rendered.runs.filter { $0.strikethroughStyle != nil }
+
+        #expect(struck.map { String(rendered[$0.range].characters) } == [">>99"])
+    }
+
+    /// Struck, but still the way back to the post: hiding is the reader's own
+    /// doing and they are allowed to look again.
+    @Test("a struck reference is still a link")
+    func struckReferenceIsStillTappable() {
+        let rendered = render(Self.ownReply, hiddenPostNums: [99])
+        let linked = rendered.runs.filter { $0.link != nil }
+
+        #expect(linked.count == 1)
+        #expect(linked.first?.strikethroughStyle != nil, "the link itself was not struck")
+        #expect(
+            linked.first?.foregroundColor == PostTextRenderer.Palette().link,
+            "it stopped looking like a link"
+        )
+    }
+
+    @Test("a reference to a post that is not hidden is left alone")
+    func visibleReferenceIsNotStruck() {
+        let rendered = render(Self.ownReply, hiddenPostNums: [1234])
+        #expect(rendered.runs.allSatisfy { $0.strikethroughStyle == nil })
+    }
+
+    /// The same reason a cross-thread reference is never marked: post numbers
+    /// are board-wide, so another thread's `>>99` is not this thread's post 99.
+    @Test("a reference into another thread is not struck")
+    func crossThreadReferenceIsNotStruck() {
+        let rendered = render(
+            #"<a class="post-reply-link" data-thread="777" data-num="99">&gt;&gt;99</a>"#,
+            hiddenPostNums: [99]
+        )
+        #expect(rendered.runs.allSatisfy { $0.strikethroughStyle == nil })
+    }
+
+    @Test("a reader who has hidden nothing renders exactly as before")
+    func noHiddenPostsChangesNothing() {
+        #expect(render(Self.ownReply) == render(Self.ownReply, hiddenPostNums: []))
+    }
+
+    /// Both marks are per reference and independent, so a hidden post the
+    /// reader also wrote carries each.
+    @Test("a reference can be marked and struck at once")
+    func markedAndStruck() {
+        let rendered = render(Self.ownReply, ownPostNums: [99], hiddenPostNums: [99])
+
+        #expect(String(rendered.characters) == ">>99 (Y)")
+        let struck = rendered.runs.filter { $0.strikethroughStyle != nil }
+        #expect(struck.map { String(rendered[$0.range].characters) } == [">>99"])
     }
 
     /// The marker is drawn through the same run builder as the text around it,

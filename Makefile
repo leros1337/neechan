@@ -9,7 +9,9 @@ SHELL := /bin/bash
 # because its test action leaves out the unit bundle that needs testability.
 SCHEME       = $(if $(filter $(APPSTORE),$(CONFIGURATION)),Neechan (App Store),Neechan)
 SIMULATOR   := iPhone 17 Pro
-IPAD        := iPad Pro 13-inch (M5)
+# The baseline iPad, not a Pro: it is the narrowest of them, so a layout that
+# only just fits shows its seams here first.
+IPAD        := iPad (A16)
 DUO         := iPhone Duo
 DUO_OS      := 27.1
 # Pinned to one runtime: several Xcode versions can be installed side by side,
@@ -209,23 +211,29 @@ ipa-appstore: ipa
 ## turns either of those from a silent unlock into a failed build.
 check-appstore: build
 	@set -e; \
-	plist=$$(find $(DERIVED)/Build/Products -name 'Neechan.app' -maxdepth 3 | head -1)/Info.plist; \
+	app=$$(find $(DERIVED)/Build/Products -name 'Neechan.app' -maxdepth 3 | head -1); \
+	plist=$$app/Info.plist; \
 	test -f "$$plist" || { echo "no built app to check"; exit 1; }; \
 	locked=$$(plutil -extract NeechanIsAppStoreBuild raw -o - "$$plist" 2>/dev/null || echo MISSING); \
 	id=$$(plutil -extract CFBundleIdentifier raw -o - "$$plist"); \
 	test "$$locked" = "YES" || { echo "NOT the App Store build: NeechanIsAppStoreBuild=$$locked. Run 'make gen'."; exit 1; }; \
 	case "$$id" in *.appstore) ;; *) echo "wrong bundle id: $$id"; exit 1 ;; esac; \
-	echo "App Store build confirmed: $$id, posting fixed off"
+	plutil -extract CFBundleIcons.CFBundleAlternateIcons json -o - "$$plist" 2>/dev/null | grep -q '"AppIcon3"' && { echo "AppIcon3 (the nude artwork) is in the App Store build. Run 'make gen'."; exit 1; } || true; \
+	test ! -e "$$app/NeechanUI_NeechanUI.bundle/app-icon-neechan.png" || { echo "the nude icon preview is in the App Store build"; exit 1; }; \
+	echo "App Store build confirmed: $$id, posting off, no AppIcon3"
 
 ## Checks the archive `ipa-appstore` just cut. Given ARCHIVE_CONFIG explicitly,
 ## because a target-specific variable does not reach a sub-make and this would
 ## otherwise inspect the ordinary Release archive and pass on the wrong file.
 check-ipa-appstore:
 	@set -e; \
-	plist=$(ARCHIVE)/Products/Applications/Neechan.app/Info.plist; \
+	app=$(ARCHIVE)/Products/Applications/Neechan.app; \
+	plist=$$app/Info.plist; \
 	locked=$$(plutil -extract NeechanIsAppStoreBuild raw -o - "$$plist" 2>/dev/null || echo MISSING); \
 	test "$$locked" = "YES" || { echo "NOT the App Store build: NeechanIsAppStoreBuild=$$locked"; exit 1; }; \
-	echo "App Store .ipa confirmed: posting fixed off"
+	plutil -extract CFBundleIcons.CFBundleAlternateIcons json -o - "$$plist" 2>/dev/null | grep -q '"AppIcon3"' && { echo "AppIcon3 (the nude artwork) is in the App Store build. Run 'make gen'."; exit 1; } || true; \
+	test ! -e "$$app/NeechanUI_NeechanUI.bundle/app-icon-neechan.png" || { echo "the nude icon preview is in the App Store build"; exit 1; }; \
+	echo "App Store .ipa confirmed: posting off, no AppIcon3"
 
 ## Capture the booted simulator screen.
 screenshot:

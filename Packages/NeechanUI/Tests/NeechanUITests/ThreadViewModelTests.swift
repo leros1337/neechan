@@ -20,10 +20,14 @@ struct ThreadViewModelTests {
     }
 
     private func makeModel(_ transport: StubTransport) throws -> ThreadViewModel {
+        let settings = AppSettings(
+            defaults: UserDefaults(suiteName: "ThreadViewModelTests.\(UUID().uuidString)")!
+        )
+        // 2ch by name: these suites are written against 2ch fixtures and
+        // 2ch-only endpoints, and the app's default site is 4chan.
+        settings.imageboard = .dvach
         let services = try AppServices.inMemory(
-            settings: AppSettings(
-                defaults: UserDefaults(suiteName: "ThreadViewModelTests.\(UUID().uuidString)")!
-            ),
+            settings: settings,
             transport: transport
         )
         return ThreadViewModel(key: key, services: services)
@@ -175,10 +179,14 @@ struct ThreadViewModelTests {
     @Test("where the reader was is kept and read back when the thread reopens")
     func positionIsRemembered() async throws {
         let transport = try await stubbedTransport()
+        let settings = AppSettings(
+            defaults: UserDefaults(suiteName: "ThreadViewModelTests.\(UUID().uuidString)")!
+        )
+        // 2ch by name: these suites are written against 2ch fixtures and
+        // 2ch-only endpoints, and the app's default site is 4chan.
+        settings.imageboard = .dvach
         let services = try AppServices.inMemory(
-            settings: AppSettings(
-                defaults: UserDefaults(suiteName: "ThreadViewModelTests.\(UUID().uuidString)")!
-            ),
+            settings: settings,
             transport: transport
         )
         let model = ThreadViewModel(key: key, services: services)
@@ -431,6 +439,71 @@ struct ThreadViewModelTests {
         #expect(replies.isEmpty == false)
         #expect(replies.allSatisfy { model.snapshot.index.references(from: $0.num).contains(target) })
     }
+
+    // MARK: Hidden posts and the replies to them
+
+    /// Hides through the real path — a rule in the store, then a refresh —
+    /// rather than by poking the set, so this also covers the wiring between
+    /// them.
+    private func hideAReply(
+        in model: ThreadViewModel
+    ) async throws -> (target: Int, hidden: Int, all: [Int]) {
+        let withReplies = model.snapshot.posts.first {
+            !model.snapshot.index.backlinks(to: $0.num).isEmpty
+        }
+        let target = try #require(withReplies?.num, "the recorded thread should contain a reply")
+        let all = model.snapshot.index.backlinks(to: target)
+        let victim = try #require(all.first)
+
+        #expect(model.visibleBacklinks(to: target) == all, "nothing is hidden yet")
+        await model.hide(.post(num: victim))
+        return (target, victim, all)
+    }
+
+    /// A hidden post keeps its place in the thread, as a stub, so a reply to it
+    /// still makes sense. It does not keep its place in a *list of replies*:
+    /// there it would be a row saying nothing.
+    @Test("a hidden reply is left out of the replies to a post")
+    func hiddenRepliesAreNotListed() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+
+        let (target, hidden, all) = try await hideAReply(in: model)
+
+        #expect(model.isHidden(hidden))
+        #expect(!model.visibleBacklinks(to: target).contains(hidden))
+        #expect(model.visibleBacklinks(to: target).count == all.count - 1)
+        // The thread itself still carries it, as a stub.
+        #expect(model.snapshot.index.backlinks(to: target) == all)
+    }
+
+    /// Revealing puts it back, which is what the reveal control is for.
+    @Test("revealing a hidden post brings its reply back")
+    func revealedRepliesComeBack() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+
+        let (target, hidden, all) = try await hideAReply(in: model)
+        model.revealedHiddenPosts = [hidden]
+
+        #expect(model.effectiveHiddenPostNums.isEmpty)
+        #expect(!model.isHidden(hidden))
+        #expect(model.visibleBacklinks(to: target) == all)
+    }
+
+    /// The count on the pill and the rows in the window read the same set, so a
+    /// post cannot promise three replies and then show one.
+    @Test("the effective hidden set is what both the count and the list use")
+    func hiddenSetHonoursReveals() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+
+        let (_, hidden, _) = try await hideAReply(in: model)
+
+        #expect(model.effectiveHiddenPostNums == [hidden])
+        model.revealedHiddenPosts = [hidden]
+        #expect(model.effectiveHiddenPostNums.isEmpty)
+    }
 }
 
 /// What a refresh tells the reader afterwards.
@@ -449,10 +522,14 @@ struct RefreshAnnouncementTests {
     }
 
     private func makeModel(_ transport: StubTransport) throws -> (ThreadViewModel, AppServices) {
+        let settings = AppSettings(
+            defaults: UserDefaults(suiteName: "RefreshAnnouncement.\(UUID().uuidString)")!
+        )
+        // 2ch by name: these suites are written against 2ch fixtures and
+        // 2ch-only endpoints, and the app's default site is 4chan.
+        settings.imageboard = .dvach
         let services = try AppServices.inMemory(
-            settings: AppSettings(
-                defaults: UserDefaults(suiteName: "RefreshAnnouncement.\(UUID().uuidString)")!
-            ),
+            settings: settings,
             transport: transport
         )
         return (ThreadViewModel(key: key, services: services), services)

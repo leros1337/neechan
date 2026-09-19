@@ -8,57 +8,92 @@ import Synchronization
 import Testing
 @testable import NeechanCore
 
-/// Keeping restricted boards out of everything the reader is shown.
+/// What the board directory lists, and what the age gate does instead.
 ///
 /// The fixture directory already carries `/hc/` under `Взрослым`, `/b/` under
 /// `Разное` and a dozen user-made boards, so these are asked of real data.
-@Suite("Restricted boards are kept out of the lists")
+///
+/// Two separate questions live here and they are deliberately not the same
+/// one. The directory is narrowed by the *build*: every build but the App
+/// Store one lists the whole site. The age gate decides what may be *opened*,
+/// and is asked at the door rather than by hiding the door.
+@Suite("What the board directory lists")
 struct RestrictedBoardsTests {
-    /// A policy a test can flip between two calls, which is how the cache is
+    /// A policy a test can change between two calls, which is how the cache is
     /// proved to be unfiltered.
-    private final class Gate: Sendable {
-        private let open = Mutex(true)
-        private var isOpen: Bool { open.withLock { $0 } }
-        var provider: ContentPolicyProvider {
-            { [self] in ContentPolicy(allowsMatureBoards: isOpen) }
-        }
-        func close() { open.withLock { $0 = false } }
+    private final class Policy: Sendable {
+        private let current: Mutex<ContentPolicy>
+        init(_ initial: ContentPolicy = .unrestricted) { current = Mutex(initial) }
+        var provider: ContentPolicyProvider { { [self] in current.withLock { $0 } } }
+        func set(_ policy: ContentPolicy) { current.withLock { $0 = policy } }
     }
+
+    /// The App Store build: anime, manga and comics, whatever the reader's age
+    /// gate says.
+    private static let appStore = ContentPolicy(
+        allowsMatureBoards: false, listsEveryBoard: false
+    )
 
     private func directory(_ transport: StubTransport) async throws {
         await transport.stub(pathSuffix: "/boards", data: try FixtureLoader.data(.boards))
     }
 
-    private func makeRepository(_ transport: StubTransport, _ gate: Gate) -> BoardsRepository {
+    private func makeRepository(_ transport: StubTransport, _ policy: Policy) -> BoardsRepository {
         BoardsRepository(
             client: DvachClient(transport: transport, site: { .init(site: .dvach, mirror: .org) }),
             site: { .init(site: .dvach, mirror: .org) },
-            policy: gate.provider
+            policy: policy.provider
         )
     }
 
-    @Test("with the gate open the whole directory is there")
-    func theGateOpenShowsEverything() async throws {
+    @Test("an ordinary build lists the whole directory")
+    func theOrdinaryBuildShowsEverything() async throws {
         let transport = StubTransport()
         try await directory(transport)
 
-        let boards = try await makeRepository(transport, Gate()).boards()
+        let boards = try await makeRepository(transport, Policy()).boards()
         #expect(boards.contains { $0.id == "hc" })
         #expect(boards.contains { $0.id == "b" })
     }
 
-    @Test("with the gate closed the restricted boards are gone from every listing")
-    func theGateClosedHidesThem() async throws {
+    /// The change of heart in this design: closing the age gate used to empty
+    /// half the directory, which left a reader hunting for a board that had
+    /// silently gone. Now nothing moves and the refusal happens at the door,
+    /// where it can say why and offer the way through.
+    @Test("closing the age gate does not change what is listed")
+    func theAgeGateDoesNotFilterTheDirectory() async throws {
         let transport = StubTransport()
         try await directory(transport)
-        let gate = Gate()
-        gate.close()
-        let repository = makeRepository(transport, gate)
+        let policy = Policy(ContentPolicy(allowsMatureBoards: false))
+
+        let boards = try await makeRepository(transport, policy).boards()
+        #expect(boards.contains { $0.id == "hc" }, "the age gate hid an adult board")
+        #expect(boards.contains { $0.id == "b" }, "the age gate hid /b/")
+        #expect(boards.contains { $0.category == BoardsRepository.userBoardCategory })
+    }
+
+    @Test("what the age gate does instead is refuse to open them")
+    func theAgeGateRefusesAtTheDoor() {
+        let closed = ContentPolicy(allowsMatureBoards: false)
+        #expect(!closed.allowsOpening(code: "hc", on: .dvach))
+        #expect(!closed.allowsOpening(code: "b", on: .dvach))
+        #expect(closed.allowsOpening(code: "a", on: .dvach))
+
+        let open = ContentPolicy(allowsMatureBoards: true)
+        #expect(open.allowsOpening(code: "hc", on: .dvach))
+    }
+
+    @Test("the App Store build lists anime, manga and comics and nothing else")
+    func theAppStoreDirectoryIsNarrow() async throws {
+        let transport = StubTransport()
+        try await directory(transport)
+        let repository = makeRepository(transport, Policy(Self.appStore))
 
         let boards = try await repository.boards()
-        #expect(!boards.contains { $0.id == "hc" }, "the adult board was listed")
+        #expect(boards.contains { $0.id == "a" }, "anime went missing")
+        #expect(!boards.contains { $0.id == "hc" }, "an adult board was listed")
         #expect(!boards.contains { $0.id == "b" }, "/b/ was listed")
-        #expect(boards.contains { $0.id == "a" }, "an ordinary board went missing")
+        #expect(!boards.contains { $0.id == "vg" }, "an off-topic board was listed")
 
         // The three other ways in all come through `boards()`.
         let categories = try await repository.categories()
@@ -66,52 +101,45 @@ struct RestrictedBoardsTests {
         #expect(!categories.flatMap(\.boards).contains { $0.id == "hc" })
         #expect(try await repository.board(id: "hc") == nil)
         #expect(!(try await repository.search("")).contains { $0.id == "hc" })
-        // Searching by name must not reach round the gate either.
+        // Searching by name must not reach round it either.
         #expect((try await repository.search("Hardcore")).isEmpty)
     }
 
-    @Test("every user-made board is restricted, because on 2ch they all are")
-    func userBoardsAreRestricted() async throws {
+    /// Turning the age gate on is what lets a reader reach the rest of the
+    /// site by typing a code. It still does not widen the list.
+    @Test("the App Store directory stays narrow even with the age gate open")
+    func theAppStoreDirectoryIgnoresTheAgeGate() async throws {
         let transport = StubTransport()
         try await directory(transport)
-        let gate = Gate()
-        gate.close()
+        let policy = Policy(
+            ContentPolicy(allowsMatureBoards: true, listsEveryBoard: false)
+        )
 
-        let boards = try await makeRepository(transport, gate).boards()
-        #expect(!boards.contains { $0.category == BoardsRepository.userBoardCategory })
+        let boards = try await makeRepository(transport, policy).boards()
+        #expect(!boards.contains { $0.id == "hc" }, "the age gate widened the directory")
+        #expect(Self.appStore.allowsOpening(code: "a", on: .dvach))
+        #expect(
+            ContentPolicy(allowsMatureBoards: true, listsEveryBoard: false)
+                .allowsOpening(code: "hc", on: .dvach),
+            "the age gate did not unlock a board by code"
+        )
     }
 
     /// The assertion the whole design rests on: the cache holds the site's
-    /// directory unfiltered, so the gate changes the answer without a refetch.
-    @Test("closing the gate re-filters the cache instead of refetching")
+    /// directory unfiltered, so the policy changes the answer without a refetch.
+    @Test("narrowing the directory re-filters the cache instead of refetching")
     func theCacheIsNotInvalidated() async throws {
         let transport = StubTransport()
         try await directory(transport)
-        let gate = Gate()
-        let repository = makeRepository(transport, gate)
+        let policy = Policy()
+        let repository = makeRepository(transport, policy)
 
         let before = try await repository.boards()
-        gate.close()
+        policy.set(Self.appStore)
         let after = try await repository.boards()
 
-        #expect(before.count > after.count, "closing the gate changed nothing")
+        #expect(before.count > after.count, "narrowing the directory changed nothing")
         #expect(await transport.recordedRequests().count == 1, "the directory was fetched twice")
-    }
-
-    /// A board created after this app shipped is in no table written today.
-    @Test("a user board is learned from the directory, so a bare code is covered")
-    func userBoardsAreLearnedFromTheDirectory() async throws {
-        defer { MatureBoards.forgetLearnedBoards() }
-        MatureBoards.forgetLearnedBoards()
-
-        let transport = StubTransport()
-        try await directory(transport)
-        _ = try await makeRepository(transport, Gate()).boards()
-
-        // `/ew/` is user-made in the fixture, and is in the static table too;
-        // what this proves is that the directory is what teaches it, which is
-        // the mechanism a genuinely new board depends on.
-        #expect(MatureBoards.effectiveCodes(on: .dvach).contains("ew"))
     }
 }
 

@@ -16,13 +16,15 @@ struct PostBodyCacheTests {
         postNum: Int = 1,
         revealSpoilers: Bool = false,
         palette: PostTextRenderer.Palette = .init(),
-        ownPostNums: Set<Int> = []
+        ownPostNums: Set<Int> = [],
+        hiddenPostNums: Set<Int> = []
     ) -> PostTextRenderer.Options {
         .init(
             postNum: postNum,
             revealSpoilers: revealSpoilers,
             palette: palette,
-            ownPostNums: ownPostNums
+            ownPostNums: ownPostNums,
+            hiddenPostNums: hiddenPostNums
         )
     }
 
@@ -139,6 +141,56 @@ struct PostBodyCacheTests {
         _ = cache.body(for: body, board: "b", options: options(ownPostNums: [4321]))
 
         #expect(counter.calls == 1)
+    }
+
+    /// The same trap as the marker above, and the one the strikethrough would
+    /// have walked into: nothing in the key moves when the reader hides a post,
+    /// so the body from before would be served un-struck.
+    @Test("a reference to a newly hidden post is rendered again")
+    func newlyHiddenReferenceIsRenderedAgain() {
+        let (cache, counter) = makeCache()
+        let body = content(Self.reply(to: 99))
+
+        _ = cache.body(for: body, board: "b", options: options())
+        _ = cache.body(for: body, board: "b", options: options(hiddenPostNums: [99]))
+
+        #expect(counter.calls == 2)
+    }
+
+    @Test("the same struck reference twice still renders once")
+    func struckReferenceIsStillCached() {
+        let (cache, counter) = makeCache()
+        let body = content(Self.reply(to: 99))
+
+        _ = cache.body(for: body, board: "b", options: options(hiddenPostNums: [99]))
+        _ = cache.body(for: body, board: "b", options: options(hiddenPostNums: [99]))
+
+        #expect(counter.calls == 1)
+    }
+
+    /// Hiding one post must not re-render the whole thread, which is why the
+    /// cache keeps the struck subset rather than the hidden set.
+    @Test("hiding a post does not re-render one that never quoted it")
+    func unrelatedHiddenPostsDoNotInvalidate() {
+        let (cache, counter) = makeCache()
+        let body = content(Self.reply(to: 99))
+
+        _ = cache.body(for: body, board: "b", options: options())
+        _ = cache.body(for: body, board: "b", options: options(hiddenPostNums: [4321]))
+
+        #expect(counter.calls == 1)
+    }
+
+    /// Revealing is the same move backwards, and just as easy to miss.
+    @Test("revealing a hidden post renders the posts quoting it again")
+    func revealedReferenceIsRenderedAgain() {
+        let (cache, counter) = makeCache()
+        let body = content(Self.reply(to: 99))
+
+        _ = cache.body(for: body, board: "b", options: options(hiddenPostNums: [99]))
+        _ = cache.body(for: body, board: "b", options: options())
+
+        #expect(counter.calls == 2)
     }
 
     private static func reply(to postNum: Int) -> String {

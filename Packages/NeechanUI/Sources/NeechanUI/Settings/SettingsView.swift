@@ -16,7 +16,10 @@ public struct SettingsView: View {
                 row("Appearance", systemImage: "paintpalette") { InterfaceSettingsView() }
                 row("Contents", systemImage: "text.book.closed") { ContentsSettingsView() }
                 row("Media", systemImage: "photo.on.rectangle") { MediaSettingsView() }
-                row("Restrictions", systemImage: "hand.raised") { RestrictionsSettingsView() }
+                // By route, not by view: a board refused anywhere in the app
+                // sends the reader here, and both ways in have to land on the
+                // same screen.
+                routeRow("Restrictions", systemImage: "hand.raised", route: .restrictions)
             }
 
             Section {
@@ -34,6 +37,21 @@ public struct SettingsView: View {
         }
         .groupedListStyle()
         .navigationTitle(Text("Settings", bundle: .module))
+    }
+
+    private func routeRow(
+        _ title: LocalizedStringKey,
+        systemImage: String,
+        route: AppRoute
+    ) -> some View {
+        NavigationLink(value: route) {
+            Label {
+                Text(title, bundle: .module)
+            } icon: {
+                Image(systemName: systemImage)
+            }
+        }
+        .accessibilityIdentifier("settings-\(systemImage)")
     }
 
     private func row(

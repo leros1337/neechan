@@ -138,6 +138,36 @@ targets:
           PRODUCT_BUNDLE_IDENTIFIER: com.lain.neechan.appstore
           NEECHAN_DISPLAY_NAME: Neechan AS
           NEECHAN_APP_STORE_BUILD: YES
+          # One name short of the list above: `AppIcon3` is the bare-breasted
+          # artwork, and leaving it unnamed here is what keeps it out of the
+          # bundle rather than merely out of the picker. It is the trailing
+          # entry so that dropping it leaves no hole -- see `AppIconChoice`.
+          ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: AppIcon2
+    postBuildScripts:
+      # The settings-screen preview of the bare-breasted icon.
+      #
+      # Dropping `AppIcon3` above keeps that artwork off the home screen and
+      # out of `Assets.car`, but this 180px copy lives in NeechanUI's resource
+      # bundle and SwiftPM has no per-configuration resources -- so the only
+      # place left to remove it is the copy inside the built app. The App Store
+      # build never draws it, because `AppIconChoice.available` leaves that
+      # icon out; this is about what ships, not what is shown.
+      - name: Strip the nude icon preview from the App Store build
+        basedOnDependencyAnalysis: false
+        # Declared so `ENABLE_USER_SCRIPT_SANDBOXING` lets the phase delete it:
+        # the sandbox grants a script write access to its own outputs and
+        # nothing else. Without this the build fails with a sandbox denial,
+        # which is the right failure but not the one wanted here.
+        outputFiles:
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/NeechanUI_NeechanUI.bundle/app-icon-neechan.png
+        script: |
+          if [ "$CONFIGURATION" != "AppStore" ]; then exit 0; fi
+          preview="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/NeechanUI_NeechanUI.bundle/app-icon-neechan.png"
+          rm -f "$preview"
+          if [ -e "$preview" ]; then
+            echo "error: could not remove $preview"
+            exit 1
+          fi
     dependencies:
       - package: NeechanUI
       - package: NeechanCore

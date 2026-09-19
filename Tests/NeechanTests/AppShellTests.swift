@@ -34,12 +34,12 @@ struct AppShellTests {
         defaults.removePersistentDomain(forName: suite)
     }
 
-    @Test("settings default to 2ch")
+    @Test("settings default to 4chan")
     func defaultImageboard() {
         let defaults = UserDefaults(suiteName: "AppShellTests.\(UUID().uuidString)")!
         let settings = AppSettings(defaults: defaults)
-        #expect(settings.imageboard == .dvach)
-        #expect(settings.snapshot.imageboard == .dvach)
+        #expect(settings.imageboard == .fourchan)
+        #expect(settings.snapshot.imageboard == .fourchan)
     }
 
     @Test("switching the imageboard is persisted")

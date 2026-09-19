@@ -17,7 +17,12 @@ struct ThreadCardView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
                 if let attachment = thread.opPost.files.first {
-                    MediaTapTarget(attachment: attachment, side: 78, action: onOpenMedia)
+                    MediaTapTarget(
+                        attachment: attachment,
+                        side: 78,
+                        count: thread.opPost.files.count,
+                        action: onOpenMedia
+                    )
                 }
                 Button(action: onOpenThread) {
                     VStack(alignment: .leading, spacing: 4) {
@@ -50,7 +55,12 @@ struct ThreadRowView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             if let attachment = thread.opPost.files.first {
-                MediaTapTarget(attachment: attachment, side: 44, action: onOpenMedia)
+                MediaTapTarget(
+                    attachment: attachment,
+                    side: 44,
+                    count: thread.opPost.files.count,
+                    action: onOpenMedia
+                )
             }
             Button(action: onOpenThread) {
                 VStack(alignment: .leading, spacing: 3) {
@@ -78,7 +88,12 @@ struct ThreadGridCell: View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
                 if let attachment = thread.opPost.files.first {
-                    MediaTapTarget(attachment: attachment, side: nil, action: onOpenMedia)
+                    MediaTapTarget(
+                        attachment: attachment,
+                        side: nil,
+                        count: thread.opPost.files.count,
+                        action: onOpenMedia
+                    )
                 } else {
                     Button(action: onOpenThread) {
                         Color.clear
@@ -121,13 +136,20 @@ struct ThreadGridCell: View {
 private struct MediaTapTarget: View {
     let attachment: NeechanAPI.Attachment
     let side: CGFloat?
+    /// How many files the opening post carries, so a stack can say so.
+    ///
+    /// The opening post's own count, deliberately not `ThreadSummary.filesCount`
+    /// — that is the whole thread's total, and the gallery this opens holds
+    /// only the opening post's files, so the thread's number would promise
+    /// media that is not there until the reader goes inside.
+    var count: Int = 1
     var action: (NeechanAPI.Attachment) -> Void
 
     var body: some View {
         Button {
             action(attachment)
         } label: {
-            ThumbnailView(attachment: attachment, side: side)
+            ThumbnailView(attachment: attachment, side: side, attachmentCount: count)
         }
         .buttonStyle(.plain)
         .accessibilityHint(

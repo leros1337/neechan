@@ -495,7 +495,24 @@ public final class ThreadViewModel {
     }
 
     public func isHidden(_ postNum: Int) -> Bool {
-        hiddenPostNums.contains(postNum) && !revealedHiddenPosts.contains(postNum)
+        effectiveHiddenPostNums.contains(postNum)
+    }
+
+    /// The posts a rule hides and the reader has not revealed: what the thread
+    /// really keeps out of sight.
+    ///
+    /// Hidden posts keep their place in the thread as stubs — see
+    /// `visiblePosts` — but they are taken out of the reply lists and every
+    /// `>>N` aimed at one is struck through, and both of those want the whole
+    /// set rather than one question at a time.
+    public var effectiveHiddenPostNums: Set<Int> {
+        hiddenPostNums.subtracting(revealedHiddenPosts)
+    }
+
+    /// The replies to a post that the reader can actually see.
+    public func visibleBacklinks(to postNum: Int) -> [Int] {
+        let hidden = effectiveHiddenPostNums
+        return snapshot.index.backlinks(to: postNum).filter { !hidden.contains($0) }
     }
 
     public func showsUnreadDivider(before postNum: Int) -> Bool {
@@ -537,7 +554,7 @@ public final class ThreadViewModel {
             return
         }
 
-        guard services.contentPolicy.allows(code: board, on: services.site) else {
+        guard services.contentPolicy.allowsOpening(code: board, on: services.site) else {
             quoteStatus = .restricted(postNum: postNum)
             return
         }

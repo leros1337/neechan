@@ -24,7 +24,7 @@ final class RestrictionsUITests: LiveUITestCase {
         )
     }
 
-    func testTheRestrictionsScreenHoldsAllThreeControls() {
+    func testTheRestrictionsScreenHoldsBothControls() {
         let app = launchApp()
         openSettings(app)
 
@@ -32,15 +32,20 @@ final class RestrictionsUITests: LiveUITestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 10), "Restrictions is not in Settings")
         row.tap()
 
-        for identifier in ["nsfw-mode-toggle", "mature-toggle", "posting-toggle"] {
+        for identifier in ["nsfw-mode-toggle", "mature-toggle"] {
             XCTAssertTrue(
                 app.switches[identifier].waitForExistence(timeout: 5),
                 "\(identifier) is missing"
             )
         }
-        // The gates ship open and NSFW mode ships closed.
+        // Posting is not a preference in any build: on everywhere but the App
+        // Store variant, which offers no switch either.
+        XCTAssertFalse(
+            app.switches["posting-toggle"].exists,
+            "posting is still offered as a preference"
+        )
+        // The gate ships open and NSFW mode ships closed.
         XCTAssertEqual(app.switches["mature-toggle"].value as? String, "1")
-        XCTAssertEqual(app.switches["posting-toggle"].value as? String, "1")
     }
 
     /// Turning the gate on again must ask, which is the whole point of it.
@@ -97,21 +102,42 @@ final class RestrictionsUITests: LiveUITestCase {
         flip(toggle)
         let alert = app.alerts.firstMatch
         XCTAssertTrue(alert.waitForExistence(timeout: 5), "no age prompt")
-        alert.buttons["I am 21 or older"].tap()
+        alert.buttons["I am 18 or older"].tap()
     }
 
-    /// The requirement itself, on the directory the reader actually browses.
-    func testRestrictedBoardsAreNotInTheDirectory() {
+    /// The age gate no longer empties the directory. A board that vanished was
+    /// a board the reader went hunting for; it is listed and refused at the
+    /// door instead, where the refusal can say why.
+    func testTheAgeGateLeavesTheDirectoryAlone() {
         let app = launchWithMatureOff()
 
         XCTAssertTrue(
             app.staticTexts["/a/"].waitForExistence(timeout: Self.networkTimeout),
             "the board list did not load"
         )
-        XCTAssertFalse(app.staticTexts["/hc/"].exists, "an adult board was listed")
-        XCTAssertFalse(app.staticTexts["/b/"].exists, "/b/ was listed")
-        // Every board a 2ch reader made is restricted, so the row into them goes.
-        XCTAssertFalse(app.buttons["User boards"].exists, "the user boards row was shown")
+        XCTAssertTrue(app.staticTexts["/b/"].exists, "the age gate hid /b/ from the list")
+    }
+
+    /// The gate itself, on the way in rather than on the way out.
+    func testOpeningAnAdultBoardOffersTheWayThrough() {
+        let app = launchWithMatureOff()
+        XCTAssertTrue(app.staticTexts["/b/"].waitForExistence(timeout: Self.networkTimeout))
+
+        // Marked as gated rather than merely refusing the tap: `Router.push`
+        // says no silently, which from the reader's side is a row that does
+        // nothing at all.
+        let gated = app.buttons["board-gated-b"]
+        XCTAssertTrue(gated.waitForExistence(timeout: 10), "/b/ was not marked as gated")
+
+        gated.tap()
+        XCTAssertTrue(
+            app.switches["mature-toggle"].waitForExistence(timeout: 10),
+            "tapping an adult board did not lead to the age gate"
+        )
+        XCTAssertEqual(
+            app.switches["mature-toggle"].value as? String, "0",
+            "the gate was not still shut"
+        )
     }
 
     /// The board list's filter doubles as a "go to" field, which is the way
@@ -125,27 +151,18 @@ final class RestrictionsUITests: LiveUITestCase {
         field.tap()
         field.typeText("hc")
 
+        let refusal = app.buttons["go-to-restricted"]
         XCTAssertTrue(
-            app.staticTexts["go-to-restricted"].waitForExistence(timeout: 5)
-                || app.otherElements["go-to-restricted"].waitForExistence(timeout: 5),
+            refusal.waitForExistence(timeout: 5),
             "typing a restricted code offered no explanation"
         )
         XCTAssertFalse(app.buttons["go-to"].exists, "a restricted board was offered anyway")
-    }
 
-    func testTurningPostingOffTakesAwayTheWaysToWrite() {
-        let app = launchApp(
-            extraArguments: ["-posting.enabled", "NO"],
-            pinsRestrictions: false
+        // The explanation is also the way through.
+        refusal.tap()
+        XCTAssertTrue(
+            app.switches["mature-toggle"].waitForExistence(timeout: 10),
+            "the refusal did not lead to the age gate"
         )
-        openDefaultBoard(app)
-
-        XCTAssertFalse(
-            app.buttons["New thread"].exists,
-            "a new thread could still be started with posting off"
-        )
-
-        openThreadWithReplies(app, minimum: 5)
-        XCTAssertFalse(app.buttons["Reply"].exists, "a reply could still be written")
     }
 }

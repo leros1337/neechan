@@ -38,22 +38,33 @@ public struct PostTextRenderer: Sendable {
         /// say so. Thread-scoped on purpose: post numbers are board-wide, and a
         /// reference into another thread can carry a number the reader owns.
         public var ownPostNums: Set<Int>
+        /// Posts in this thread the reader has hidden, so a `>>N` pointing at
+        /// one can be struck through. Thread-scoped for the same reason
+        /// `ownPostNums` is.
+        public var hiddenPostNums: Set<Int>
 
         public init(
             postNum: Int,
             revealSpoilers: Bool = false,
             palette: Palette = Palette(),
-            ownPostNums: Set<Int> = []
+            ownPostNums: Set<Int> = [],
+            hiddenPostNums: Set<Int> = []
         ) {
             self.postNum = postNum
             self.revealSpoilers = revealSpoilers
             self.palette = palette
             self.ownPostNums = ownPostNums
+            self.hiddenPostNums = hiddenPostNums
         }
 
         /// Whether a `>>N` points at a post the reader wrote in this thread.
         func marks(_ reference: PostReference) -> Bool {
             reference.isSameThread && ownPostNums.contains(reference.postNum)
+        }
+
+        /// Whether a `>>N` points at a post the reader hid in this thread.
+        func strikes(_ reference: PostReference) -> Bool {
+            reference.isSameThread && hiddenPostNums.contains(reference.postNum)
         }
     }
 
@@ -121,7 +132,14 @@ public struct PostTextRenderer: Sendable {
             case .postLink(let reference, let children):
                 var inner = context
                 inner.link = NeechanURL.post(reference)
-                append(children, to: &result, style: style, context: inner)
+                // Struck, but still a link and still the link colour: a reader
+                // who hid a post should be able to see at a glance that a reply
+                // points at something they chose not to read, and still be able
+                // to tap through and look at it.
+                let linkStyle = context.options.strikes(reference)
+                    ? style.union(.strikethrough)
+                    : style
+                append(children, to: &result, style: linkStyle, context: inner)
 
                 if context.options.marks(reference) {
                     // Built from `context` rather than `inner`, so it carries no

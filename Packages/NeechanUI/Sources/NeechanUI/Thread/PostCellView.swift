@@ -27,6 +27,10 @@ struct PostCellView: View {
     /// points at one of them can be marked. The whole set rather than a flag,
     /// because the marking is per reference, not per post.
     let ownPostNums: Set<Int>
+    /// Every post in this thread the reader has hidden, so a `>>N` in this body
+    /// that points at one can be struck through. The whole set for the same
+    /// reason as `ownPostNums`: the marking is per reference, not per post.
+    var hiddenPostNums: Set<Int> = []
     let isDeleted: Bool
     let isNew: Bool
     let revealSpoilers: Bool
@@ -211,7 +215,8 @@ struct PostCellView: View {
                 postNum: post.num,
                 revealSpoilers: revealSpoilers,
                 palette: .init(theme: theme),
-                ownPostNums: ownPostNums
+                ownPostNums: ownPostNums,
+                hiddenPostNums: hiddenPostNums
             )
         )
     }
@@ -420,29 +425,28 @@ struct RepliesButton: View {
     }
 }
 
-/// A post's attachments, side by side.
+/// A post's attachments, as one thumbnail.
+///
+/// The first of them, marked with how many there are. They used to be laid out
+/// as a horizontal strip, which read as several posts' worth of media and cost
+/// a row of height on every post that carried more than one. Tapping opens the
+/// gallery at this attachment, and the reader pages on from there — through the
+/// whole thread from inside one, through the post's own files from the catalog,
+/// which is what each presenter already hands the viewer.
 struct AttachmentsRow: View {
     let attachments: [NeechanAPI.Attachment]
+    /// How large the thumbnail is drawn. The reader's own scale multiplies it.
+    var side: CGFloat = 160
     var onSelect: (NeechanAPI.Attachment) -> Void = { _ in }
 
     var body: some View {
-        if attachments.count == 1, let only = attachments.first {
-            Button { onSelect(only) } label: {
-                ThumbnailView(attachment: only, side: 160)
+        if let first = attachments.first {
+            Button { onSelect(first) } label: {
+                ThumbnailView(
+                    attachment: first, side: side, attachmentCount: attachments.count
+                )
             }
             .buttonStyle(.plain)
-        } else {
-            ScrollView(.horizontal) {
-                HStack(spacing: 8) {
-                    ForEach(attachments) { attachment in
-                        Button { onSelect(attachment) } label: {
-                            ThumbnailView(attachment: attachment, side: 110)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-            .scrollIndicators(.hidden)
         }
     }
 }

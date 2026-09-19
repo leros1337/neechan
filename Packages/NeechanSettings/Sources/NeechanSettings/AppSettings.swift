@@ -359,27 +359,34 @@ public final class AppSettings {
 
     /// Whether the reader can post at all, on either imageboard.
     ///
-    /// The App Store build fixes this off, and a constant is the only thing
-    /// that can fix it: `bool(_:default:)` deliberately honours the argument
-    /// domain so a launch argument can pin a preference, which means neither a
-    /// changed default nor `register(defaults:)` would win. The setter stops
-    /// writing for the same reason — a stored `true` the getter then ignored
-    /// would come back the moment the lock was lifted.
+    /// Not a preference, and deliberately not stored: the App Store build
+    /// cannot post and every other build always can. A constant is the only
+    /// thing that can fix it off, because `bool(_:default:)` honours the
+    /// argument domain so a launch argument could otherwise pin it back on,
+    /// and neither a changed default nor `register(defaults:)` would win.
     ///
-    /// One consequence worth knowing: fixed, this no longer reads `defaults`
-    /// and so no longer observes `revision`. That is right — a constant has
-    /// nothing to announce — but it is the one preference here that does not.
-    public var allowsPosting: Bool {
-        get { isAppStoreBuild ? false : bool(Key.allowsPosting, default: true) }
-        set {
-            guard !isAppStoreBuild else { return }
-            write(newValue, forKey: Key.allowsPosting)
-        }
-    }
+    /// One consequence worth knowing: this does not read `defaults` and so
+    /// does not observe `revision`. That is right — a constant has nothing to
+    /// announce — but it is the one thing here that does not.
+    public var allowsPosting: Bool { !isAppStoreBuild }
 
-    /// Whether posting is fixed off by this build rather than by the reader,
-    /// for the screen that shows the switch.
-    public var postingIsFixed: Bool { isAppStoreBuild }
+    /// Whether this is the build meant for the App Store.
+    ///
+    /// Read from here rather than from `BuildVariant.isAppStore` directly so
+    /// that a test can construct the other build: in a test bundle
+    /// `Bundle.main` is the runner, which carries no such key, and the flag is
+    /// injected into `init` for exactly this reason.
+    public var isAppStore: Bool { isAppStoreBuild }
+
+    /// Whether the reader has accepted the terms.
+    ///
+    /// Only the App Store build asks, and it asks before it shows anything
+    /// else. A preference rather than a record — nothing else knows about it —
+    /// so it lives here by this file's own rule.
+    public var hasAgreedToTerms: Bool {
+        get { bool(Key.agreedToTerms, default: false) }
+        set { write(newValue, forKey: Key.agreedToTerms) }
+    }
 
     /// Carries a reader's `interface.safeForWork` into `nsfwMode`, once.
     ///
@@ -739,7 +746,6 @@ public final class AppSettings {
         static let collapseLines = "interface.collapseLines"
         static let nsfwMode = "restrictions.nsfwMode"
         static let allowsMature = "restrictions.allowsMature"
-        static let allowsPosting = "posting.enabled"
         static let remembersHistory = "general.remembersHistory"
         static let internalBrowser = "general.internalBrowser"
         static let appLock = "general.appLock"
@@ -764,6 +770,7 @@ public final class AppSettings {
         static let boardViewModes = "board.viewModes"
         static let lastViewMode = "board.lastViewMode"
         static let language = "general.language"
+        static let agreedToTerms = "general.agreedToTerms"
         static let secondsInApp = "stats.secondsInApp"
         static let postsSent = "stats.postsSent"
         static let threadsOpened = "stats.threadsOpened"

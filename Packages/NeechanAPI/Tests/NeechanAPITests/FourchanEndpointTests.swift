@@ -5,6 +5,10 @@ import Testing
 @Suite("4chan endpoints")
 struct FourchanEndpointTests {
     private let fourchan = SiteSelection(site: .fourchan)
+    /// Named rather than left to `SiteSelection.default`: that is where a
+    /// fresh install starts, which is a product decision and not a fact about
+    /// either site.
+    private let dvach = SiteSelection(site: .dvach, mirror: .org)
 
     private func url(_ endpoint: ImageboardEndpoint) throws -> String {
         try #require(endpoint.request(for: fourchan)?.url?.absoluteString)
@@ -27,9 +31,9 @@ struct FourchanEndpointTests {
         #expect(try url(.boardPage(board: "g", page: 3)) == "https://a.4cdn.org/g/3.json")
 
         // 2ch is unchanged: its page zero is a file of its own.
-        let dvach = ImageboardEndpoint.boardPage(board: "po", page: 0)
-            .request(for: .default)?.url?.absoluteString
-        #expect(dvach == "https://2ch.org/po/index.json")
+        let indexPage = ImageboardEndpoint.boardPage(board: "po", page: 0)
+            .request(for: dvach)?.url?.absoluteString
+        #expect(indexPage == "https://2ch.org/po/index.json")
     }
 
     @Test("an ordering the site does not offer falls back to the one it does")
@@ -73,8 +77,8 @@ struct FourchanEndpointTests {
 
     @Test("2ch is not asked for the endpoints only 4chan has")
     func dvachHasNoFourchanEndpoints() {
-        #expect(ImageboardEndpoint.boardThreads(board: "b").request(for: .default) == nil)
-        #expect(ImageboardEndpoint.sliderCaptcha(board: "b", thread: nil).request(for: .default) == nil)
+        #expect(ImageboardEndpoint.boardThreads(board: "b").request(for: dvach) == nil)
+        #expect(ImageboardEndpoint.sliderCaptcha(board: "b", thread: nil).request(for: dvach) == nil)
     }
 
     /// Counter-intuitive, and deliberate: `a.4cdn.org` sends `max-age=5` and an
@@ -90,7 +94,7 @@ struct FourchanEndpointTests {
         #expect(fourchanThread.cachePolicy == .useProtocolCachePolicy)
 
         let dvachPoll = try #require(
-            ImageboardEndpoint.threadInfo(board: "b", thread: 1).request(for: .default)
+            ImageboardEndpoint.threadInfo(board: "b", thread: 1).request(for: dvach)
         )
         #expect(dvachPoll.cachePolicy == .reloadRevalidatingCacheData)
     }

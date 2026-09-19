@@ -131,7 +131,7 @@ struct AppSettingsObservationTests {
         arguments: [
             "domain", "themeID", "textScale", "collapsePostLineLimit",
             "mediaLoadPolicy", "remembersHistory", "nsfwMode", "locksApp",
-            "allowsMatureBoards", "allowsPosting",
+            "allowsMatureBoards",
         ]
     )
     func everyPreferenceIsObserved(name: String) throws {
@@ -148,7 +148,6 @@ struct AppSettingsObservationTests {
             case "remembersHistory": _ = settings.remembersHistory
             case "locksApp": _ = settings.locksApp
             case "allowsMatureBoards": _ = settings.allowsMatureBoards
-            case "allowsPosting": _ = settings.allowsPosting
             default: _ = settings.nsfwMode
             }
         } onChange: {
@@ -164,7 +163,6 @@ struct AppSettingsObservationTests {
         case "remembersHistory": settings.remembersHistory = false
         case "locksApp": settings.locksApp = true
         case "allowsMatureBoards": settings.allowsMatureBoards = false
-        case "allowsPosting": settings.allowsPosting = false
         default: settings.nsfwMode = true
         }
 
@@ -743,39 +741,63 @@ struct AppStoreBuildTests {
         #expect(!BuildVariant.isAppStore)
     }
 
-    // MARK: Posting, which is fixed
+    // MARK: Posting, which is not a preference at all
 
-    @Test("posting is off and cannot be turned on")
-    func postingIsFixed() throws {
-        let settings = appStoreSettings(try freshDefaults())
-
-        #expect(settings.postingIsFixed)
-        #expect(!settings.allowsPosting)
-
-        settings.allowsPosting = true
-        #expect(!settings.allowsPosting, "posting was turned on in the App Store build")
+    @Test("posting is off")
+    func postingIsOff() throws {
+        #expect(!appStoreSettings(try freshDefaults()).allowsPosting)
     }
 
-    /// A write that stored the value would come back the moment the lock was
-    /// lifted, which is a surprise waiting years to happen.
-    @Test("a refused write stores nothing")
-    func aRefusedWriteStoresNothing() throws {
-        let defaults = try freshDefaults()
-        appStoreSettings(defaults).allowsPosting = true
-
-        #expect(defaults.object(forKey: "posting.enabled") == nil)
-    }
-
-    /// The closest a unit test can get to the launch-argument case. An argument
-    /// domain cannot be injected into a `UserDefaults(suiteName:)` at all, so
-    /// the persistent domain stands in for it: if a stored `true` cannot win,
-    /// nor can a default, and only the constant is left.
-    @Test("a value already stored does not turn posting back on")
+    /// The closest a unit test can get to the launch-argument case, which is
+    /// the one that matters: `bool(_:default:)` honours the argument domain on
+    /// purpose, so a preference could be pinned back on from the command line.
+    /// An argument domain cannot be injected into a `UserDefaults(suiteName:)`
+    /// at all, so the persistent domain stands in for it — if a stored `true`
+    /// under the old key cannot win, nothing can, because nothing is read.
+    @Test("a value stored under the retired key does not turn posting back on")
     func aStoredValueDoesNotWin() throws {
         let defaults = try freshDefaults()
         defaults.set(true, forKey: "posting.enabled")
 
         #expect(!appStoreSettings(defaults).allowsPosting)
+    }
+
+    /// Nothing reads or writes it any more, so a reader who had turned posting
+    /// off in an earlier version is not quietly kept from posting for ever.
+    @Test("the retired preference is ignored in the ordinary build too")
+    func theRetiredKeyIsIgnoredEverywhere() throws {
+        let defaults = try freshDefaults()
+        defaults.set(false, forKey: "posting.enabled")
+
+        #expect(AppSettings(defaults: defaults, isAppStoreBuild: false).allowsPosting)
+    }
+
+    // MARK: The agreement
+
+    @Test("the terms have not been agreed to on a fresh install")
+    func termsStartUnagreed() throws {
+        #expect(!appStoreSettings(try freshDefaults()).hasAgreedToTerms)
+    }
+
+    /// Asked once. A reader who agreed and then relaunched into the agreement
+    /// again would reasonably conclude the button does nothing.
+    @Test("agreeing is remembered across a relaunch")
+    func agreeingSticks() throws {
+        let defaults = try freshDefaults()
+        appStoreSettings(defaults).hasAgreedToTerms = true
+
+        #expect(appStoreSettings(defaults).hasAgreedToTerms)
+    }
+
+    /// Only this build asks, but the flag is an ordinary preference in both, so
+    /// a test pointed at either can pin it.
+    @Test("the ordinary build stores it the same way")
+    func theOrdinaryBuildStoresItToo() throws {
+        let settings = AppSettings(defaults: try freshDefaults(), isAppStoreBuild: false)
+        #expect(!settings.hasAgreedToTerms)
+
+        settings.hasAgreedToTerms = true
+        #expect(settings.hasAgreedToTerms)
     }
 
     // MARK: The two that only start differently
@@ -816,6 +838,5 @@ struct AppStoreBuildTests {
 
         #expect(settings.allowsPosting)
         #expect(settings.allowsMatureBoards)
-        #expect(!settings.postingIsFixed)
     }
 }

@@ -34,6 +34,15 @@ final class PostBodyCache {
         /// set of own posts, so posting in a thread only re-renders the handful
         /// of posts that quoted you rather than all of them.
         let markedRefs: Set<Int>
+        /// Which of this post's references were drawn struck through.
+        ///
+        /// Kept for the same reason as `markedRefs`, and against the same
+        /// failure: nothing in `Key` moves when the reader hides a post, so a
+        /// body rendered before they hid it would be served un-struck for as
+        /// long as it survived eviction. The struck subset rather than the
+        /// whole hidden set, so hiding one post re-renders only the handful of
+        /// posts that quoted it rather than the whole thread.
+        let struckRefs: Set<Int>
         let text: AttributedString
         var usedAt: UInt64
     }
@@ -77,8 +86,14 @@ final class PostBodyCache {
         let markedRefs = Set(
             content.references.lazy.filter(options.marks).map(\.postNum)
         )
+        let struckRefs = Set(
+            content.references.lazy.filter(options.strikes).map(\.postNum)
+        )
 
-        if var hit = entries[key], hit.content == content, hit.markedRefs == markedRefs {
+        if var hit = entries[key],
+            hit.content == content,
+            hit.markedRefs == markedRefs,
+            hit.struckRefs == struckRefs {
             hit.usedAt = clock
             entries[key] = hit
             return hit.text
@@ -86,7 +101,11 @@ final class PostBodyCache {
 
         let text = render(content, options)
         entries[key] = Entry(
-            content: content, markedRefs: markedRefs, text: text, usedAt: clock
+            content: content,
+            markedRefs: markedRefs,
+            struckRefs: struckRefs,
+            text: text,
+            usedAt: clock
         )
         evictIfNeeded()
         return text

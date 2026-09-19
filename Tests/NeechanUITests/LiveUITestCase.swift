@@ -34,12 +34,18 @@ class LiveUITestCase: XCTestCase {
     ///     like everything else here, so a test that closed one would leave
     ///     every later test looking at a directory with boards missing from it.
     ///     The tests about the gates opt out and pin their own.
+    ///   - acceptsTerms: answers the App Store build's agreement in advance.
+    ///     That build shows it before anything else and it cannot be dismissed,
+    ///     so without this every test pointed at the variant would be looking
+    ///     at the terms instead of the app. The test about the agreement opts
+    ///     out. Ignored by every other build, which never asks.
     @discardableResult
     func launchApp(
         extraArguments: [String] = [],
         pinsLanguage: Bool = true,
         pinsImageboard: Bool = true,
-        pinsRestrictions: Bool = true
+        pinsRestrictions: Bool = true,
+        acceptsTerms: Bool = true
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += extraArguments
@@ -57,10 +63,12 @@ class LiveUITestCase: XCTestCase {
         }
         if pinsRestrictions {
             app.launchArguments += ["-restrictions.allowsMature", "YES"]
-            app.launchArguments += ["-posting.enabled", "YES"]
         }
         if pinsLanguage {
             app.launchArguments += ["-general.language", "system"]
+        }
+        if acceptsTerms {
+            app.launchArguments += ["-general.agreedToTerms", "YES"]
         }
         app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()

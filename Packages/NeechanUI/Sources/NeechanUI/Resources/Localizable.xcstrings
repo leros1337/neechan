@@ -1060,6 +1060,52 @@
         }
       }
     },
+    "Adult 18+": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adult 18+"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для взрослых 18+"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erwachsene 18+"
+          }
+        }
+      }
+    },
+    "Age Restriction": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Age Restriction"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Возрастное ограничение"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Altersbeschränkung"
+          }
+        }
+      }
+    },
     "All new posts": {
       "extractionState": "manual",
       "localizations": {
@@ -1148,6 +1194,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Animation, %@"
+          }
+        }
+      }
+    },
+    "Animation, %@, 1 of %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Animation, %@, 1 of %lld"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Анимация, %@, 1 из %lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Animation, %@, 1 von %lld"
           }
         }
       }
@@ -1244,29 +1313,6 @@
         }
       }
     },
-    "Appstore build cannot post. You can read both imageboards.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Appstore build cannot post. You can read both imageboards."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Сборка для App Store не умеет постить. Читать обе имиджборды можно."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Der App-Store-Build kann nicht posten. Lesen geht auf beiden Imageboards."
-          }
-        }
-      }
-    },
     "Archive": {
       "extractionState": "manual",
       "localizations": {
@@ -1313,25 +1359,25 @@
         }
       }
     },
-    "Are you 21 or older?": {
+    "Are you 18 or older?": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Are you 21 or older?"
+            "value": "Are you 18 or older?"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Вам есть 21 год?"
+            "value": "Вам есть 18 лет?"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bist du 21 oder älter?"
+            "value": "Bist du 18 oder älter?"
           }
         }
       }
@@ -2421,6 +2467,29 @@
         }
       }
     },
+    "Content Reporting (DMCA)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Content Reporting (DMCA)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Жалобы на контент (DMCA)"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inhaltsmeldungen (DMCA)"
+          }
+        }
+      }
+    },
     "Contents": {
       "extractionState": "manual",
       "localizations": {
@@ -3019,6 +3088,29 @@
         }
       }
     },
+    "End User License Agreement": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End User License Agreement"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Лицензионное соглашение с конечным пользователем"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Endbenutzer-Lizenzvertrag"
+          }
+        }
+      }
+    },
     "Every %lld seconds": {
       "extractionState": "manual",
       "localizations": {
@@ -3412,6 +3504,29 @@
         }
       }
     },
+    "Filtering What You See": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filtering What You See"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фильтрация того, что вы видите"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filtern, was du siehst"
+          }
+        }
+      }
+    },
     "Folders": {
       "extractionState": "manual",
       "localizations": {
@@ -3454,6 +3569,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ordner können <board>, <thread> und <title> verwenden."
+          }
+        }
+      }
+    },
+    "For adults. Turn on Adult 18+ to open it.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For adults. Turn on Adult 18+ to open it."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для взрослых. Включите «Для взрослых 18+», чтобы открыть."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für Erwachsene. Schalte „Erwachsene 18+“ ein, um es zu öffnen."
           }
         }
       }
@@ -3803,25 +3941,48 @@
         }
       }
     },
-    "I am 21 or older": {
+    "I agree": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "I am 21 or older"
+            "value": "I agree"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Мне есть 21"
+            "value": "Я согласен"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ich bin 21 oder älter"
+            "value": "Ich stimme zu"
+          }
+        }
+      }
+    },
+    "I am 18 or older": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I am 18 or older"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Мне есть 18"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ich bin 18 oder älter"
           }
         }
       }
@@ -3872,6 +4033,29 @@
         }
       }
     },
+    "If you believe content reached through this app infringes your copyright or other rights, write to us with the details. Neechan hosts nothing, so we will direct your report to the third-party service that does.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you believe content reached through this app infringes your copyright or other rights, write to us with the details. Neechan hosts nothing, so we will direct your report to the third-party service that does."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Если вы считаете, что доступный через это приложение материал нарушает ваши авторские или иные права, напишите нам с подробностями. Neechan ничего не хранит, поэтому мы направим вашу жалобу тому сервису, который хранит."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wenn du der Ansicht bist, dass über diese App erreichbare Inhalte deine Urheber- oder sonstigen Rechte verletzen, schreib uns mit den Einzelheiten. Neechan hostet nichts, daher leiten wir deine Meldung an den Dienst weiter, der es tut."
+          }
+        }
+      }
+    },
     "Image in post %lld": {
       "extractionState": "manual",
       "localizations": {
@@ -3914,6 +4098,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bild, %@"
+          }
+        }
+      }
+    },
+    "Image, %@, 1 of %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image, %@, 1 of %lld"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Изображение, %@, 1 из %lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bild, %@, 1 von %lld"
           }
         }
       }
@@ -4585,29 +4792,6 @@
         }
       }
     },
-    "Mature 21+": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mature 21+"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Для взрослых 21+"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Erwachsene 21+"
-          }
-        }
-      }
-    },
     "Media": {
       "extractionState": "manual",
       "localizations": {
@@ -5018,6 +5202,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Neueste zuerst"
+          }
+        }
+      }
+    },
+    "No Tolerance Policy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Tolerance Policy"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нулевая терпимость"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Null-Toleranz-Richtlinie"
           }
         }
       }
@@ -5708,6 +5915,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nur über WLAN"
+          }
+        }
+      }
+    },
+    "Open Restrictions": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Restrictions"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть ограничения"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beschränkungen öffnen"
           }
         }
       }
@@ -6425,6 +6655,29 @@
         }
       }
     },
+    "Please read the following terms carefully before using this application.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please read the following terms carefully before using this application."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пожалуйста, внимательно прочитайте следующие условия перед использованием этого приложения."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bitte lies die folgenden Bedingungen sorgfältig, bevor du diese App verwendest."
+          }
+        }
+      }
+    },
     "Post %lld": {
       "extractionState": "manual",
       "localizations": {
@@ -6559,29 +6812,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Posten"
-          }
-        }
-      }
-    },
-    "Posting enabled": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Posting enabled"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Разрешить постинг"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Posten erlaubt"
           }
         }
       }
@@ -8495,6 +8725,29 @@
         }
       }
     },
+    "Terms": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terms"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Условия"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bedingungen"
+          }
+        }
+      }
+    },
     "Test": {
       "extractionState": "manual",
       "localizations": {
@@ -8587,25 +8840,25 @@
         }
       }
     },
-    "That board is turned off in Restrictions": {
+    "That board is for adults. Turn on Adult 18+ in Restrictions.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "That board is turned off in Restrictions"
+            "value": "That board is for adults. Turn on Adult 18+ in Restrictions."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Эта доска выключена в «Ограничениях»"
+            "value": "Та доска для взрослых. Включите «Для взрослых 18+» в разделе «Ограничения»."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dieses Board ist in den Beschränkungen deaktiviert"
+            "value": "Das Board ist für Erwachsene. Schalte unter Beschränkungen „Erwachsene 18+“ ein."
           }
         }
       }
@@ -8790,6 +9043,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Das Backup wurde nicht gesichert."
+          }
+        }
+      }
+    },
+    "The board list carries anime, manga and comics. With this on you can also open any other board by typing its code.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The board list carries anime, manga and comics. With this on you can also open any other board by typing its code."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "В списке досок — аниме, манга и комиксы. Когда включено, можно также открыть любую другую доску, введя её код."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Boardliste führt Anime, Manga und Comics. Wenn das an ist, kannst du außerdem jedes andere Board über seinen Code öffnen."
           }
         }
       }
@@ -9185,6 +9461,29 @@
         }
       }
     },
+    "There is no tolerance for illegal or abusive material. If you come across something that should not be online, write to us at the address below and report it to the site hosting it.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is no tolerance for illegal or abusive material. If you come across something that should not be online, write to us at the address below and report it to the site hosting it."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Никакой терпимости к противоправным или оскорбительным материалам. Если вы наткнулись на то, чего не должно быть в сети, напишите нам по адресу ниже и сообщите об этом сайту, который это размещает."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für illegales oder missbräuchliches Material gibt es keine Toleranz. Wenn dir etwas begegnet, das nicht online sein sollte, schreib uns an die Adresse unten und melde es der Seite, die es hostet."
+          }
+        }
+      }
+    },
     "These boards carry explicit sexual content.": {
       "extractionState": "manual",
       "localizations": {
@@ -9231,6 +9530,52 @@
         }
       }
     },
+    "This app reads publicly posted content from third-party imageboards. Neechan does not host, publish or moderate any of it, and has no control over what those sites carry.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This app reads publicly posted content from third-party imageboards. Neechan does not host, publish or moderate any of it, and has no control over what those sites carry."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Это приложение читает общедоступные материалы со сторонних имиджборд. Neechan не хранит, не публикует и не модерирует их и не контролирует то, что размещено на этих сайтах."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese App liest öffentlich veröffentlichte Inhalte von fremden Imageboards. Neechan hostet, veröffentlicht und moderiert nichts davon und hat keinen Einfluss darauf, was dort steht."
+          }
+        }
+      }
+    },
+    "This board is for adults. Turn on Adult 18+ in Restrictions to open it.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This board is for adults. Turn on Adult 18+ in Restrictions to open it."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эта доска для взрослых. Включите «Для взрослых 18+» в разделе «Ограничения», чтобы открыть её."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Board ist für Erwachsene. Schalte unter Beschränkungen „Erwachsene 18+“ ein, um es zu öffnen."
+          }
+        }
+      }
+    },
     "This board is read-only.": {
       "extractionState": "manual",
       "localizations": {
@@ -9250,29 +9595,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dieses Board ist schreibgeschützt."
-          }
-        }
-      }
-    },
-    "This board is turned off in Settings, under Restrictions.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This board is turned off in Settings, under Restrictions."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Эта доска выключена в настройках, в разделе «Ограничения»."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dieses Board ist in den Einstellungen unter «Beschränkungen» deaktiviert."
           }
         }
       }
@@ -9829,29 +10151,6 @@
         }
       }
     },
-    "Turned off in Restrictions": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Turned off in Restrictions"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Выключено в «Ограничениях»"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "In den Beschränkungen deaktiviert"
-          }
-        }
-      }
-    },
     "Turning this off stops new threads being recorded.": {
       "extractionState": "manual",
       "localizations": {
@@ -10153,6 +10452,29 @@
         }
       }
     },
+    "User Generated Content": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "User Generated Content"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пользовательский контент"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutzergenerierte Inhalte"
+          }
+        }
+      }
+    },
     "User boards": {
       "extractionState": "manual",
       "localizations": {
@@ -10264,6 +10586,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Video, %@"
+          }
+        }
+      }
+    },
+    "Video, %@, 1 of %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video, %@, 1 of %lld"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Видео, %@, 1 из %lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video, %@, 1 von %lld"
           }
         }
       }
@@ -10383,6 +10728,29 @@
         }
       }
     },
+    "Welcome to Neechan": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome to Neechan"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добро пожаловать в Neechan"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Willkommen bei Neechan"
+          }
+        }
+      }
+    },
     "What it says": {
       "extractionState": "manual",
       "localizations": {
@@ -10406,25 +10774,25 @@
         }
       }
     },
-    "With this off, boards meant for adults are hidden and cannot be opened, and threads on them disappear from Favorites, History and Saved threads until you turn it back on. Nothing is deleted.": {
+    "With this off, boards meant for adults cannot be opened, and threads on them disappear from Favorites, History and Saved threads until you turn it back on. Nothing is deleted.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "With this off, boards meant for adults are hidden and cannot be opened, and threads on them disappear from Favorites, History and Saved threads until you turn it back on. Nothing is deleted."
+            "value": "With this off, boards meant for adults cannot be opened, and threads on them disappear from Favorites, History and Saved threads until you turn it back on. Nothing is deleted."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Когда выключено, доски для взрослых скрыты и их нельзя открыть, а треды с них исчезают из избранного, истории и сохранённых, пока вы не включите это обратно. Ничего не удаляется."
+            "value": "Когда выключено, доски для взрослых нельзя открыть, а треды с них исчезают из избранного, истории и сохранённых, пока вы не включите это обратно. Ничего не удаляется."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wenn das aus ist, sind Boards für Erwachsene verborgen und lassen sich nicht öffnen, und Threads darauf verschwinden aus Favoriten, Verlauf und gesicherten Threads, bis du es wieder einschaltest. Nichts wird gelöscht."
+            "value": "Wenn das aus ist, lassen sich Boards für Erwachsene nicht öffnen, und Threads darauf verschwinden aus Favoriten, Verlauf und gesicherten Threads, bis du es wieder einschaltest. Nichts wird gelöscht."
           }
         }
       }
@@ -10452,29 +10820,6 @@
         }
       }
     },
-    "With this off, you can read but not write, on either imageboard.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "With this off, you can read but not write, on either imageboard."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Когда выключено, можно читать, но не писать — на обеих имиджбордах."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wenn das aus ist, kannst du lesen, aber nicht schreiben — auf beiden Imageboards."
-          }
-        }
-      }
-    },
     "You": {
       "extractionState": "manual",
       "localizations": {
@@ -10494,6 +10839,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Du"
+          }
+        }
+      }
+    },
+    "You can hide any post or thread, and autohide rules keep chosen posters, words and patterns out of your feed. Hidden posts stay hidden until you reveal them, and nothing you hide is shown to you again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can hide any post or thread, and autohide rules keep chosen posters, words and patterns out of your feed. Hidden posts stay hidden until you reveal them, and nothing you hide is shown to you again."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вы можете скрыть любой пост или тред, а правила автоскрытия уберут из ленты выбранных авторов, слова и шаблоны. Скрытые посты остаются скрытыми, пока вы сами их не раскроете."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du kannst jeden Beitrag und jeden Thread ausblenden, und Autohide-Regeln halten ausgewählte Poster, Wörter und Muster aus deinem Feed. Ausgeblendetes bleibt ausgeblendet, bis du es selbst wieder einblendest."
+          }
+        }
+      }
+    },
+    "You must be at least 18 years of age to use this application. By agreeing, you confirm that you are 18 or older.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You must be at least 18 years of age to use this application. By agreeing, you confirm that you are 18 or older."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вам должно быть не менее 18 лет, чтобы пользоваться этим приложением. Соглашаясь, вы подтверждаете, что вам есть 18."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du musst mindestens 18 Jahre alt sein, um diese App zu verwenden. Mit deiner Zustimmung bestätigst du, dass du 18 oder älter bist."
           }
         }
       }

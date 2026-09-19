@@ -110,10 +110,13 @@ public struct ThreadView: View {
                     PostCellView(
                         post: post,
                         content: model.snapshot.content(of: post.num),
-                        backlinks: model.snapshot.index.backlinks(to: post.num),
+                        // Hidden replies are left out of both the count and the
+                        // window it opens, so the two cannot disagree.
+                        backlinks: model.visibleBacklinks(to: post.num),
                         isOwn: model.snapshot.isOwn(post.num),
                         repliesToOwn: model.snapshot.repliesToOwnPost(post.num),
                         ownPostNums: model.snapshot.ownPostNums,
+                        hiddenPostNums: model.effectiveHiddenPostNums,
                         isDeleted: model.snapshot.isDeleted(post.num),
                         isNew: model.isNew(post.num),
                         revealSpoilers: model.isRevealed(post.num),
@@ -203,6 +206,7 @@ public struct ThreadView: View {
             RepliesSheet(
                 rootPostNum: target.postNum,
                 snapshot: model.snapshot,
+                hiddenPostNums: model.effectiveHiddenPostNums,
                 onOpenOutside: { action in handle(action, model: model) },
                 onToggleOwn: { postNum, owned in
                     Task { await model.setOwned(owned, postNum: postNum) }
@@ -495,7 +499,9 @@ public struct ThreadView: View {
                 case .restricted:
                     Image(systemName: "hand.raised")
                         .foregroundStyle(.secondary)
-                    Text("That board is turned off in Restrictions", bundle: .module)
+                    // No button: this is a toast that takes itself away again,
+                    // and a control on one is a control the reader has to race.
+                    Text("That board is for adults. Turn on Adult 18+ in Restrictions.", bundle: .module)
                 }
             }
             .font(.subheadline)
@@ -604,12 +610,13 @@ public struct ThreadView: View {
                 QuotePopupView(
                     quoted: quoted,
                     depth: model.quotePopups.count,
-                    replyCount: model.snapshot.index.backlinks(to: quoted.post.num).count,
+                    replyCount: model.visibleBacklinks(to: quoted.post.num).count,
                     // Empty for a post fetched from elsewhere, for the same
                     // reason the reply count above is withheld: its references
                     // are numbered against another thread, where a number the
                     // reader owns here belongs to somebody else.
                     ownPostNums: quoted.isRemote ? [] : model.snapshot.ownPostNums,
+                    hiddenPostNums: quoted.isRemote ? [] : model.effectiveHiddenPostNums,
                     onOpenReplies: { model.repliesSheetPostNum = quoted.post.num },
                     onDismiss: {
                         withAnimation(.snappy(duration: 0.2)) { model.dismissTopQuote() }
@@ -651,7 +658,7 @@ public struct ThreadView: View {
                 url.absoluteString,
                 site: services.site,
                 currentBoard: nil
-            ), !services.contentPolicy.allows(target) {
+            ), !services.contentPolicy.allowsOpening(target) {
                 return
             }
             // Links off the site open in the app unless the reader asked for

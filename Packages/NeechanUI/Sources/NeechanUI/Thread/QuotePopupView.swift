@@ -21,6 +21,10 @@ struct QuotePopupView: View {
     /// Posts the reader wrote in the thread behind this popup, so a `>>N` in the
     /// quoted body can be marked. Empty when the quote came from another thread.
     let ownPostNums: Set<Int>
+    /// Posts the reader has hidden in the thread behind this popup, so a `>>N`
+    /// in the quoted body pointing at one can be struck through. Empty when the
+    /// quote came from another thread, for the same reason `ownPostNums` is.
+    var hiddenPostNums: Set<Int> = []
     /// Opens the window listing those replies.
     var onOpenReplies: () -> Void = {}
     var onDismiss: () -> Void
@@ -179,26 +183,15 @@ struct QuotePopupView: View {
             }
     }
 
-    /// Attachments at preview size.
+    /// Attachments at preview size, collapsed the way a post's own are.
     private struct QuotedAttachmentsRow: View {
         let attachments: [NeechanAPI.Attachment]
         var onSelect: (NeechanAPI.Attachment) -> Void
 
         var body: some View {
-            ScrollView(.horizontal) {
-                HStack(spacing: 8) {
-                    ForEach(attachments) { attachment in
-                        Button {
-                            onSelect(attachment)
-                        } label: {
-                            ThumbnailView(attachment: attachment, side: 88)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-            .scrollIndicators(.hidden)
-            .frame(height: 88)
+            AttachmentsRow(attachments: attachments, side: 88, onSelect: onSelect)
+                .frame(height: 88, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -231,7 +224,8 @@ struct QuotePopupView: View {
                 postNum: quoted.post.num,
                 revealSpoilers: revealSpoilers,
                 palette: .init(theme: theme),
-                ownPostNums: ownPostNums
+                ownPostNums: ownPostNums,
+                hiddenPostNums: hiddenPostNums
             )
         )
     }
@@ -245,6 +239,12 @@ struct RepliesSheet: View {
     /// The post whose replies open the window.
     let rootPostNum: Int
     let snapshot: ThreadSnapshot
+    /// Posts a rule hides and the reader has not revealed.
+    ///
+    /// Hidden posts keep their place in the thread itself, as stubs, so a reply
+    /// to one still makes sense. Here they are simply gone: this window is a
+    /// list of replies, and a stub in it would be a row saying nothing.
+    var hiddenPostNums: Set<Int> = []
     /// Called for a destination this window cannot show: a post in another
     /// thread, or a link out to the web.
     var onOpenOutside: (NeechanURL.Action) -> Void
@@ -267,7 +267,7 @@ struct RepliesSheet: View {
         NavigationStack(path: $path) {
             repliesList(to: rootPostNum)
                 .navigationTitle(
-                    Text("\(snapshot.index.backlinks(to: rootPostNum).count) replies", bundle: .module)
+                    Text("\(replies(to: rootPostNum).count) replies", bundle: .module)
                 )
                 .inlineNavigationTitle()
                 .navigationDestination(for: Int.self) { postNum in
@@ -368,6 +368,7 @@ struct RepliesSheet: View {
             isOwn: snapshot.isOwn(post.num),
             repliesToOwn: false,
             ownPostNums: snapshot.ownPostNums,
+            hiddenPostNums: hiddenPostNums,
             isDeleted: snapshot.isDeleted(post.num),
             isNew: false,
             revealSpoilers: revealedSpoilers.contains(post.num),
@@ -387,7 +388,9 @@ struct RepliesSheet: View {
     }
 
     private func replies(to postNum: Int) -> [Post] {
-        snapshot.index.backlinks(to: postNum).compactMap { snapshot.post(num: $0) }
+        snapshot.index.backlinks(to: postNum)
+            .filter { !hiddenPostNums.contains($0) }
+            .compactMap { snapshot.post(num: $0) }
     }
 
     // MARK: Actions
