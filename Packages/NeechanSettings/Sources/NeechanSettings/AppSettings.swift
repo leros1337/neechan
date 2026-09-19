@@ -231,6 +231,18 @@ public final class AppSettings {
         (0..<16).map { _ in "0123456789abcdef".randomElement() ?? "0" }.map(String.init).joined()
     }
 
+    /// How the posts inside a thread are drawn.
+    ///
+    /// The continuous list is the default; cards are what the app drew before
+    /// it had a choice, kept for readers who preferred them.
+    public var postsViewMode: PostsViewMode {
+        get {
+            defaults.string(forKey: Key.postsViewMode)
+                .flatMap(PostsViewMode.init(rawValue:)) ?? .list
+        }
+        set { write(newValue.rawValue, forKey: Key.postsViewMode) }
+    }
+
     /// When the "new posts" divider is shown in a thread.
     public var unreadMarkerMode: UnreadMarkerMode {
         get {
@@ -735,6 +747,7 @@ public final class AppSettings {
         static let uniqueHash = "attachment.uniqueHash"
         static let stripMetadata = "attachment.stripMetadata"
         static let removeFileName = "attachment.removeFileName"
+        static let postsViewMode = "postsViewMode"
         static let unreadMarkerMode = "unreadMarkerMode"
         static let watcherInterval = "watcher.interval"
         static let watcherNotifications = "watcher.notifications"

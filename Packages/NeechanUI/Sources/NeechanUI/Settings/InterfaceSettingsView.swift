@@ -82,6 +82,14 @@ struct InterfaceSettingsView: View {
             }
 
             Section {
+                Picker(selection: $settings.postsViewMode) {
+                    Text("List", bundle: .module).tag(PostsViewMode.list)
+                    Text("Cards", bundle: .module).tag(PostsViewMode.cards)
+                } label: {
+                    Text("Post layout", bundle: .module)
+                }
+                .pickerStyle(.segmented)
+
                 Stepper(value: $settings.collapsePostLineLimit, in: 3...60) {
                     Text(
                         "Collapse after \(services.settings.collapsePostLineLimit) lines",
@@ -95,7 +103,7 @@ struct InterfaceSettingsView: View {
                 Text("Posts", bundle: .module)
             } footer: {
                 Text(
-                    "Showing hidden threads brings them back as dimmed one-line rows you can tap to restore.",
+                    "A list runs the posts together, divided by a line. Cards give each post a panel of its own. Showing hidden threads brings them back as dimmed one-line rows you can tap to restore.",
                     bundle: .module
                 )
             }

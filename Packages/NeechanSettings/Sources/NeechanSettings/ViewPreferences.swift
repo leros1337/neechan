@@ -14,6 +14,16 @@ public enum ThreadsViewMode: String, CaseIterable, Sendable, Codable, Identifiab
     public var isGrid: Bool { self == .grid }
 }
 
+/// How the posts inside a thread are drawn.
+public enum PostsViewMode: String, CaseIterable, Sendable, Codable, Identifiable {
+    /// One continuous list, posts divided by a hairline.
+    case list
+    /// Each post on a card of its own.
+    case cards
+
+    public var id: String { rawValue }
+}
+
 /// How the catalog is ordered. Only the catalog can be reordered; the paged
 /// index is always in the server's bump order.
 public enum CatalogSort: String, CaseIterable, Sendable, Codable, Identifiable {

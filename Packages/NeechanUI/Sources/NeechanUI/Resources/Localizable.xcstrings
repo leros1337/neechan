@@ -828,6 +828,29 @@
         }
       }
     },
+    "A list runs the posts together, divided by a line. Cards give each post a panel of its own. Showing hidden threads brings them back as dimmed one-line rows you can tap to restore.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A list runs the posts together, divided by a line. Cards give each post a panel of its own. Showing hidden threads brings them back as dimmed one-line rows you can tap to restore."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Список идёт сплошным потоком, посты разделены линией. Карточки дают каждому посту свою панель. Показ скрытых тредов возвращает их тусклой строкой, по которой можно нажать, чтобы восстановить."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Liste führt die Beiträge zusammen, getrennt durch eine Linie. Karten geben jedem Beitrag eine eigene Fläche. Verborgene Threads kommen als gedimmte einzeilige Zeilen zurück, die sich zum Wiederherstellen antippen lassen."
+          }
+        }
+      }
+    },
     "A passcode is bought on the site. It removes the captcha and raises the file limit.": {
       "extractionState": "manual",
       "localizations": {
@@ -6747,6 +6770,29 @@
         }
       }
     },
+    "Post layout": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Post layout"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вид постов"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beitragslayout"
+          }
+        }
+      }
+    },
     "Post №%lld": {
       "extractionState": "manual",
       "localizations": {
@@ -8261,29 +8307,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Antworten zeigen"
-          }
-        }
-      }
-    },
-    "Showing hidden threads brings them back as dimmed one-line rows you can tap to restore.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Showing hidden threads brings them back as dimmed one-line rows you can tap to restore."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Показ скрытых тредов возвращает их тусклой строкой, по которой можно нажать, чтобы восстановить."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Verborgene Threads kommen als gedimmte einzeilige Zeilen zurück, die sich zum Wiederherstellen antippen lassen."
           }
         }
       }

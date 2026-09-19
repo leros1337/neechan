@@ -91,12 +91,19 @@ public struct ThreadView: View {
         // Read once. The list, the toolbar's match count and the empty-search
         // overlay all want it, and it filters every post in the thread.
         let posts = model.visiblePosts
+        let asCards = services.settings.postsViewMode == .cards
 
         ScrollView {
-            LazyVStack(spacing: 10) {
-                ForEach(posts) { post in
+            // Cards float apart; a list runs together and lets the hairline
+            // between two posts do the dividing the gap used to do.
+            LazyVStack(spacing: asCards ? 10 : 0) {
+                ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
                     if model.showsUnreadDivider(before: post.num) {
                         NewPostsDivider()
+                            .padding(.horizontal, asCards ? 0 : 12)
+                            .padding(.vertical, asCards ? 0 : 8)
+                    } else if !asCards, showsSeparator(above: index, in: posts, model: model) {
+                        PostSeparator()
                     }
 
                     // One identity for the row, outside the branch. With `.id`
@@ -112,6 +119,8 @@ public struct ThreadView: View {
                                 indexInThread: model.snapshot.indexInThread(of: post),
                                 onReveal: { model.revealedHiddenPosts.insert(post.num) }
                             )
+                            .padding(.horizontal, asCards ? 0 : 12)
+                            .padding(.vertical, asCards ? 0 : 6)
                         } else {
                             PostCellView(
                         post: post,
@@ -146,7 +155,8 @@ public struct ThreadView: View {
                             threadNum: key.threadNum,
                             postNum: post.num,
                             on: services.settings.siteSelection
-                        )
+                        ),
+                        style: asCards ? .card : .flat
                     )
                         }
                     }
@@ -156,7 +166,10 @@ public struct ThreadView: View {
             // Marks the posts as the scroll targets, which is what lets the
             // scroll view report which of them are on screen.
             .scrollTargetLayout()
-            .padding(.horizontal, 12)
+            // Cards are inset as a group, the way they always were. A list
+            // insets each row itself, so a separator can run the full width of
+            // the column instead of stopping short.
+            .padding(.horizontal, asCards ? 12 : 0)
             .padding(.vertical, 10)
             // A measure, rather than however wide the window happens to be.
             // On the inner display of an iPhone Duo -- and already in the
@@ -405,6 +418,17 @@ public struct ThreadView: View {
                 .padding(.trailing, 12)
             }
         }
+    }
+
+    /// Whether a hairline is drawn above the post at `index`.
+    ///
+    /// Not above the first post, and not where something already divides the
+    /// two: the unread marker is a rule of its own, and a hidden post keeps its
+    /// rounded chip, which draws its own edge -- a hairline beside either would
+    /// be the same boundary twice.
+    private func showsSeparator(above index: Int, in posts: [Post], model: ThreadViewModel) -> Bool {
+        guard index > 0 else { return false }
+        return !model.isHidden(posts[index].num) && !model.isHidden(posts[index - 1].num)
     }
 
     /// Brings a post into view, once whatever was over the thread has gone.
@@ -720,6 +744,18 @@ private struct AutoRefreshKey: Equatable {
     let isActive: Bool
     /// Whether this thread is the screen being read.
     let isVisible: Bool
+}
+
+/// The line between two posts in a thread.
+///
+/// `.separator` rather than a hand-mixed grey, so it tracks the system's own
+/// hairline in both light and dark.
+private struct PostSeparator: View {
+    var body: some View {
+        Rectangle()
+            .fill(.separator)
+            .frame(height: 1)
+    }
 }
 
 /// Opens the reply form, optionally quoting a post.

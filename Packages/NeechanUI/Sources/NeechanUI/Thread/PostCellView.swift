@@ -18,6 +18,18 @@ import UIKit
 /// which makes a repeated render a dictionary lookup.
 struct PostCellView: View {
 
+    /// How the cell frames itself.
+    ///
+    /// A card floats on the page and carries its own surface; a flat cell is a
+    /// row in a continuous list and leaves the separating to the list. The
+    /// distinction is not cosmetic: the card surface also carries the unread
+    /// tint, and the border that marks the reader's own posts is drawn on the
+    /// card's own shape, so both need somewhere else to live when it is gone.
+    enum Style {
+        case card
+        case flat
+    }
+
     let post: Post
     let content: PostContent
     let backlinks: [Int]
@@ -52,6 +64,8 @@ struct PostCellView: View {
     var onToggleOwn: (() -> Void)? = nil
     /// This post's own address on the site, for copying and sharing.
     var postURL: URL?
+    /// Card by default, so the replies sheet keeps the look it was written for.
+    var style: Style = .card
 
     @Environment(AppServices.self) private var services
     @Environment(\.neechanTheme) private var theme
@@ -104,19 +118,33 @@ struct PostCellView: View {
                 RepliesButton(count: backlinks.count, action: onOpenReplies)
             }
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, style == .card ? 12 : 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(cellBackground)
-        .clipShape(.rect(cornerRadius: 16))
+        .clipShape(.rect(cornerRadius: style == .card ? 16 : 0))
         .overlay {
             // Own posts and replies to them get a border, the way Dashchan marks
             // them, so they are findable while scrolling fast.
-            if isOwn || repliesToOwn {
+            if style == .card, isOwn || repliesToOwn {
                 RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(isOwn ? Color.accentColor : Color.accentColor.opacity(0.4), lineWidth: 1.5)
+                    .strokeBorder(ownMarkColor, lineWidth: 1.5)
+            }
+        }
+        .overlay(alignment: .leading) {
+            // The same marking for a flat row, which has no card edge to trace:
+            // a bar down the leading edge. Replies to the reader's own posts
+            // have no other sign at all, so this has to carry both weights.
+            if style == .flat, isOwn || repliesToOwn {
+                Rectangle()
+                    .fill(ownMarkColor)
+                    .frame(width: 3)
             }
         }
         .opacity(isDeleted ? 0.55 : 1)
+        // The long-press menu took its shape from the opaque card. A flat cell
+        // has no background to be shaped by, so it is stated outright.
+        .contentShape(.rect)
         .contextMenu {
             if let onReply {
                 Button {
@@ -226,8 +254,18 @@ struct PostCellView: View {
         .system(size: bodyPointSize * services.settings.textScale)
     }
 
+    /// The unread tint rides on this, so a flat cell keeps the tint and drops
+    /// only the surface that made it a card.
     private var cellBackground: some ShapeStyle {
-        isNew ? AnyShapeStyle(Color.accentColor.opacity(0.08)) : AnyShapeStyle(.background.secondary)
+        if isNew {
+            return AnyShapeStyle(Color.accentColor.opacity(0.08))
+        }
+        return style == .card ? AnyShapeStyle(.background.secondary) : AnyShapeStyle(.clear)
+    }
+
+    /// Full strength for the reader's own post, softer for a reply to one.
+    private var ownMarkColor: Color {
+        isOwn ? Color.accentColor : Color.accentColor.opacity(0.4)
     }
 
     private var expandButton: some View {
