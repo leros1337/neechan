@@ -3,6 +3,46 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## 2.2.0
+
+Quieter threads: a post's files take one line instead of a row, a post you hide
+actually goes, and the age gate stops making boards disappear.
+
+### Threads
+
+- **A post's files are one thumbnail now**, marked with how many there are, and
+  tapping it opens the gallery exactly where it used to. They were laid out as a
+  strip you scrolled sideways, which read as several posts' worth of media and
+  cost a row of height on every post carrying more than one. Paging works as
+  before: through the whole thread from inside one, through the opening post's
+  files from the catalog.
+- **Hiding a post hides it.** Until now the rule was stored and everything
+  downstream of it agreed, but the post itself went on drawing in full -- so the
+  app looked like it had understood and then ignored you.
+- **A hidden post leaves the replies window**, and the reply count that opens it
+  no longer counts what it will not show.
+- **A `>>N` pointing at a post you hid is struck through**, so you can see
+  without opening anything that a reply answers something you chose not to read.
+  Still tappable: hiding is your own doing and you are allowed to look again.
+
+### Restrictions
+
+- **The age gate is 18+, and it no longer hides anything.** A board meant for
+  adults stays in the list and refuses to open until the gate is on, and the
+  refusal offers the way through instead of leaving you to find the setting. Its
+  threads still keep out of Favorites, History and Saved threads meanwhile, and
+  nothing is deleted.
+- **Posting is no longer a switch.** It was a preference that could be turned
+  off; it is simply on.
+
+### Elsewhere
+
+- **A fresh install opens on 4chan.** Anyone who has already chosen a site keeps
+  their choice.
+- **The two alternate icons swapped places.** If you were using one of them,
+  Settings -> Appearance is worth a look: your home screen may be showing the
+  other.
+
 ## 2.1.0
 
 iPhone Duo is the headline, and the rest is what landed alongside it: two ways
