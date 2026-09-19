@@ -46,9 +46,11 @@ developer account. iOS 26 or newer, iPhone or iPad.
   threads saved for offline reading, and the board archive.
 - **Filtering** — autohide rules with a live regex tester, hidden threads collapsed to a
   line, hidden posts, and per-thread rules.
-- **Restrictions** — one screen that says what the app will show: NSFW mode, a 21+
-  gate that hides boards meant for adults and makes them unreachable everywhere, and a
-  switch that turns posting off altogether.
+- **Restrictions** — one screen that says what the app will show: NSFW mode, which
+  blurs every thumbnail until you tap it, and an 18+ gate. Boards meant for adults stay
+  in the directory with the gate shut — nothing goes missing — but they refuse to open,
+  and the refusal offers the way through. Threads on them keep out of Favorites, History
+  and Saved threads until you turn it on, and nothing is deleted.
 - **Fitting in** — themes, including ones imported from a theme file, text and thumbnail
   scaling, an iPad split view, and English, Russian and German throughout.
 
