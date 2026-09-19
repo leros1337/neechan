@@ -1,6 +1,6 @@
 # Neechan
 
-[![Release](https://github.com/leros1337/neechan/actions/workflows/release.yml/badge.svg)](https://github.com/leros1337/neechan/actions/workflows/release.yml)
+[![Release](https://img.shields.io/github/v/release/leros1337/neechan?label=release)](../../releases/latest)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 
 **English** · [Русский](README.ru.md)
