@@ -99,15 +99,21 @@ public struct ThreadView: View {
                         NewPostsDivider()
                     }
 
-                    if model.isHidden(post.num) {
-                        HiddenPostStub(
-                            post: post,
-                            indexInThread: model.snapshot.indexInThread(of: post),
-                            onReveal: { model.revealedHiddenPosts.insert(post.num) }
-                        )
-                        .id(post.num)
-                    } else {
-                    PostCellView(
+                    // One identity for the row, outside the branch. With `.id`
+                    // inside each branch SwiftUI saw the same identity either
+                    // way and kept the view it already had, so a post that had
+                    // just been hidden went on drawing itself in full -- while
+                    // every `>>N` pointing at it, read from the same set, was
+                    // struck through correctly.
+                    Group {
+                        if model.isHidden(post.num) {
+                            HiddenPostStub(
+                                post: post,
+                                indexInThread: model.snapshot.indexInThread(of: post),
+                                onReveal: { model.revealedHiddenPosts.insert(post.num) }
+                            )
+                        } else {
+                            PostCellView(
                         post: post,
                         content: model.snapshot.content(of: post.num),
                         // Hidden replies are left out of both the count and the
@@ -142,8 +148,9 @@ public struct ThreadView: View {
                             on: services.settings.siteSelection
                         )
                     )
-                    .id(post.num)
+                        }
                     }
+                    .id(post.num)
                 }
             }
             // Marks the posts as the scroll targets, which is what lets the
