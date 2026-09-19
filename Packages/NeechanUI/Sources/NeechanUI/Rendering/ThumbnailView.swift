@@ -11,6 +11,12 @@ public struct ThumbnailView: View {
     let attachment: Attachment
     /// Fixed side length, or nil to fill whatever space the parent gives.
     let side: CGFloat?
+    /// How many attachments the post this thumbnail stands for carries.
+    ///
+    /// More than one and the thumbnail is a stack rather than a picture, and
+    /// says so. One by default, so a thumbnail that stands only for itself —
+    /// the gallery grid, the doomscroll feed — needs to say nothing.
+    let attachmentCount: Int
 
     @Environment(AppServices.self) private var services
     @Environment(\.displayScale) private var displayScale
@@ -21,9 +27,10 @@ public struct ThumbnailView: View {
     /// Set when the reader taps through the safe-for-work blur.
     @State private var isRevealed = false
 
-    public init(attachment: Attachment, side: CGFloat?) {
+    public init(attachment: Attachment, side: CGFloat?, attachmentCount: Int = 1) {
         self.attachment = attachment
         self.side = side
+        self.attachmentCount = attachmentCount
     }
 
     public var body: some View {
@@ -37,9 +44,14 @@ public struct ThumbnailView: View {
             .overlay { playIndicator }
             .overlay { revealButton }
             .overlay(alignment: .bottomTrailing) { badge }
+            .overlay(alignment: .topTrailing) { countBadge }
             // Names the format so a reader using VoiceOver, and the UI tests,
             // can tell a WebM from an MP4 without opening it.
-            .accessibilityIdentifier("attachment-\(attachment.fileExtension)")
+            .accessibilityIdentifier(
+                attachmentCount > 1
+                    ? "attachment-stack-\(attachmentCount)"
+                    : "attachment-\(attachment.fileExtension)"
+            )
             .accessibilityLabel(accessibilityDescription)
             .task(id: attachment.thumbnail) { await load() }
             .task(id: isForced) { if isForced { await load() } }
@@ -174,8 +186,62 @@ public struct ThumbnailView: View {
         }
     }
 
+    /// Marks a thumbnail that stands for several attachments.
+    ///
+    /// Deliberately not a button, for the same reason `playIndicator` is not:
+    /// the whole thumbnail is already one tap target, and a control inside it
+    /// would take the tap meant for the stack and give VoiceOver a second
+    /// element to stop on. The count goes into `accessibilityDescription`
+    /// instead.
+    ///
+    /// Dashed rather than solid so it reads as "there is more behind this"
+    /// rather than as a count of something that happened, which is what a
+    /// solid badge says everywhere else in iOS.
+    @ViewBuilder
+    private var countBadge: some View {
+        if attachmentCount > 1 {
+            Text(attachmentCount, format: .number)
+                .font(.system(size: countBadgeSide * 0.44, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+                .frame(width: countBadgeSide, height: countBadgeSide)
+                .glassEffect(in: .circle)
+                .overlay {
+                    Circle()
+                        .strokeBorder(
+                            .white.opacity(0.9),
+                            style: StrokeStyle(lineWidth: 1.5, dash: [3, 2])
+                        )
+                }
+                .padding(4)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+    }
+
+    /// Sized off the thumbnail the way the play button is, and a little smaller
+    /// than it: a 44-point board row cannot carry two full-size marks.
+    private var countBadgeSide: CGFloat {
+        guard let side else { return 30 }
+        return min(30, max(16, side * services.settings.thumbnailScale * 0.3))
+    }
+
+    /// One element rather than two: the badge is hidden from VoiceOver and its
+    /// count is said here instead, so a stack is one stop, not a picture
+    /// followed by a bare number.
+    ///
+    /// Written out per kind rather than assembled from a suffix, because the
+    /// languages this ships in do not all put the count in the same place.
     private var accessibilityDescription: Text {
-        if attachment.isVideo {
+        if attachmentCount > 1 {
+            if attachment.isVideo {
+                Text("Video, \(attachment.fileExtension), 1 of \(attachmentCount)", bundle: .module)
+            } else if attachment.isAnimated {
+                Text("Animation, \(attachment.fileExtension), 1 of \(attachmentCount)", bundle: .module)
+            } else {
+                Text("Image, \(attachment.fileExtension), 1 of \(attachmentCount)", bundle: .module)
+            }
+        } else if attachment.isVideo {
             Text("Video, \(attachment.fileExtension)", bundle: .module)
         } else if attachment.isAnimated {
             Text("Animation, \(attachment.fileExtension)", bundle: .module)

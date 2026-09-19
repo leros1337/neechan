@@ -22,7 +22,7 @@ public struct BoardsListView: View {
             // what the separate search tab used to be for.
             if let target = navigationTarget {
                 Section {
-                    if services.contentPolicy.allows(target) {
+                    if services.contentPolicy.allowsOpening(target) {
                         Button {
                             router.open(target)
                             searchText = ""
@@ -34,13 +34,18 @@ public struct BoardsListView: View {
                     } else {
                         // `Router` refuses this too, but it does so silently.
                         // A typed code that simply does nothing reads as a
-                        // broken field, so the reason belongs here.
-                        Label {
-                            Text("Turned off in Restrictions", bundle: .module)
-                        } icon: {
-                            Image(systemName: "hand.raised")
+                        // broken field, so the reason belongs here — and so
+                        // does the way through, since the reader is one tap
+                        // from being allowed in.
+                        Button {
+                            router.openRestrictions()
+                        } label: {
+                            Label {
+                                Text("For adults. Turn on Adult 18+ to open it.", bundle: .module)
+                            } icon: {
+                                Image(systemName: "hand.raised")
+                            }
                         }
-                        .foregroundStyle(.secondary)
                         .accessibilityIdentifier("go-to-restricted")
                     }
                 } header: {
@@ -48,9 +53,14 @@ public struct BoardsListView: View {
                 }
             }
 
+            // Shown whatever the age gate says, like every board below: every
+            // board a 2ch reader made is for adults, so the route behind this
+            // is refused on the way in, where it offers the way through. The
+            // App Store build lists no user boards at all, so there the row
+            // would lead to an empty screen.
             if searchText.isEmpty,
                 services.capabilities.userBoards,
-                services.contentPolicy.allowsMatureBoards {
+                services.contentPolicy.listsEveryBoard {
                 Section {
                     Button {
                         router.push(.userBoards)
@@ -67,12 +77,25 @@ public struct BoardsListView: View {
             ForEach(filteredCategories) { category in
                 Section(category.name.isEmpty ? String(localized: "Other", bundle: .module, locale: AppLocale.current) : category.name) {
                     ForEach(category.boards) { board in
+                        // A board for adults is listed but not opened. The tap
+                        // has to go somewhere: `Router.push` refuses silently,
+                        // which from the reader's side is a row that does
+                        // nothing, so the age gate is what it opens instead.
+                        let isGated = !services.contentPolicy
+                            .allowsOpening(code: board.id, on: services.site)
                         Button {
-                            router.push(.board(board.id))
+                            if isGated {
+                                router.openRestrictions()
+                            } else {
+                                router.push(.board(board.id))
+                            }
                         } label: {
-                            BoardRow(board: board)
+                            BoardRow(board: board, isGated: isGated)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier(
+                            isGated ? "board-gated-\(board.id)" : "board-\(board.id)"
+                        )
                     }
                 }
             }
@@ -225,6 +248,9 @@ public struct BoardsListView: View {
 /// One board in the directory.
 struct BoardRow: View {
     let board: Board
+    /// Listed, but behind the age gate: marked so the reader knows the tap
+    /// leads to the switch rather than to the board.
+    var isGated: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -244,7 +270,7 @@ struct BoardRow: View {
                 }
             }
             Spacer(minLength: 0)
-            Image(systemName: "chevron.forward")
+            Image(systemName: isGated ? "hand.raised.fill" : "chevron.forward")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.tertiary)
         }

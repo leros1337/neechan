@@ -102,7 +102,13 @@ struct HiddenPostsSheet: View {
             }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button { dismiss() } label: { Text("Done", bundle: .module) }
+                    Button { dismiss() } label: {
+                        Label {
+                            Text("Done", bundle: .module)
+                        } icon: {
+                            Image(systemName: "checkmark")
+                        }
+                    }
                 }
             }
         }

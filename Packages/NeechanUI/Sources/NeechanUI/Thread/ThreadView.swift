@@ -99,21 +99,30 @@ public struct ThreadView: View {
                         NewPostsDivider()
                     }
 
-                    if model.isHidden(post.num) {
-                        HiddenPostStub(
-                            post: post,
-                            indexInThread: model.snapshot.indexInThread(of: post),
-                            onReveal: { model.revealedHiddenPosts.insert(post.num) }
-                        )
-                        .id(post.num)
-                    } else {
-                    PostCellView(
+                    // One identity for the row, outside the branch. With `.id`
+                    // inside each branch SwiftUI saw the same identity either
+                    // way and kept the view it already had, so a post that had
+                    // just been hidden went on drawing itself in full -- while
+                    // every `>>N` pointing at it, read from the same set, was
+                    // struck through correctly.
+                    Group {
+                        if model.isHidden(post.num) {
+                            HiddenPostStub(
+                                post: post,
+                                indexInThread: model.snapshot.indexInThread(of: post),
+                                onReveal: { model.revealedHiddenPosts.insert(post.num) }
+                            )
+                        } else {
+                            PostCellView(
                         post: post,
                         content: model.snapshot.content(of: post.num),
-                        backlinks: model.snapshot.index.backlinks(to: post.num),
+                        // Hidden replies are left out of both the count and the
+                        // window it opens, so the two cannot disagree.
+                        backlinks: model.visibleBacklinks(to: post.num),
                         isOwn: model.snapshot.isOwn(post.num),
                         repliesToOwn: model.snapshot.repliesToOwnPost(post.num),
                         ownPostNums: model.snapshot.ownPostNums,
+                        hiddenPostNums: model.effectiveHiddenPostNums,
                         isDeleted: model.snapshot.isDeleted(post.num),
                         isNew: model.isNew(post.num),
                         revealSpoilers: model.isRevealed(post.num),
@@ -139,8 +148,9 @@ public struct ThreadView: View {
                             on: services.settings.siteSelection
                         )
                     )
-                    .id(post.num)
+                        }
                     }
+                    .id(post.num)
                 }
             }
             // Marks the posts as the scroll targets, which is what lets the
@@ -148,6 +158,14 @@ public struct ThreadView: View {
             .scrollTargetLayout()
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
+            // A measure, rather than however wide the window happens to be.
+            // On the inner display of an iPhone Duo -- and already in the
+            // iPad detail column -- a post set edge to edge runs past the
+            // length a reader can track back from. The same clamp the quote
+            // popup has always used. The second frame is what centres it;
+            // on a phone nothing is this wide, so nothing moves there.
+            .frame(maxWidth: 560)
+            .frame(maxWidth: .infinity)
         }
         // Anchored to the top, which is both where a jump puts a post and how
         // the position reports which post the reader is on.
@@ -186,6 +204,7 @@ public struct ThreadView: View {
                 isShowingGalleryGrid = false
                 scrollToPost(postNum)
             }
+            .duoPresentationPlacement(.trailing)
         }
         .sheet(item: Binding(
             get: { model.repliesSheetPostNum.map(RepliesSheetTarget.init) },
@@ -194,12 +213,18 @@ public struct ThreadView: View {
             RepliesSheet(
                 rootPostNum: target.postNum,
                 snapshot: model.snapshot,
+                hiddenPostNums: model.effectiveHiddenPostNums,
                 onOpenOutside: { action in handle(action, model: model) },
                 onToggleOwn: { postNum, owned in
                     Task { await model.setOwned(owned, postNum: postNum) }
                 }
             )
             .presentationDetents([.large])
+            // Beside the thread on a display wide enough to hold both, which
+            // is what these replies are: the thread is still the subject.
+            // Trailing is also what tells the system to stack the sheet's own
+            // bar down the side rather than across the top.
+            .duoPresentationPlacement(.trailing)
         }
         .sheet(isPresented: $isShowingHiddenPosts) {
             HiddenPostsSheet(thread: key) { await model.refreshHiddenPosts() }
@@ -210,7 +235,9 @@ public struct ThreadView: View {
             }
         }
         .sheet(isPresented: $isShowingFavorites) {
-            FavoritesWindow().presentationDetents([.large])
+            FavoritesWindow()
+                .presentationDetents([.large])
+                .duoPresentationPlacement(.trailing)
         }
         .toolbar { toolbar(model, matchCount: posts.count) }
         // Reading is a full-screen job: the tab bar under a thread only offers
@@ -479,7 +506,9 @@ public struct ThreadView: View {
                 case .restricted:
                     Image(systemName: "hand.raised")
                         .foregroundStyle(.secondary)
-                    Text("That board is turned off in Restrictions", bundle: .module)
+                    // No button: this is a toast that takes itself away again,
+                    // and a control on one is a control the reader has to race.
+                    Text("That board is for adults. Turn on Adult 18+ in Restrictions.", bundle: .module)
                 }
             }
             .font(.subheadline)
@@ -588,12 +617,13 @@ public struct ThreadView: View {
                 QuotePopupView(
                     quoted: quoted,
                     depth: model.quotePopups.count,
-                    replyCount: model.snapshot.index.backlinks(to: quoted.post.num).count,
+                    replyCount: model.visibleBacklinks(to: quoted.post.num).count,
                     // Empty for a post fetched from elsewhere, for the same
                     // reason the reply count above is withheld: its references
                     // are numbered against another thread, where a number the
                     // reader owns here belongs to somebody else.
                     ownPostNums: quoted.isRemote ? [] : model.snapshot.ownPostNums,
+                    hiddenPostNums: quoted.isRemote ? [] : model.effectiveHiddenPostNums,
                     onOpenReplies: { model.repliesSheetPostNum = quoted.post.num },
                     onDismiss: {
                         withAnimation(.snappy(duration: 0.2)) { model.dismissTopQuote() }
@@ -635,7 +665,7 @@ public struct ThreadView: View {
                 url.absoluteString,
                 site: services.site,
                 currentBoard: nil
-            ), !services.contentPolicy.allows(target) {
+            ), !services.contentPolicy.allowsOpening(target) {
                 return
             }
             // Links off the site open in the app unless the reader asked for

@@ -221,14 +221,24 @@ struct AutohideRuleEditor: View {
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button { dismiss() } label: { Text("Cancel", bundle: .module) }
+                    Button { dismiss() } label: {
+                        Label {
+                            Text("Cancel", bundle: .module)
+                        } icon: {
+                            Image(systemName: "xmark")
+                        }
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
                         onSave(rule)
                         dismiss()
                     } label: {
-                        Text("Done", bundle: .module)
+                        Label {
+                            Text("Done", bundle: .module)
+                        } icon: {
+                            Image(systemName: "checkmark")
+                        }
                     }
                     .disabled(!rule.isUsable && rule.isEnabled)
                 }

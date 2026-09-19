@@ -1,0 +1,159 @@
+name: Test build
+
+# Does this compile against the SDK a runner image ships?
+#
+# On demand only, and deliberately without tests: `release.yml` runs the
+# package suites, and the XCUITests drive the live site, which is not something
+# a toolchain probe should depend on. This exists to answer one question, which
+# `release.yml` cannot while it stays pinned to Xcode 26.6 -- whether the
+# iPhone Duo support builds on CI at all.
+#
+# Mind what green means here. The Duo APIs arrived in the iOS 27.1 SDK, so they
+# sit behind a `canImport(SwiftUI, _version:)` check and compile out against
+# anything older rather than failing the build. At the time of writing no
+# GitHub image ships 27.1: `xcode-27` is Xcode 27.0 with the iOS 27.0 SDK, and
+# `macos-26` tops out at Xcode 26.6. So a green run here says the app still
+# builds; the summary below is what says whether the Duo code was in it.
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: "Runner image to probe"
+        type: choice
+        required: false
+        # The newest SDK is the question this workflow exists to ask, so it is
+        # the default. `macos-26` is what release.yml already proves.
+        default: xcode-27
+        options: [xcode-27, macos-26, macos-latest, macos-15]
+      xcode:
+        description: "Xcode version, e.g. 27.1. Empty picks the newest installed."
+        required: false
+        default: ""
+
+permissions:
+  # Reading the code is all this needs; it publishes nothing.
+  contents: read
+
+concurrency:
+  group: test-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # `inputs` is empty on a push, so the fallback is what that run uses.
+    runs-on: ${{ inputs.runner || 'xcode-27' }}
+    # A resolve of FFmpegKit that hangs would otherwise burn macOS minutes,
+    # which bill at ten times the Linux rate.
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Show what the image ships
+        # The probe's real output. Printed before anything can fail, so a run
+        # that cannot build still says what was available to build with.
+        run: |
+          set -uo pipefail
+          {
+            echo "### Runner"
+            echo '```'
+            echo "image: ${{ inputs.runner || 'xcode-27' }}"
+            sw_vers
+            echo '```'
+            echo "### Xcode versions installed"
+            echo '```'
+            for app in /Applications/Xcode*.app; do
+              [ -d "$app" ] || continue
+              # Read the version out of the bundle rather than by running
+              # xcodebuild: some of these paths are stubs that abort, and a
+              # crash report in the middle of a listing is only noise.
+              version=$(plutil -extract CFBundleShortVersionString raw -o - \
+                          "$app/Contents/version.plist" 2>/dev/null || echo "?")
+              printf '%-46s %s\n' "$app" "$version"
+            done
+            echo '```'
+            echo "### iOS SDKs"
+            echo '```'
+            # Matched by name rather than with a `/iOS SDK/,/^$/` range:
+            # -showsdks puts a blank line directly under the heading, so such a
+            # range captures the heading and nothing at all after it.
+            xcodebuild -showsdks 2>/dev/null \
+              | grep -iE "iphoneos|iphonesimulator" || echo "(none reported)"
+            echo "default iphoneos SDK: $(xcrun --sdk iphoneos --show-sdk-version 2>/dev/null || echo unknown)"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Pick the toolchain
+        # Named rather than inherited, for the same reason `release.yml` pins
+        # its own: the image's default Xcode moves. Empty input means newest,
+        # which is the version this workflow exists to try.
+        run: |
+          set -euo pipefail
+          want="${{ inputs.xcode }}"
+          if [ -n "$want" ]; then
+            app="/Applications/Xcode_$want.app"
+            if [ ! -d "$app" ]; then
+              echo "::error::Xcode_$want is not on ${{ inputs.runner || 'xcode-27' }}"
+              exit 1
+            fi
+          else
+            # Sorted by version, not lexically: Xcode_9 must not beat Xcode_27.
+            app=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
+            [ -n "$app" ] || app=/Applications/Xcode.app
+          fi
+          echo "selected $app"
+          sudo xcode-select -s "$app/Contents/Developer"
+          xcodebuild -version
+
+      - name: Say whether the Duo code will be compiled in
+        # The point of the whole run. The guard keys off the iOS SDK, not the
+        # compiler, because Xcode 27.0 and 27.1 ship the same compiler and only
+        # 27.1 carries the APIs -- so the compiler version cannot answer this.
+        run: |
+          set -uo pipefail
+          sdk=$(xcrun --sdk iphoneos --show-sdk-version 2>/dev/null || echo "unknown")
+          {
+            echo "### Duo support"
+            echo '```'
+            echo "iOS SDK: $sdk"
+            if [ "$sdk" = "unknown" ]; then
+              echo "could not read the SDK version"
+            elif [ "$(printf '%s\n27.1\n' "$sdk" | sort -V | head -1)" = "27.1" ]; then
+              echo "iOS 27.1 or newer -> iPhone Duo code IS compiled in"
+            else
+              echo "older than iOS 27.1 -> iPhone Duo code is COMPILED OUT"
+              echo "(the build can still go green; it just does not cover that code)"
+            fi
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Install the Metal toolchain
+        # Xcode 27 unbundled the Metal compiler that KSPlayer's shaders need.
+        # Not fatal on its own: where it is already bundled this is a no-op,
+        # and where it is needed and missing the build below says so plainly.
+        run: |
+          xcodebuild -downloadComponent MetalToolchain \
+            || echo "::warning::Metal toolchain not downloaded; it may already be bundled"
+
+      - name: Install XcodeGen
+        # Neechan.xcodeproj and Info.plist are generated, not committed.
+        run: brew install xcodegen
+
+      - name: Restore the SwiftPM cache
+        uses: actions/cache@v6
+        with:
+          # KSPlayer and FFmpegKit come to some gigabytes, most of it FFmpeg's
+          # prebuilt xcframeworks. Both are pinned, so the key is the pins.
+          path: ~/Library/Caches/org.swift.swiftpm-neechan
+          key: spm-${{ runner.os }}-${{ hashFiles('Packages/*/Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Generate the Xcode project
+        run: make gen
+
+      - name: Build
+        # `generic/platform=iOS` rather than a named simulator: an image ships
+        # whichever runtimes it ships, and pinning one would fail for a reason
+        # that has nothing to do with the code. Signing is already off in
+        # project.yml, so an unsigned device build needs no certificate.
+        run: make build DESTINATION='generic/platform=iOS'

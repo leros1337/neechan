@@ -4,6 +4,11 @@ import Testing
 
 @Suite("Endpoints")
 struct EndpointTests {
+    /// 2ch by name. This suite is about 2ch's own endpoints, several of which
+    /// exist on no other site, so it must not follow `SiteSelection.default` —
+    /// that is only where a fresh install starts.
+    private let dvach = SiteSelection(site: .dvach, mirror: .org)
+
     private func url(_ endpoint: ImageboardEndpoint, on domain: DvachDomain = .org) throws -> String {
         let selection = SiteSelection(site: .dvach, mirror: domain)
         return try #require(endpoint.request(for: selection)?.url?.absoluteString)
@@ -72,7 +77,7 @@ struct EndpointTests {
             .thread(board: "b", thread: 1), .after(board: "b", thread: 1, sinceNum: 1),
             .threadInfo(board: "b", thread: 1), .post(board: "b", num: 1)
         ] {
-            let request = endpoint.request(for: .default)!
+            let request = endpoint.request(for: dvach)!
             #expect(request.httpMethod == "GET", "\(endpoint) should be a GET")
             #expect(request.value(forHTTPHeaderField: "Accept") == "application/json")
             #expect(request.httpBody == nil)
@@ -81,7 +86,7 @@ struct EndpointTests {
 
     @Test("search posts a multipart form and asks for a JSON reply")
     func searchRequest() throws {
-        let request = ImageboardEndpoint.search(board: "b", text: "аниме").request(for: .default)!
+        let request = ImageboardEndpoint.search(board: "b", text: "аниме").request(for: dvach)!
         #expect(request.httpMethod == "POST")
         #expect(request.url?.absoluteString == "https://2ch.org/user/search?json=1")
 
@@ -111,11 +116,16 @@ struct EndpointTests {
 
 @Suite("Polling requests")
 struct PollEndpointTests {
+    /// 2ch by name. `threadInfo` and `after` exist on no other site, so this
+    /// must not follow `SiteSelection.default`, which is only where a fresh
+    /// install starts.
+    private let dvach = SiteSelection(site: .dvach, mirror: .org)
+
     @Test("a polled endpoint gives up sooner than one the reader is waiting on")
     func pollsTimeOutSooner() {
-        let poll = ImageboardEndpoint.threadInfo(board: "b", thread: 1).request(for: .default)!
-        let incremental = ImageboardEndpoint.after(board: "b", thread: 1, sinceNum: 5).request(for: .default)!
-        let reader = ImageboardEndpoint.thread(board: "b", thread: 1).request(for: .default)!
+        let poll = ImageboardEndpoint.threadInfo(board: "b", thread: 1).request(for: dvach)!
+        let incremental = ImageboardEndpoint.after(board: "b", thread: 1, sinceNum: 5).request(for: dvach)!
+        let reader = ImageboardEndpoint.thread(board: "b", thread: 1).request(for: dvach)!
 
         #expect(poll.timeoutInterval == 15)
         #expect(incremental.timeoutInterval == 15)
@@ -126,8 +136,8 @@ struct PollEndpointTests {
     /// and no body; where it does not, it costs nothing.
     @Test("a polled endpoint asks the server to confirm rather than resend")
     func pollsRevalidate() {
-        let poll = ImageboardEndpoint.threadInfo(board: "b", thread: 1).request(for: .default)!
-        let reader = ImageboardEndpoint.thread(board: "b", thread: 1).request(for: .default)!
+        let poll = ImageboardEndpoint.threadInfo(board: "b", thread: 1).request(for: dvach)!
+        let reader = ImageboardEndpoint.thread(board: "b", thread: 1).request(for: dvach)!
 
         #expect(poll.cachePolicy == .reloadRevalidatingCacheData)
         #expect(reader.cachePolicy == .useProtocolCachePolicy)

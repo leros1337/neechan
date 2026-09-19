@@ -17,10 +17,14 @@ import Testing
 @MainActor
 struct MarkupSelectionTests {
     private func makeModel() throws -> ReplyFormViewModel {
+        let settings = AppSettings(
+            defaults: UserDefaults(suiteName: "markup.\(UUID().uuidString)")!
+        )
+        // 2ch by name: these suites are written against 2ch fixtures and
+        // 2ch-only endpoints, and the app's default site is 4chan.
+        settings.imageboard = .dvach
         let services = try AppServices.inMemory(
-            settings: AppSettings(
-                defaults: UserDefaults(suiteName: "markup.\(UUID().uuidString)")!
-            ),
+            settings: settings,
             transport: StubTransport()
         )
         return ReplyFormViewModel(board: "test", thread: 1, services: services)

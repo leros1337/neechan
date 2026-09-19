@@ -16,10 +16,14 @@ import Testing
 struct CaptchaSelectionTests {
     private func makeModel() throws -> (ReplyFormViewModel, StubTransport) {
         let transport = StubTransport()
+        let settings = AppSettings(
+            defaults: UserDefaults(suiteName: "captcha.\(UUID().uuidString)")!
+        )
+        // 2ch by name: these suites are written against 2ch fixtures and
+        // 2ch-only endpoints, and the app's default site is 4chan.
+        settings.imageboard = .dvach
         let services = try AppServices.inMemory(
-            settings: AppSettings(
-                defaults: UserDefaults(suiteName: "captcha.\(UUID().uuidString)")!
-            ),
+            settings: settings,
             transport: transport
         )
         return (ReplyFormViewModel(board: "test", thread: 1, services: services), transport)

@@ -170,7 +170,11 @@ struct CloudflareChallengeSheet: View {
                     Button {
                         services.clearPendingChallenge()
                     } label: {
-                        Text("Cancel", bundle: .module)
+                        Label {
+                            Text("Cancel", bundle: .module)
+                        } icon: {
+                            Image(systemName: "xmark")
+                        }
                     }
                 }
             }

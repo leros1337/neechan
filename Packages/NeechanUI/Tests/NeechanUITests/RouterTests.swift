@@ -171,6 +171,45 @@ struct RouterRestrictionTests {
         #expect(router.boardsPath.isEmpty, "\(route) was pushed anyway")
     }
 
+    /// The screen holding the age gate is the way out of every refusal above,
+    /// so refusing it too would shut the only door.
+    @Test("the restrictions screen is never refused")
+    func theRestrictionsScreenIsAlwaysReachable() {
+        let router = router()
+        #expect(router.allows(.restrictions))
+
+        router.push(.restrictions)
+        #expect(router.boardsPath == [.restrictions])
+    }
+
+    /// Where a reader lands after being refused a board, from anywhere.
+    @Test("opening the restrictions screen switches tab and replaces the stack")
+    func openRestrictionsLandsInSettings() {
+        let router = router()
+        router.settingsPath = [.statistics]
+
+        router.openRestrictions()
+
+        #expect(router.selectedTab == .settings)
+        #expect(router.settingsPath == [.restrictions], "Back would lead deeper into Settings")
+    }
+
+    /// The App Store build's narrower directory is a second, independent reason
+    /// to refuse — and the age gate lifts it, which is what lets a reader reach
+    /// a board by typing its code.
+    @Test("a board the directory does not list is refused until the gate is open")
+    func anUnlistedBoardIsRefused() {
+        let router = Router()
+        router.site = .dvach
+        router.policy = ContentPolicy(allowsMatureBoards: false, listsEveryBoard: false)
+
+        #expect(!router.allows(.board("vg")), "an unlisted board was reachable")
+        #expect(router.allows(.board("a")))
+
+        router.policy = ContentPolicy(allowsMatureBoards: true, listsEveryBoard: false)
+        #expect(router.allows(.board("vg")), "the age gate did not unlock it")
+    }
+
     @Test("an ordinary board is still reachable")
     func allowedRoutesStillPush() {
         let router = router()

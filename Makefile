@@ -9,7 +9,11 @@ SHELL := /bin/bash
 # because its test action leaves out the unit bundle that needs testability.
 SCHEME       = $(if $(filter $(APPSTORE),$(CONFIGURATION)),Neechan (App Store),Neechan)
 SIMULATOR   := iPhone 17 Pro
-IPAD        := iPad Pro 13-inch (M5)
+# The baseline iPad, not a Pro: it is the narrowest of them, so a layout that
+# only just fits shows its seams here first.
+IPAD        := iPad (A16)
+DUO         := iPhone Duo
+DUO_OS      := 27.1
 # Pinned to one runtime: several Xcode versions can be installed side by side,
 # and a bare device name then matches one simulator per runtime, which
 # xcodebuild refuses as ambiguous.
@@ -17,7 +21,14 @@ SIM_OS      := 26.5
 # Recursively expanded on purpose: `make ipad` overrides SIMULATOR for its own
 # targets, and an immediate assignment here would bake the iPhone in and build
 # for the wrong device while installing on the right one.
-DESTINATION = platform=iOS Simulator,name=$(SIMULATOR),OS=$(SIM_OS)
+# Set to a UDID to address one simulator exactly, which a name cannot always
+# do: a runtime is allowed to carry two devices of the same name -- the iOS
+# 27.1 runtime ships two called "iPhone Duo" -- and xcodebuild refuses that as
+# ambiguous just as it refuses a name that spans runtimes. Empty by default, so
+# every other target keeps naming its device and reads the same as before.
+SIM_ID      ?=
+comma       := ,
+DESTINATION = platform=iOS Simulator$(comma)$(if $(SIM_ID),id=$(SIM_ID),name=$(SIMULATOR)$(comma)OS=$(SIM_OS))
 # Debug by default; `make sim CONFIGURATION=Release` builds an optimised app,
 # which is the only kind worth measuring: Debug SwiftUI re-renders more and
 # unoptimised Swift distorts every CPU figure.
@@ -56,7 +67,7 @@ VERSION     := $(shell awk '/MARKETING_VERSION:/ { gsub(/["[:space:]]/, "", $$2)
 # `.build/Neechan-$(VERSION).ipa` literally and fails the job if it is absent.
 IPA          = .build/Neechan$(if $(filter-out Release,$(ARCHIVE_CONFIG)),-appstore,)-$(VERSION).ipa
 
-.PHONY: all gen build ipa appstore ipa-appstore check-appstore check-ipa-appstore test test-packages test-pkg test-app test-one test-report sim ipad screenshot fixtures clean clean-all
+.PHONY: all gen build ipa appstore ipa-appstore check-appstore check-ipa-appstore test test-packages test-pkg test-app test-one test-report sim ipad duo screenshot fixtures clean clean-all
 
 all: gen test
 
@@ -139,11 +150,14 @@ test-report:
 ## same name, so both of the obvious ways to name it are ambiguous.
 sim: build
 	@set -e; \
-	udid=$$(xcrun simctl list devices available -j | python3 -c "import json,sys; \
-	  devices = json.load(sys.stdin)['devices']; \
-	  runtime = 'iOS-$(subst .,-,$(SIM_OS))'; \
-	  print(next((d['udid'] for k, v in devices.items() if k.endswith(runtime) \
-	    for d in v if d['name'] == '$(SIMULATOR)'), ''))"); \
+	udid='$(SIM_ID)'; \
+	if [ -z "$$udid" ]; then \
+	  udid=$$(xcrun simctl list devices available -j | python3 -c "import json,sys; \
+	    devices = json.load(sys.stdin)['devices']; \
+	    runtime = 'iOS-$(subst .,-,$(SIM_OS))'; \
+	    print(next((d['udid'] for k, v in devices.items() if k.endswith(runtime) \
+	      for d in v if d['name'] == '$(SIMULATOR)'), ''))"); \
+	fi; \
 	test -n "$$udid" || { echo "no '$(SIMULATOR)' on iOS $(SIM_OS)"; exit 1; }; \
 	xcrun simctl boot $$udid 2>/dev/null || true; \
 	: "Xcode 27 ships no Simulator.app: booting a device raises its window"; \
@@ -156,6 +170,24 @@ sim: build
 ## Same, on iPad.
 ipad: SIMULATOR := $(IPAD)
 ipad: sim
+
+## Same, on iPhone Duo.
+##
+## Resolved to a UDID before handing over, unlike the others: the runtime ships
+## two devices called "iPhone Duo", so the name alone picks neither. The
+## runtime is pinned separately from SIM_OS because the device type's
+## minRuntimeVersion is 27.1 and it simply does not exist on 26.5. Needs Xcode
+## 27.1 selected -- earlier Xcodes ship neither the device type nor the runtime.
+duo:
+	@set -e; \
+	udid=$$(xcrun simctl list devices available -j | python3 -c "import json,sys; \
+	  devices = json.load(sys.stdin)['devices']; \
+	  runtime = 'iOS-$(subst .,-,$(DUO_OS))'; \
+	  print(next((d['udid'] for k, v in devices.items() if k.endswith(runtime) \
+	    for d in v if d['name'] == '$(DUO)'), ''))"); \
+	test -n "$$udid" || { echo "no '$(DUO)' on iOS $(DUO_OS): needs Xcode 27.1"; exit 1; }; \
+	$(MAKE) --no-print-directory sim \
+	  SIMULATOR='$(DUO)' SIM_OS=$(DUO_OS) SIM_ID=$$udid
 
 ## Build, install and launch the App Store variant on the simulator.
 ##
@@ -179,23 +211,29 @@ ipa-appstore: ipa
 ## turns either of those from a silent unlock into a failed build.
 check-appstore: build
 	@set -e; \
-	plist=$$(find $(DERIVED)/Build/Products -name 'Neechan.app' -maxdepth 3 | head -1)/Info.plist; \
+	app=$$(find $(DERIVED)/Build/Products -name 'Neechan.app' -maxdepth 3 | head -1); \
+	plist=$$app/Info.plist; \
 	test -f "$$plist" || { echo "no built app to check"; exit 1; }; \
 	locked=$$(plutil -extract NeechanIsAppStoreBuild raw -o - "$$plist" 2>/dev/null || echo MISSING); \
 	id=$$(plutil -extract CFBundleIdentifier raw -o - "$$plist"); \
 	test "$$locked" = "YES" || { echo "NOT the App Store build: NeechanIsAppStoreBuild=$$locked. Run 'make gen'."; exit 1; }; \
 	case "$$id" in *.appstore) ;; *) echo "wrong bundle id: $$id"; exit 1 ;; esac; \
-	echo "App Store build confirmed: $$id, posting fixed off"
+	plutil -extract CFBundleIcons.CFBundleAlternateIcons json -o - "$$plist" 2>/dev/null | grep -q '"AppIcon3"' && { echo "AppIcon3 (the nude artwork) is in the App Store build. Run 'make gen'."; exit 1; } || true; \
+	test ! -e "$$app/NeechanUI_NeechanUI.bundle/app-icon-neechan.png" || { echo "the nude icon preview is in the App Store build"; exit 1; }; \
+	echo "App Store build confirmed: $$id, posting off, no AppIcon3"
 
 ## Checks the archive `ipa-appstore` just cut. Given ARCHIVE_CONFIG explicitly,
 ## because a target-specific variable does not reach a sub-make and this would
 ## otherwise inspect the ordinary Release archive and pass on the wrong file.
 check-ipa-appstore:
 	@set -e; \
-	plist=$(ARCHIVE)/Products/Applications/Neechan.app/Info.plist; \
+	app=$(ARCHIVE)/Products/Applications/Neechan.app; \
+	plist=$$app/Info.plist; \
 	locked=$$(plutil -extract NeechanIsAppStoreBuild raw -o - "$$plist" 2>/dev/null || echo MISSING); \
 	test "$$locked" = "YES" || { echo "NOT the App Store build: NeechanIsAppStoreBuild=$$locked"; exit 1; }; \
-	echo "App Store .ipa confirmed: posting fixed off"
+	plutil -extract CFBundleIcons.CFBundleAlternateIcons json -o - "$$plist" 2>/dev/null | grep -q '"AppIcon3"' && { echo "AppIcon3 (the nude artwork) is in the App Store build. Run 'make gen'."; exit 1; } || true; \
+	test ! -e "$$app/NeechanUI_NeechanUI.bundle/app-icon-neechan.png" || { echo "the nude icon preview is in the App Store build"; exit 1; }; \
+	echo "App Store .ipa confirmed: posting off, no AppIcon3"
 
 ## Capture the booted simulator screen.
 screenshot:

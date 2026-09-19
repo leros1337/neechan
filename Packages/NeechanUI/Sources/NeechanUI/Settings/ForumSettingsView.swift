@@ -152,7 +152,7 @@ struct ForumSettingsView: View {
         // Asked of the table rather than the directory, which works offline —
         // and which matters because a restricted board is absent from the
         // directory, so asking it would answer "no such board" instead.
-        isRestrictedBoard = !services.contentPolicy.allows(code: code, on: services.site)
+        isRestrictedBoard = !services.contentPolicy.allowsOpening(code: code, on: services.site)
         guard !isRestrictedBoard else {
             isUnknownBoard = false
             return

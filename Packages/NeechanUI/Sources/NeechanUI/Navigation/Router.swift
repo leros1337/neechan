@@ -14,6 +14,10 @@ public enum AppRoute: Hashable, Sendable {
     /// The boards readers made themselves.
     case userBoards
     case statistics
+    /// The screen holding the age gate. A route rather than a plain
+    /// `NavigationLink` because a board refused anywhere in the app sends the
+    /// reader here, and that has to land on the same screen Settings does.
+    case restrictions
 
     public static func thread(_ key: ThreadKey) -> AppRoute {
         .thread(key, scrollTo: nil)
@@ -73,7 +77,7 @@ public final class Router {
         // A restricted board can be sitting in settings from before the reader
         // closed the gate, and this is the one push that happens before any
         // screen exists to refuse it.
-        guard policy.allows(code: code, on: site) else { return }
+        guard policy.allowsOpening(code: code, on: site) else { return }
         boardsPath = [.board(code)]
     }
 
@@ -87,7 +91,7 @@ public final class Router {
         closeWindow()
         self.site = site
         if let code = defaultBoard.flatMap({ BoardCode.normalized($0, for: site) }),
-            policy.allows(code: code, on: site) {
+            policy.allowsOpening(code: code, on: site) {
             boardsPath = [.board(code)]
         } else {
             boardsPath = []
@@ -174,7 +178,7 @@ public final class Router {
 
     /// Opens whatever the search box resolved to, in the tab that suits it.
     public func open(_ target: NavigationTarget) {
-        guard policy.allows(target) else { return }
+        guard policy.allowsOpening(target) else { return }
         selectedTab = .boards
         switch target {
         case .board(let board):
@@ -201,16 +205,27 @@ public final class Router {
     public func allows(_ route: AppRoute) -> Bool {
         switch route {
         case .board(let code), .archive(let code), .serverSearch(let code):
-            policy.allows(code: code, on: site)
+            policy.allowsOpening(code: code, on: site)
         case .thread(let key, _), .savedThread(let key):
-            policy.allows(key)
+            policy.allowsOpening(key)
         case .userBoards:
             // Every board a 2ch reader made is restricted, so the screen behind
             // this has nothing on it to show.
             policy.allowsMatureBoards
-        case .statistics:
+        case .statistics, .restrictions:
+            // Where the reader goes to lift a restriction. Refusing it would
+            // shut the only door out.
             true
         }
+    }
+
+    /// Opens the screen carrying the age gate, from wherever the reader was
+    /// refused. The stack is replaced rather than pushed onto, so Back leads
+    /// out of Settings instead of deeper into the tab they came from.
+    public func openRestrictions() {
+        closeWindow()
+        selectedTab = .settings
+        settingsPath = [.restrictions]
     }
 
     /// Walks the reader out of anything they may no longer see.

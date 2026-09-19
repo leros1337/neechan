@@ -27,6 +27,19 @@ struct AboutView: View {
                 } label: {
                     Text("Licenses", bundle: .module)
                 }
+                // Only where they were asked for: terms nobody agreed to are
+                // not this app's terms, and a row explaining otherwise would
+                // be a row that misleads.
+                if services.settings.isAppStore {
+                    NavigationLink {
+                        AgreementView()
+                            .navigationTitle(Text("Terms", bundle: .module))
+                            .inlineNavigationTitle()
+                    } label: {
+                        Text("Terms", bundle: .module)
+                    }
+                    .accessibilityIdentifier("about-terms")
+                }
             }
 
             Section {

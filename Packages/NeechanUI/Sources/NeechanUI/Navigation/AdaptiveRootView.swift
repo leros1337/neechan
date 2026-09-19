@@ -154,9 +154,18 @@ public struct AdaptiveRootView: View {
         services.releaseMemory(keeping: router.openThreadKeys)
     }
 
+    /// The app, or the terms that have to be accepted before it.
+    ///
+    /// An `if` rather than a cover or a window: at first launch nothing is
+    /// presented yet, so the reasons `LockWindow` needs a `UIWindow` of its own
+    /// do not apply here. It sits inside `shell` so that the locale chosen
+    /// above reaches it — the reader has not been able to open Settings yet,
+    /// but the device's language is already known.
     @ViewBuilder
     private var shell: some View {
-        if sizeClass == .compact {
+        if services.settings.isAppStore, !services.settings.hasAgreedToTerms {
+            AgreementView { services.settings.hasAgreedToTerms = true }
+        } else if sizeClass == .compact {
             RootTabView()
         } else {
             SplitRootView()
@@ -237,6 +246,8 @@ struct RouteDestinationView: View {
             UserBoardsView()
         case .statistics:
             StatisticsView()
+        case .restrictions:
+            RestrictionsSettingsView()
         }
     }
 }
@@ -246,6 +257,8 @@ struct RouteDestinationView: View {
 /// Says which setting is responsible, because a screen that simply refuses to
 /// appear reads as a broken app rather than as a choice the reader made.
 struct RestrictedRouteView: View {
+    @Environment(Router.self) private var router
+
     var body: some View {
         ContentUnavailableView {
             Label {
@@ -254,7 +267,14 @@ struct RestrictedRouteView: View {
                 Image(systemName: "hand.raised")
             }
         } description: {
-            Text("This board is turned off in Settings, under Restrictions.", bundle: .module)
+            Text("This board is for adults. Turn on Adult 18+ in Restrictions to open it.", bundle: .module)
+        } actions: {
+            Button {
+                router.openRestrictions()
+            } label: {
+                Text("Open Restrictions", bundle: .module)
+            }
+            .accessibilityIdentifier("open-restrictions")
         }
         .accessibilityIdentifier("restricted-route")
     }

@@ -45,9 +45,18 @@ struct DoomscrollView: View {
             if model.items.isEmpty {
                 empty
             } else {
-                player
-                feed
-                chrome
+                // The clip and the controls over it, which a part-folded
+                // display gives a plane each. The player and the feed are one
+                // half between them: the feed is transparent and exists to
+                // page the player underneath it, so they cannot be separated.
+                DuoArrangement(.overlay) {
+                    chrome
+                } secondary: {
+                    ZStack {
+                        player
+                        feed
+                    }
+                }
             }
         }
         .preferredColorScheme(.dark)
@@ -142,6 +151,9 @@ struct DoomscrollView: View {
             Spacer(minLength: 0)
             bottomBar
         }
+        // The outer front camera is always in the way of something here: this
+        // draws edge to edge over a clip doing the same.
+        .duoAvoidingOcclusions()
     }
 
     private var topBar: some View {

@@ -37,11 +37,11 @@ struct InterfaceSettingsView: View {
 
             if AppIconSwitcher.isSupported {
                 Section {
-                    // Side by side rather than a row each: three icons as full
+                    // Side by side rather than a row each: the icons as full
                     // rows took more of the screen than the setting is worth,
                     // and the choice is a picture, so it reads fine small.
                     HStack(alignment: .top, spacing: 18) {
-                        ForEach(AppIconChoice.allCases) { choice in
+                        ForEach(AppIconChoice.available()) { choice in
                             iconTile(choice)
                         }
                         Spacer(minLength: 0)

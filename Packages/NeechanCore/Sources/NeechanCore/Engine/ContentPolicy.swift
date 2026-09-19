@@ -12,18 +12,79 @@ import Synchronization
 /// it: it is read by three toolbar gates and one send guard, all on the main
 /// actor, and modelling it here would suggest otherwise.
 public struct ContentPolicy: Sendable, Hashable {
-    /// Whether boards meant for adults are shown at all.
+    /// Whether boards meant for adults may be opened. The reader's own switch.
+    ///
+    /// It no longer decides what the *directory* lists — see ``lists(code:on:)``.
+    /// Nothing is hidden from the board list any more; the gate is asked at the
+    /// moment a board is opened, where it can say so and offer the way through.
     public var allowsMatureBoards: Bool
 
-    public init(allowsMatureBoards: Bool = true) {
+    /// Whether the board directory lists every board the site has.
+    ///
+    /// False only in the App Store build, whose directory carries anime, manga
+    /// and comics and nothing else. Independent of ``allowsMatureBoards``: that
+    /// switch unlocks *reaching* a board, not what the list shows.
+    public var listsEveryBoard: Bool
+
+    public init(allowsMatureBoards: Bool = true, listsEveryBoard: Bool = true) {
         self.allowsMatureBoards = allowsMatureBoards
+        self.listsEveryBoard = listsEveryBoard
     }
 
     /// Everything allowed, which is what a caller with no reader behind it wants.
     public static let unrestricted = ContentPolicy()
 
+    /// Whether the reader's own lists may carry this board.
+    ///
+    /// The adult gate and nothing else. Favorites, History, Saved threads and
+    /// the watcher ask this, so the App Store build's narrower directory does
+    /// not retro-hide something the reader saved.
     public func allows(code: String, on site: Imageboard) -> Bool {
         allowsMatureBoards || !MatureBoards.contains(code, on: site)
+    }
+
+    /// Whether the board directory lists this board.
+    ///
+    /// Deliberately free of ``allowsMatureBoards``: an adult board is listed
+    /// and then refused on the way in, rather than vanishing with no
+    /// explanation of where it went.
+    public func lists(code: String, on site: Imageboard) -> Bool {
+        listsEveryBoard || AppStoreBoards.contains(code, on: site)
+    }
+
+    public func lists(_ board: Board, on site: Imageboard) -> Bool {
+        listsEveryBoard || AppStoreBoards.contains(board, on: site)
+    }
+
+    /// Whether this board can be opened at all.
+    ///
+    /// Two ways to be refused, one way through. A board for adults is refused,
+    /// and so is a board the directory does not list — which in the App Store
+    /// build is everything outside anime, manga and comics. The adult switch
+    /// lifts both, because it is the reader saying how old they are, and that
+    /// is the only thing either refusal is really protecting.
+    public func allowsOpening(code: String, on site: Imageboard) -> Bool {
+        allowsMatureBoards || (allows(code: code, on: site) && lists(code: code, on: site))
+    }
+
+    public func allowsOpening(_ ref: BoardRef) -> Bool {
+        allowsOpening(code: ref.code, on: ref.site)
+    }
+
+    public func allowsOpening(_ key: ThreadKey) -> Bool {
+        allowsOpening(code: key.board, on: key.site)
+    }
+
+    /// Whether whatever the go-to field resolved to may be opened.
+    ///
+    /// A pasted link resolves to the site its own host names, so the target
+    /// carries the site to judge it on.
+    public func allowsOpening(_ target: NavigationTarget) -> Bool {
+        switch target {
+        case .board(let board): allowsOpening(board)
+        case .thread(let key), .threadAtPost(let key, _): allowsOpening(key)
+        case .post(let board, _): allowsOpening(board)
+        }
     }
 
     public func allows(_ board: Board, on site: Imageboard) -> Bool {
@@ -44,18 +105,6 @@ public struct ContentPolicy: Sendable, Hashable {
         allows(code: key.board, on: key.site)
     }
 
-    /// Whether whatever the go-to field resolved to may be opened.
-    ///
-    /// A pasted link resolves to the site its own host names, so the target
-    /// carries the site to judge it on.
-    public func allows(_ target: NavigationTarget) -> Bool {
-        switch target {
-        case .board(let board): allows(board)
-        case .thread(let key), .threadAtPost(let key, _): allows(key)
-        case .post(let board, _): allows(board)
-        }
-    }
-
     /// The codes to exclude, for a query that must do its own filtering.
     ///
     /// A `#Predicate` cannot call into this type, and a fetch that applies a
@@ -67,9 +116,10 @@ public struct ContentPolicy: Sendable, Hashable {
         allowsMatureBoards ? [] : Array(MatureBoards.effectiveCodes(on: site))
     }
 
+    /// The directory, narrowed to what this build lists.
     public func filter(_ boards: [Board], on site: Imageboard) -> [Board] {
-        guard !allowsMatureBoards else { return boards }
-        return boards.filter { !MatureBoards.contains($0, on: site) }
+        guard !listsEveryBoard else { return boards }
+        return boards.filter { AppStoreBoards.contains($0, on: site) }
     }
 }
 

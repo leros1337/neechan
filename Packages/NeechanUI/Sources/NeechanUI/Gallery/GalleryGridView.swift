@@ -24,12 +24,10 @@ struct GalleryGridView: View {
     /// way to the posts and had to open the gallery again.
     @State private var start: GalleryStart?
 
-    private let columns = [GridItem(.adaptive(minimum: 104), spacing: 6)]
-
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVGrid(columns: columns, spacing: 6) {
+                DuoAdaptiveGrid(minimum: 104, spacing: 6) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         Button {
                             start = GalleryStart(items: items, index: index)
@@ -77,7 +75,11 @@ struct GalleryGridView: View {
                     Button {
                         dismiss()
                     } label: {
-                        Text("Done", bundle: .module)
+                        Label {
+                            Text("Done", bundle: .module)
+                        } icon: {
+                            Image(systemName: "checkmark")
+                        }
                     }
                 }
             }

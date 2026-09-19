@@ -14,7 +14,12 @@ public enum Imageboard: String, CaseIterable, Sendable, Codable, Identifiable, H
     case dvach
     case fourchan
 
-    public static let `default` = Imageboard.dvach
+    /// Where a fresh install starts.
+    ///
+    /// Only a starting point: the choice is stored the moment the reader flips
+    /// the switch on the board list, so this moves nobody who has already
+    /// chosen.
+    public static let `default` = Imageboard.fourchan
 
     public var id: String { rawValue }
 

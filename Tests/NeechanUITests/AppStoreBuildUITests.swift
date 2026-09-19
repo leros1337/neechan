@@ -8,7 +8,12 @@ import XCTest
 /// with `make test-one ONLY=NeechanUITests/AppStoreBuildUITests CONFIGURATION=AppStore`.
 @MainActor
 final class AppStoreBuildUITests: LiveUITestCase {
-    /// Opens Restrictions, and says whether this build fixes posting.
+    /// Opens Restrictions, and says whether this is the App Store build.
+    ///
+    /// The tell is the age gate's footer, which says something different here
+    /// because the switch means something different. It used to be the note
+    /// under the posting switch, which no longer exists: posting is not a
+    /// preference in any build any more.
     private func openRestrictions(_ app: XCUIApplication) throws -> Bool {
         switchToTab(app, "Settings")
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 15))
@@ -16,24 +21,25 @@ final class AppStoreBuildUITests: LiveUITestCase {
         let row = app.buttons["Restrictions"].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10), "Restrictions is not in Settings")
         row.tap()
-        XCTAssertTrue(app.switches["posting-toggle"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.switches["mature-toggle"].waitForExistence(timeout: 10))
 
-        return app.staticTexts["posting-fixed-note"].exists
+        return app.staticTexts["adult-gate-note-appstore"].exists
     }
 
     /// Launched without the usual pinning: pinning posting open with a launch
     /// argument is exactly what this build is supposed to ignore, which makes
     /// it the proof rather than a nuisance.
-    func testPostingIsFixedOffAndTheOtherTwoAreNot() throws {
+    func testTheRestrictionsScreenOffersNoPostingSwitch() throws {
         let app = launchApp(
             extraArguments: ["-posting.enabled", "YES", "-restrictions.allowsMature", "YES"],
             pinsRestrictions: false
         )
         try XCTSkipUnless(try openRestrictions(app), "not the App Store build")
 
-        let posting = app.switches["posting-toggle"]
-        XCTAssertFalse(posting.isEnabled, "posting could still be switched on")
-        XCTAssertEqual(posting.value as? String, "0", "a launch argument turned posting on")
+        XCTAssertFalse(
+            app.switches["posting-toggle"].exists,
+            "posting is offered as a preference in the App Store build"
+        )
 
         // The other two are ordinary preferences here, not locks.
         XCTAssertTrue(app.switches["nsfw-mode-toggle"].isEnabled)
@@ -42,15 +48,86 @@ final class AppStoreBuildUITests: LiveUITestCase {
         attach(app, name: "appstore-restrictions")
     }
 
+    // MARK: The agreement
+
+    /// Shown before anything else, and not dismissible: an agreement the
+    /// reader can walk past is not one they made.
+    ///
+    /// Pinned shut with a launch argument, which also fixes what this can
+    /// check. An argument lives in `UserDefaults`' argument domain, which
+    /// outranks anything the app writes, so tapping the button here cannot
+    /// move the preference and the agreement cannot be got past — the same
+    /// reason `RestrictionsUITests` drives the age gate through the screen
+    /// instead of pinning it. What the button does is covered by
+    /// `AppSettingsTests.agreeingSticks`, and the accepted path by the test
+    /// below.
+    func testTheAgreementBlocksTheFirstLaunch() throws {
+        let app = launchApp(
+            extraArguments: ["-general.agreedToTerms", "NO"],
+            acceptsTerms: false
+        )
+
+        // Probed on the button rather than on the container around it: a
+        // `VStack` carrying only an identifier is not an accessibility
+        // element, so querying for it would skip a test that should have run.
+        let accept = app.buttons["agreement-accept"]
+        guard accept.waitForExistence(timeout: 15) else {
+            throw XCTSkip("not the App Store build")
+        }
+
+        XCTAssertFalse(
+            app.tabBars.firstMatch.exists,
+            "the app was reachable without accepting the terms"
+        )
+        XCTAssertTrue(app.staticTexts["Age Restriction"].exists, "the age term is missing")
+        XCTAssertTrue(app.staticTexts["Content Reporting (DMCA)"].exists, "the DMCA term is missing")
+        // The section this build deliberately leaves out: Neechan has no report
+        // button and no way to block a poster, so promising both would be a
+        // term it does not keep.
+        XCTAssertFalse(
+            app.staticTexts["Reporting & Blocking"].exists,
+            "the agreement promises reporting and blocking, which do not exist"
+        )
+
+        attach(app, name: "appstore-agreement")
+    }
+
+    /// Accepted once, never asked again — and still readable, because terms
+    /// nobody can re-read are terms nobody agreed to either.
+    func testTheAgreementIsNotAskedTwiceAndStaysReadable() throws {
+        let app = launchApp()
+        try XCTSkipUnless(try openRestrictions(app), "not the App Store build")
+
+        XCTAssertFalse(
+            app.buttons["agreement-accept"].exists,
+            "the agreement was asked again after being accepted"
+        )
+
+        switchToTab(app, "Settings")
+        app.buttons["settings-info.circle"].firstMatch.tap()
+        XCTAssertTrue(
+            app.buttons["about-terms"].waitForExistence(timeout: 10),
+            "the terms could not be re-read from About"
+        )
+        app.buttons["about-terms"].tap()
+        XCTAssertTrue(
+            app.staticTexts["Age Restriction"].waitForExistence(timeout: 10),
+            "the terms did not open"
+        )
+        XCTAssertFalse(
+            app.buttons["agreement-accept"].exists,
+            "the copy in About asks to be agreed to again"
+        )
+    }
+
     /// The point of the whole variant: no way to write, anywhere.
     func testAThreadOffersNoWayToPost() throws {
         let app = launchApp(pinsRestrictions: false)
         try XCTSkipUnless(try openRestrictions(app), "not the App Store build")
 
         switchToTab(app, "Boards")
-        // /a/, not the usual /b/: this build starts with Mature 21+ off, and
-        // /b/ is one of the boards that hides. (Finding that out by watching
-        // `openDefaultBoard` fail is a decent proof the gate works.)
+        // /a/, not the usual /b/: this build lists only anime, manga and
+        // comics, and /b/ is not among them.
         let board = app.staticTexts["/a/"]
         XCTAssertTrue(
             board.waitForExistence(timeout: Self.networkTimeout),

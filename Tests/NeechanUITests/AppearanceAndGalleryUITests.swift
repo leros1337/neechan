@@ -201,7 +201,9 @@ final class AppearanceAndGalleryUITests: LiveUITestCase {
         openSettings(app)
         app.buttons["Appearance"].firstMatch.tap()
 
-        let tiles = ["app-icon-original", "app-icon-neechan", "app-icon-peace"]
+        // In this order: the nude artwork is last, which is what lets the App
+        // Store build drop it by naming one fewer alternate icon.
+        let tiles = ["app-icon-original", "app-icon-peace", "app-icon-neechan"]
             .map { app.buttons[$0] }
 
         XCTAssertTrue(

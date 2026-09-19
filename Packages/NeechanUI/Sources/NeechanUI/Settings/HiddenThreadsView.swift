@@ -61,7 +61,11 @@ struct HiddenThreadsView: View {
                     Button {
                         isConfirmingUnhideAll = true
                     } label: {
-                        Text("Unhide all", bundle: .module)
+                        Label {
+                            Text("Unhide all", bundle: .module)
+                        } icon: {
+                            Image(systemName: "eye")
+                        }
                     }
                 }
             }

@@ -156,7 +156,7 @@ public struct ThreadsListView: View {
 
         case .grid:
             ScrollView {
-                LazyVGrid(columns: gridColumns, spacing: 12) {
+                DuoAdaptiveGrid(minimum: 168, spacing: 12) {
                     ForEach(visibleThreads) { thread in
                         Group {
                             if isHidden(thread) {
@@ -199,10 +199,6 @@ public struct ThreadsListView: View {
         isBoardFavorite = (try? await services.favorites.toggleBoard(
             boardRef, name: boardInfo?.name ?? board
         )) ?? isBoardFavorite
-    }
-
-    private var gridColumns: [GridItem] {
-        [GridItem(.adaptive(minimum: 168), spacing: 12)]
     }
 
     private var navigationTitle: String {

@@ -1,9 +1,19 @@
 import Foundation
 import NeechanAPI
+import NeechanAPITesting
+import NeechanTestSupport
 import Testing
 @testable import NeechanCore
 
-@Suite("Mature boards")
+/// Serialized, and the only home for the tests that touch
+/// `MatureBoards`' learned set.
+///
+/// That set is process-global, and `forgetLearnedBoards()` clears every site
+/// at once. Two such tests in different suites run in parallel and wipe each
+/// other, which failed about one run in five. `.serialized` orders tests
+/// within a suite and not across them, so keeping both here is what makes it
+/// mean anything.
+@Suite("Mature boards", .serialized)
 struct MatureBoardsTests {
     /// The list a reader is actually judged against, pinned so a stray edit to
     /// the table shows up as a failure rather than as a board quietly becoming
@@ -74,6 +84,26 @@ struct MatureBoardsTests {
         #expect(MatureBoards.contains(hardcore, on: .dvach))
     }
 
+    /// A board created after this app shipped is in no table written today.
+    @Test("a user board is learned from the directory, so a bare code is covered")
+    func userBoardsAreLearnedFromTheDirectory() async throws {
+        defer { MatureBoards.forgetLearnedBoards() }
+        MatureBoards.forgetLearnedBoards()
+
+        let transport = StubTransport()
+        await transport.stub(pathSuffix: "/boards", data: try FixtureLoader.data(.boards))
+        _ = try await BoardsRepository(
+            client: DvachClient(transport: transport, site: { .init(site: .dvach, mirror: .org) }),
+            site: { .init(site: .dvach, mirror: .org) },
+            policy: { .unrestricted }
+        ).boards()
+
+        // `/ew/` is user-made in the fixture, and is in the static table too;
+        // what this proves is that the directory is what teaches it, which is
+        // the mechanism a genuinely new board depends on.
+        #expect(MatureBoards.effectiveCodes(on: .dvach).contains("ew"))
+    }
+
     @Test("a user board created after this table was written is still covered")
     func learnedUserBoardsAreCovered() {
         defer { MatureBoards.forgetLearnedBoards() }
@@ -91,7 +121,10 @@ struct MatureBoardsTests {
 
 @Suite("Content policy")
 struct ContentPolicyTests {
+    /// An ordinary build with the age gate shut.
     private let blocked = ContentPolicy(allowsMatureBoards: false)
+    /// The App Store build, whose directory is narrow whatever the gate says.
+    private let narrow = ContentPolicy(allowsMatureBoards: false, listsEveryBoard: false)
 
     @Test("the default policy allows everything, including a listed board")
     func unrestrictedAllowsEverything() {
@@ -121,7 +154,9 @@ struct ContentPolicyTests {
         #expect(blocked.allows(BoardRef(site: .dvach, code: "s")))
     }
 
-    @Test("filtering a directory drops the restricted boards and keeps the rest")
+    /// Filtering is the *directory* question, and the age gate is not part of
+    /// it: an adult board stays in the list and is refused on the way in.
+    @Test("filtering a directory narrows it to what the build lists")
     func filteringADirectory() {
         let boards = [
             Board(id: "vg", name: "Games", category: "Игры"),
@@ -131,6 +166,50 @@ struct ContentPolicyTests {
         ]
 
         #expect(ContentPolicy.unrestricted.filter(boards, on: .dvach).count == 4)
-        #expect(blocked.filter(boards, on: .dvach).map(\.id) == ["vg", "a"])
+        #expect(blocked.filter(boards, on: .dvach).count == 4, "the age gate filtered the list")
+        #expect(narrow.filter(boards, on: .dvach).map(\.id) == ["a"])
+    }
+
+    // MARK: The two questions
+
+    /// The directory is fixed by the build. Nothing the reader does widens it.
+    @Test("what is listed does not move with the age gate")
+    func listingIgnoresTheAgeGate() {
+        #expect(narrow.lists(code: "a", on: .dvach))
+        #expect(!narrow.lists(code: "vg", on: .dvach))
+
+        var narrowButAllowed = narrow
+        narrowButAllowed.allowsMatureBoards = true
+        #expect(!narrowButAllowed.lists(code: "vg", on: .dvach), "the age gate widened the list")
+    }
+
+    /// Two ways to be refused — for adults, or simply not listed — and one way
+    /// through, because the age gate is the reader saying how old they are and
+    /// that is what both refusals are protecting.
+    @Test("opening is refused for an adult board and for an unlisted one")
+    func openingAsksBothQuestions() {
+        // An ordinary build: only the age gate can refuse.
+        #expect(!blocked.allowsOpening(code: "hc", on: .dvach))
+        #expect(blocked.allowsOpening(code: "vg", on: .dvach))
+
+        // The App Store build with the gate shut: both refuse.
+        #expect(!narrow.allowsOpening(code: "hc", on: .dvach))
+        #expect(!narrow.allowsOpening(code: "vg", on: .dvach), "an unlisted board opened")
+        #expect(narrow.allowsOpening(code: "a", on: .dvach))
+
+        // The gate open lifts both.
+        var narrowButAllowed = narrow
+        narrowButAllowed.allowsMatureBoards = true
+        #expect(narrowButAllowed.allowsOpening(code: "hc", on: .dvach))
+        #expect(narrowButAllowed.allowsOpening(code: "vg", on: .dvach))
+    }
+
+    /// A reader's own favourites and history are not re-judged by the narrower
+    /// directory: the App Store build does not retro-hide what they saved.
+    @Test("the reader's own lists ask the age gate only")
+    func storedListsAskTheAgeGateOnly() {
+        #expect(narrow.allows(code: "vg", on: .dvach), "an unlisted board left the reader's lists")
+        #expect(!narrow.allows(code: "hc", on: .dvach))
+        #expect(narrow.blockedCodes(on: .dvach).contains("hc"))
     }
 }

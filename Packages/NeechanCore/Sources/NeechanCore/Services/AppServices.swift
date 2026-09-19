@@ -70,7 +70,10 @@ public final class AppServices {
         // per query, from their own actor, so turning a restriction on takes
         // effect without rebuilding any of them.
         let policyHolder = ContentPolicyHolder(
-            ContentPolicy(allowsMatureBoards: settings.allowsMatureBoards)
+            ContentPolicy(
+                allowsMatureBoards: settings.allowsMatureBoards,
+                listsEveryBoard: !settings.isAppStore
+            )
         )
         self.policyHolder = policyHolder
         let suppliedTransport = transport
@@ -439,7 +442,11 @@ public final class AppServices {
     /// What the reader has said they are willing to be shown. For main-actor
     /// readers; the repositories get the same value through their provider.
     public var contentPolicy: ContentPolicy {
-        ContentPolicy(allowsMatureBoards: settings.allowsMatureBoards)
+        ContentPolicy(
+            allowsMatureBoards: settings.allowsMatureBoards,
+            // Fixed by the build, not by the reader, so nothing ever moves it.
+            listsEveryBoard: !settings.isAppStore
+        )
     }
 
     /// Turns the gate on boards meant for adults on or off.

@@ -1,4 +1,5 @@
 import Foundation
+import NeechanSettings
 import SwiftUI
 #if canImport(UIKit)
 import UIKit
@@ -9,10 +10,15 @@ import UIKit
 /// The names are the asset catalogue's, which is also what
 /// `setAlternateIconName` takes: the one the app ships with has no name at all,
 /// which is how the system says "the original".
+///
+/// The order of the cases is the order of the picker, and `neechan` is last on
+/// purpose: it is the one the App Store build leaves out, and the catalogue
+/// leaves out the *trailing* `ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES`
+/// entry, so the two stay in step without a hole in the middle of the list.
 enum AppIconChoice: String, CaseIterable, Identifiable, Sendable {
     case original
-    case neechan
     case peace
+    case neechan
 
     var id: String { rawValue }
 
@@ -20,8 +26,8 @@ enum AppIconChoice: String, CaseIterable, Identifiable, Sendable {
     var alternateName: String? {
         switch self {
         case .original: nil
-        case .neechan: "AppIcon2"
-        case .peace: "AppIcon3"
+        case .peace: "AppIcon2"
+        case .neechan: "AppIcon3"
         }
     }
 
@@ -33,8 +39,8 @@ enum AppIconChoice: String, CaseIterable, Identifiable, Sendable {
     var previewResource: String {
         switch self {
         case .original: "app-icon-default"
-        case .neechan: "app-icon-neechan"
         case .peace: "app-icon-peace"
+        case .neechan: "app-icon-neechan"
         }
     }
 
@@ -47,9 +53,21 @@ enum AppIconChoice: String, CaseIterable, Identifiable, Sendable {
     var title: LocalizedStringKey {
         switch self {
         case .original: "Original"
-        case .neechan: "Neechan"
         case .peace: "Peace"
+        case .neechan: "Neechan"
         }
+    }
+
+    /// The icons this build offers.
+    ///
+    /// The Neechan artwork is bare-breasted, so the App Store build neither
+    /// lists it nor carries it: `project.yml` drops `AppIcon3` from that
+    /// configuration's catalogue, and asking for an icon the bundle does not
+    /// hold would simply fail. The flag is a parameter so a test can ask for
+    /// either build — in a test bundle `Bundle.main` is the runner, which
+    /// carries no such key.
+    static func available(isAppStoreBuild: Bool = BuildVariant.isAppStore) -> [AppIconChoice] {
+        isAppStoreBuild ? allCases.filter { $0 != .neechan } : allCases
     }
 
     /// Reads a stored name back, falling back to the shipped icon.
