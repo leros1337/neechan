@@ -235,9 +235,12 @@ public final class MediaPlayer {
             return
         }
 
-        if state == .finished {
-            // Playing a clip that has ended starts it again, which is what
-            // every video player does and what the viewer's button means.
+        // `finished` is the tidy way a clip ends; `hasRunOut` is the untidy
+        // one. A clip can reach the end of the file while still waiting for
+        // sound that never arrives, and it then sits in `buffering` with
+        // nothing left to show. Playing either starts it again, which is what
+        // every video player does and what the viewer's button means.
+        if state == .finished || output.hasRunOut {
             restart()
             return
         }

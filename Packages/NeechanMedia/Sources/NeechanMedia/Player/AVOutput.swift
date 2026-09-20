@@ -229,6 +229,31 @@ final class AVOutput: @unchecked Sendable {
         )
     }
 
+    /// Whether the clip has run out of things to show and the clock has
+    /// reached the last of them.
+    ///
+    /// Asked before playing, because the state machine is not always the one
+    /// who noticed. A clip whose sound never said it had finished sat in
+    /// `buffering` at the end of the file, and pressing play then ran the clock
+    /// on over a frozen last frame instead of starting the clip again.
+    var hasRunOut: Bool {
+        // The queues first, never inside the state lock.
+        let hasVideo = state.withLock { $0.hasVideo }
+        let nothingMoreComing = hasVideo
+            ? (videoFrames?.isDrained ?? true)
+            : (audioRuns?.isDrained ?? true)
+        guard nothingMoreComing else { return false }
+
+        let last = state.withLock { current in
+            max(
+                current.hasVideo ? current.lastVideoEnd : .zero,
+                current.hasAudio ? current.lastAudioEnd : .zero
+            )
+        }
+        guard last.isValid, last > .zero else { return false }
+        return synchronizer.currentTime() >= last
+    }
+
     var rate: Float { synchronizer.rate }
 
     var currentTime: CMTime { synchronizer.currentTime() }
@@ -281,11 +306,17 @@ final class AVOutput: @unchecked Sendable {
 
             let ahead = CMTimeGetSeconds(last - now)
 
+            // A clip with a picture is over when the picture is. The sound
+            // gets no vote: an audio queue that never says it has finished,
+            // which a seek landing on the end of the file leaves behind, kept
+            // the clip alive for ever over a frozen last frame.
+            let nothingMoreComing = current.hasVideo ? videoDone : audioDone
+
             // Nothing left ahead of the clock and nothing more coming. That is
             // the end of the clip, not something to carry on with: starting
             // again here ran the clock off the end of the file with the last
             // picture frozen on screen and no way of ever stopping.
-            if ahead <= 0, videoDone, audioDone {
+            if ahead <= 0, nothingMoreComing {
                 current.isStarved = false
                 current.earliestSinceStarved = .invalid
                 current.starvedAt = nil
@@ -296,7 +327,7 @@ final class AVOutput: @unchecked Sendable {
             // A quarter of a second in hand, so playing does not start again
             // only to stop on the very next frame. Less will do when there is
             // no more coming, because that is all there will ever be.
-            guard ahead >= 0.25 || (ahead > 0 && videoDone && audioDone) else { return nil }
+            guard ahead >= 0.25 || (ahead > 0 && nothingMoreComing) else { return nil }
 
             current.isStarved = false
             current.earliestSinceStarved = .invalid
@@ -433,6 +464,11 @@ final class AVOutput: @unchecked Sendable {
 
     private func reportStatus() {
         let time = synchronizer.currentTime()
+        // Asked again on every report, because the usual prompt is a push onto
+        // a queue and the decode thread stops pushing the moment that queue is
+        // full. A clip stopped with its queues full got no further chances at
+        // all, which is exactly when it most needed one.
+        noticeRefill()
         checkForAWaitGoingNowhere(at: time)
         MediaLog.output.debug(
             """
@@ -451,72 +487,71 @@ final class AVOutput: @unchecked Sendable {
 
     /// Rescues a clip that has stopped and cannot start itself again.
     ///
-    /// The shape of it: the renderer is holding pictures for a moment the
-    /// clock has already gone past, so it will never show them and never ask
-    /// for more, and nothing being enqueued means nothing notices. Everything
-    /// needed is in hand and the clip waits for ever anyway.
-    ///
-    /// Recovery is to throw away what the renderer is holding and start again
-    /// from the picture that is actually next.
+    /// Two shapes, both of which used to wait for ever; `StallRecovery` holds
+    /// the reasoning and the cases. Recovery from the first is to throw away
+    /// what the renderers hold and start again from the picture that is
+    /// actually next; from the second, to say that the clip is over.
     private func checkForAWaitGoingNowhere(at time: CMTime) {
-        let stuckFor: Duration? = state.withLock { current in
-            guard current.isStarved, !current.isAwaitingNewPosition,
-                  let since = current.starvedAt
-            else { return nil }
-            return ContinuousClock.now - since
-        }
-        // Running with nothing to show and nothing more coming: the clip is
-        // over and something failed to say so. Belt and braces, because a
-        // clock running past the end of a file never stops by itself.
-        if synchronizer.rate > 0 {
-            let ranPastTheEnd = state.withLock { current -> Bool in
-                guard !current.hasEnded, !current.isAwaitingNewPosition else { return false }
-                let last = max(
+        // Read before the state lock is taken, never inside it: these take the
+        // queues' own lock, and holding two locks at once here would be the
+        // one place in the player that could ever deadlock on itself.
+        let nextPicture = videoFrames?.peek()?.presentation
+        let isVideoDrained = videoFrames?.isDrained ?? true
+        let isAudioDrained = audioRuns?.isDrained ?? true
+        let isRendererReady = displayLayer.sampleBufferRenderer.isReadyForMoreMediaData
+        let isClockRunning = synchronizer.rate > 0
+
+        let situation = state.withLock { current in
+            StallRecovery.Situation(
+                isStarved: current.isStarved,
+                isAwaitingNewPosition: current.isAwaitingNewPosition,
+                hasEnded: current.hasEnded,
+                stoppedFor: current.starvedAt.map { ContinuousClock.now - $0 },
+                clock: time,
+                lastHandedOver: max(
                     current.hasVideo ? current.lastVideoEnd : .zero,
                     current.hasAudio ? current.lastAudioEnd : .zero
-                )
-                guard last.isValid, last > .zero,
-                      CMTimeGetSeconds(time - last) > 1,
-                      (self.videoFrames?.isDrained ?? true), (self.audioRuns?.isDrained ?? true)
-                else { return false }
-                current.hasEnded = true
-                return true
-            }
-            if ranPastTheEnd {
-                MediaLog.output.warning(
-                    """
-                    the clock had run past the end of the clip to \
-                    \(TimeMath.seconds(time), format: .fixed(precision: 1), privacy: .public)s; \
-                    calling it finished
-                    """
-                )
-                onEnded?()
-                return
-            }
+                ),
+                nextPicture: nextPicture,
+                isRendererReady: isRendererReady,
+                isVideoDrained: isVideoDrained,
+                isAudioDrained: isAudioDrained,
+                isClockRunning: isClockRunning,
+                hasVideo: current.hasVideo
+            )
         }
 
-        guard let stuckFor, stuckFor > .seconds(5) else { return }
+        switch StallRecovery.decide(situation) {
+        case .waitLonger:
+            return
 
-        // Only when there is something to show. Waiting with nothing in hand
-        // is waiting for the network, which is not this to fix.
-        guard let next = videoFrames?.peek(), next.presentation.isValid else { return }
-        guard CMTimeGetSeconds(time - next.presentation) > 0.5 else { return }
+        case .reachedTheEnd:
+            state.withLock { $0.hasEnded = true }
+            MediaLog.output.warning(
+                """
+                nothing left at \(TimeMath.seconds(time), format: .fixed(precision: 1), privacy: .public)s \
+                and nothing more coming; calling it finished
+                """
+            )
+            onEnded?()
 
-        state.withLock {
-            $0.isStarved = false
-            $0.earliestSinceStarved = .invalid
-            $0.starvedAt = nil
+        case .startAgain(let picture):
+            state.withLock {
+                $0.isStarved = false
+                $0.earliestSinceStarved = .invalid
+                $0.starvedAt = nil
+            }
+            MediaLog.output.warning(
+                """
+                stopped for \(situation.stoppedFor?.seconds ?? 0, format: .fixed(precision: 1), privacy: .public)s \
+                with the picture at \
+                \(TimeMath.seconds(picture), format: .fixed(precision: 3), privacy: .public)s \
+                and the clock at \(TimeMath.seconds(time), format: .fixed(precision: 3), privacy: .public)s, \
+                renderer ready \(situation.isRendererReady, privacy: .public); starting again from the picture
+                """
+            )
+            onRefilled?(picture)
         }
-        MediaLog.output.warning(
-            """
-            stopped for \(stuckFor.seconds, format: .fixed(precision: 1), privacy: .public)s \
-            with the picture at \
-            \(TimeMath.seconds(next.presentation), format: .fixed(precision: 3), privacy: .public)s \
-            and the clock at \(TimeMath.seconds(time), format: .fixed(precision: 3), privacy: .public)s; \
-            starting again from the picture
-            """
-        )
-        onRefilled?(next.presentation)
     }
 
     private var statusTimer: DispatchSourceTimer?
@@ -549,13 +584,15 @@ final class AVOutput: @unchecked Sendable {
             )
             guard last.isValid, last > .zero else { return (false, false, false) }
 
-            if videoDone, audioDone, time >= last {
+            let nothingMoreComing = current.hasVideo ? videoDone : audioDone
+
+            if nothingMoreComing, time >= last {
                 current.hasEnded = true
                 return (true, false, false)
             }
             // Past everything handed over, with more of the file still to
             // come: the network is behind rather than the clip being over.
-            if time >= last, !(videoDone && audioDone) {
+            if time >= last, !nothingMoreComing {
                 guard !current.isStarved else { return (false, false, false) }
                 current.isStarved = true
                 current.earliestSinceStarved = .invalid
