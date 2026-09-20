@@ -8,6 +8,8 @@ struct GalleryPage: View {
     let item: GalleryItem
     let url: URL?
     let playerOptions: MediaPlayerOptions
+    /// The gallery's player, shown by whichever video page is on screen.
+    let player: MediaPlayer
     /// Only the page on screen loads its media, so paging does not start three
     /// decoders at once.
     let isCurrent: Bool
@@ -45,24 +47,42 @@ struct GalleryPage: View {
     }
 
     var body: some View {
-        ZStack {
-            content
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .contentShape(.rect)
-        // The system's own press, with a preview of our own. Left to itself it
-        // lifts the view the menu is attached to, and here that is the whole
-        // screen: it spent a second or two rendering a full-size copy of the
-        // picture and drew it over the menu while it worked. A small card costs
-        // nothing to render.
-        //
-        // A long press of our own was tried instead and cost more than it
-        // bought: written either way it left the pager unable to turn to the
-        // next file once it had fired.
-        .contextMenu {
-            menu
-        } preview: {
-            menuPreview
+        Group {
+            // Decided from what the item is, which is known before the page is
+            // ever drawn, rather than from what has loaded so far. Deciding it
+            // from the load state swapped the page's whole view tree the moment
+            // a clip opened, which is in the middle of the swipe that brought
+            // it on screen, and the pager stopped where it was: half a page of
+            // video and half a page of the black neighbour beside it.
+            if item.isVideo {
+                // No long-press menu on a video, and not for want of one: the
+                // controls under it already save and share.
+                //
+                // The reason is what the menu does to the view it is attached
+                // to. For the press-and-hold animation, SwiftUI hosts a second
+                // copy of that view, and a copy of this one is a copy of the
+                // player: it opened the file, started its threads and began
+                // playing, fifty milliseconds behind the one on screen, and
+                // since the copy is thrown away rather than removed it was
+                // never told to stop. Every video played twice over itself,
+                // and the copies piled up as the reader swiped.
+                surface
+            } else {
+                // The system's own press, with a preview of our own. Left to
+                // itself it lifts the view the menu is attached to, and here
+                // that is the whole screen: it spent a second or two rendering
+                // a full-size copy of the picture and drew it over the menu
+                // while it worked. A small card costs nothing to render.
+                //
+                // A long press of our own was tried instead and cost more than
+                // it bought: written either way it left the pager unable to
+                // turn to the next file once it had fired.
+                surface.contextMenu {
+                    menu
+                } preview: {
+                    menuPreview
+                }
+            }
         }
         .task(id: isCurrent) {
             guard isCurrent else { return }
@@ -78,6 +98,15 @@ struct GalleryPage: View {
             hasFallenBackToDownload = true
             Task { await fetchWholeFile() }
         }
+    }
+
+    /// The page itself, without the long-press menu.
+    private var surface: some View {
+        ZStack {
+            content
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(.rect)
     }
 
     /// What a long press offers.
@@ -187,14 +216,26 @@ struct GalleryPage: View {
             #endif
 
         case .video(let file):
-            VideoPage(
-                url: file,
-                options: playerOptions,
-                onSingleTap: onSingleTap,
-                state: $playbackState,
-                progress: $playbackProgress,
-                control: $playbackControl
-            )
+            // Only the page being looked at gets a player. A paging view keeps
+            // the pages either side alive, and a player built for one of those
+            // opens the file, starts its threads and begins fetching straight
+            // away: three clips pulling at once over one connection, none of
+            // them the one on screen. The head of the next is warmed by the
+            // prefetcher instead, which is what that is for.
+            if isCurrent {
+                VideoPage(
+                    player: player,
+                    url: file,
+                    options: playerOptions,
+                    onSingleTap: onSingleTap,
+                    state: $playbackState,
+                    progress: $playbackProgress,
+                    control: $playbackControl
+                )
+            } else {
+                Color.black
+                    .onTapGesture(perform: onSingleTap)
+            }
 
         case .failed(let message):
             ContentUnavailableView {
@@ -220,7 +261,7 @@ struct GalleryPage: View {
         do {
             let file = try await LocalMediaFile.resolve(
                 url,
-                referer: services.settings.domain.baseURL,
+                referer: item.endpoints(mirror: services.settings.domain).web,
                 downloader: services.downloader
             )
             guard !Task.isCancelled else { return }
@@ -237,7 +278,7 @@ struct GalleryPage: View {
             return
         }
         loadState = .loading
-        let referer = services.settings.domain.baseURL
+        let referer = item.endpoints(mirror: services.settings.domain).web
 
         if item.isVideo {
             // Played from the site, not fetched first. The engine reads through
@@ -288,6 +329,7 @@ struct GalleryPage: View {
 /// A video surface. The transport lives in the gallery's control stack, so
 /// this draws nothing but the picture and its loading and failure states.
 private struct VideoPage: View {
+    let player: MediaPlayer
     let url: URL
     let options: MediaPlayerOptions
     var onSingleTap: () -> Void
@@ -304,11 +346,13 @@ private struct VideoPage: View {
     var body: some View {
         ZStack {
             MediaPlayerView(
+                player: player,
                 url: url,
                 options: options,
                 state: $state,
                 progress: $progress,
-                control: $control
+                control: $control,
+                screen: "viewer"
             )
             .onTapGesture(perform: onSingleTap)
 

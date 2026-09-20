@@ -33,14 +33,23 @@ public actor MediaPrefetcher {
     /// The one warm allowed to be in flight, and what it is for.
     private var inFlight: (url: URL, task: Task<Void, Never>)?
 
+    /// Asked before every warm, and between blocks, whether the clip on
+    /// screen is still waiting for its own bytes.
+    ///
+    /// Handed in rather than read from the global directly so a test can say
+    /// what it means without another test's player answering for it.
+    private let isPlaybackWaiting: @Sendable () -> Bool
+
     public init(
         store: MediaBlockStore = .shared,
         cache: MediaCache = .shared,
-        session: URLSession? = nil
+        session: URLSession? = nil,
+        isPlaybackWaiting: @escaping @Sendable () -> Bool = { PlaybackDemand.isWaitingForBytes }
     ) {
         self.store = store
         self.cache = cache
         self.session = session ?? Self.makeSession()
+        self.isPlaybackWaiting = isPlaybackWaiting
     }
 
     /// A session of its own, deliberately.
@@ -56,7 +65,10 @@ public actor MediaPrefetcher {
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.httpCookieStorage = .shared
         configuration.httpMaximumConnectionsPerHost = 1
-        configuration.timeoutIntervalForRequest = 20
+        // Short, because nothing waits for this. A warm that has not answered
+        // in eight seconds has already failed at the one thing it was for.
+        configuration.timeoutIntervalForRequest = 8
+        configuration.waitsForConnectivity = false
         return URLSession(configuration: configuration)
     }
 
@@ -73,6 +85,12 @@ public actor MediaPrefetcher {
         if inFlight?.url == url { return }
         cancelAll()
 
+        // Not while the clip on screen is still waiting for its own bytes.
+        // Reading ahead is only ever a courtesy, and taking bandwidth from the
+        // picture the reader is looking at to fetch one they have not asked
+        // for yet is the wrong way round.
+        guard !isPlaybackWaiting() else { return }
+
         // Already whole on disk; there is nothing to warm.
         if await cache.cachedFile(for: url) != nil { return }
 
@@ -81,6 +99,7 @@ public actor MediaPrefetcher {
 
         let store = store
         let session = session
+        let isPlaybackWaiting = isPlaybackWaiting
         let task = Task.detached(priority: .utility) {
             // Off any actor: the reader blocks by design.
             let reader = MediaRangeReader(
@@ -93,7 +112,7 @@ public actor MediaPrefetcher {
             for index in 0..<wanted where missing.contains(index) {
                 // Checked per block rather than per byte, so a cancellation
                 // lands within one fetch rather than after the whole head.
-                if Task.isCancelled { return }
+                if Task.isCancelled || isPlaybackWaiting() { return }
 
                 // The *last* byte of the block, not the first. Asking the
                 // length already fetched byte zero, and the reader keeps that

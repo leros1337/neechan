@@ -102,7 +102,7 @@ struct MediaPrefetcherTests {
         // Five blocks' worth; two are wanted.
         PrefetchServingProtocol.reset(body: body(blockSize * 5))
 
-        let prefetcher = MediaPrefetcher(store: store, cache: cache, session: makeSession())
+        let prefetcher = MediaPrefetcher(store: store, cache: cache, session: makeSession(), isPlaybackWaiting: { false })
         await prefetcher.warm(url, referer: nil, bytes: blockSize * 2)
         await prefetcher.waitForCurrentWarm()
 
@@ -129,7 +129,7 @@ struct MediaPrefetcherTests {
         _ = try await cache.store(source, for: url)
         PrefetchServingProtocol.requestedRanges.withLock { $0 = [] }
 
-        let prefetcher = MediaPrefetcher(store: store, cache: cache, session: makeSession())
+        let prefetcher = MediaPrefetcher(store: store, cache: cache, session: makeSession(), isPlaybackWaiting: { false })
         await prefetcher.warm(url, referer: nil, bytes: blockSize * 2)
         await prefetcher.waitForCurrentWarm()
 
@@ -150,7 +150,7 @@ struct MediaPrefetcherTests {
         let cache = MediaCache(directory: cacheDirectory, byteLimit: 1 << 30, blocks: store)
         PrefetchServingProtocol.reset(body: body(blockSize * 4))
 
-        let prefetcher = MediaPrefetcher(store: store, cache: cache, session: makeSession())
+        let prefetcher = MediaPrefetcher(store: store, cache: cache, session: makeSession(), isPlaybackWaiting: { false })
         await prefetcher.warm(URL(string: "https://example.invalid/first.webm")!, referer: nil)
         await prefetcher.warm(URL(string: "https://example.invalid/second.webm")!, referer: nil)
         await prefetcher.waitForCurrentWarm()
@@ -173,7 +173,7 @@ struct MediaPrefetcherTests {
         let url = URL(string: "https://example.invalid/abandoned.webm")!
         PrefetchServingProtocol.reset(body: body(blockSize * 4))
 
-        let prefetcher = MediaPrefetcher(store: store, cache: cache, session: makeSession())
+        let prefetcher = MediaPrefetcher(store: store, cache: cache, session: makeSession(), isPlaybackWaiting: { false })
         await prefetcher.warm(url, referer: nil)
         await prefetcher.cancel(url)
         await prefetcher.waitForCurrentWarm()

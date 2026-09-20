@@ -38,8 +38,8 @@ CONFIGURATION ?= Debug
 # module cache.
 DERIVED      = .build/DerivedData$(if $(filter-out Debug,$(CONFIGURATION)),-$(CONFIGURATION),)
 RESULTS     := .build/TestResults.xcresult
-# Shared SwiftPM clone cache: FFmpegKit alone is a multi-gigabyte checkout, so
-# it must not be re-cloned every time DerivedData is wiped.
+# Shared SwiftPM clone cache, so dependencies are not re-fetched every time
+# DerivedData is wiped.
 SPM_CACHE   := $(HOME)/Library/Caches/org.swift.swiftpm-neechan
 XCB          = xcodebuild -scheme '$(SCHEME)' -destination '$(DESTINATION)' \
                -configuration $(CONFIGURATION) \
@@ -250,6 +250,6 @@ clean:
 	rm -rf $(DERIVED) $(RESULTS) .build/DerivedData-$(APPSTORE) .build/DerivedDataArchive-*
 	@for pkg in $(PACKAGES); do rm -rf Packages/$$pkg/.build; done
 
-## Also drops the shared SwiftPM clone cache (re-cloning FFmpegKit takes minutes).
+## Also drops the shared SwiftPM clone cache.
 clean-all: clean
 	rm -rf $(SPM_CACHE)

@@ -24,7 +24,45 @@ public enum Fixture: String, CaseIterable, Sendable {
     /// A second of VP9 video with Opus audio, the shape 2ch serves, generated
     /// rather than recorded so it stays tiny and always decodes to the same
     /// thing. Used by the WebM converter's tests.
+    ///
+    /// VP9 profile 1, which no VideoToolbox decoder will take, so this one
+    /// always goes through software.
     case sampleVideo = "sample_video"
+
+    /// VP9 profile 0 with Opus, the profile a phone's own decoder can take.
+    /// The counterpart to `sampleVideo`, for the hardware path.
+    case sampleVP9Profile0 = "sample_vp9_p0"
+    /// VP8 with Opus. No hardware decoder exists for VP8 anywhere.
+    case sampleVP8 = "sample_vp8"
+    /// H.264 High with B-frames and AAC, so frames arrive out of display order.
+    case sampleH264 = "sample_h264"
+    /// HEVC tagged `hev1` with MP3 audio: the shape 2ch serves and the one
+    /// AVFoundation refuses to open at all.
+    case sampleHEV1 = "sample_hev1"
+    /// H.264 with FLAC in a Matroska file, which is what a `.mkv` usually is:
+    /// the same container as WebM carrying codecs WebM never does.
+    case sampleMatroska = "sample_matroska"
+
+    /// VP9 with no sound at all. Boards are full of these, and a player that
+    /// waits for an audio clock it will never get shows a frozen picture.
+    case sampleVideoOnly = "sample_videoonly"
+    /// Opus with no picture, which is the same problem the other way round.
+    case sampleAudioOnly = "sample_audioonly"
+
+    /// VP9 with sound in a format the app's FFmpeg build cannot decode.
+    ///
+    /// Deliberately so: the build is trimmed, and a file from elsewhere may
+    /// carry anything. A clip whose sound will not decode must still play and
+    /// still end, rather than running its timeline on for ever because one
+    /// half of it never reported that it had finished.
+    case sampleUndecodableAudio = "sample_deafaudio"
+
+    /// Twelve seconds of VP9 and Opus.
+    ///
+    /// Long enough that the renderer empties what it was given at the start
+    /// and has to be fed again, which every one-second fixture is too short to
+    /// ever ask for. A player that stops halfway through a clip stops here.
+    case sampleLong = "sample_long"
 
     // Captcha
     case captchaSettings = "captcha_settings"
@@ -80,7 +118,10 @@ public enum Fixture: String, CaseIterable, Sendable {
         case .cloudflareChallenge, .fourchanCloudflareGate: "html"
         case .sampleStillPNG: "png"
         case .sampleAnimatedGIF: "gif"
-        case .sampleVideo: "webm"
+        case .sampleVideo, .sampleVP9Profile0, .sampleVP8,
+             .sampleVideoOnly, .sampleAudioOnly, .sampleLong: "webm"
+        case .sampleH264, .sampleHEV1: "mp4"
+        case .sampleMatroska, .sampleUndecodableAudio: "mkv"
         default: "json"
         }
     }

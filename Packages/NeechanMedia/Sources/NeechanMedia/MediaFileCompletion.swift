@@ -28,13 +28,19 @@ public enum MediaFileCompletion {
         session: URLSession? = nil,
         onProgress: (@Sendable (Int64, Int64) -> Void)? = nil
     ) async -> URL? {
-        let session = session ?? StreamingPlayerOptions.sharedSession
+        let session = session ?? PlaybackSession.shared
         var headers = ["User-Agent": UserAgent.current]
         if let referer { headers["Referer"] = referer.absoluteString }
 
         // Off the calling actor: the reader blocks by design, and the calls
         // below are the only ones in the app allowed to make it fetch.
         let assembled = await Task.detached(priority: .utility) { () -> URL? in
+            // The store remembers a file's size only once it has kept a piece
+            // of it. No size, no pieces, no head start: a plain download is
+            // simpler and reads the file in order. Decided before the reader
+            // is asked anything, because asking it the size now fetches the
+            // first block, which would count as a piece.
+            guard store.length(for: url) != nil else { return nil }
             let reader = MediaRangeReader(
                 url: url, headers: headers, session: session, store: store
             )

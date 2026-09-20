@@ -3,7 +3,7 @@ import Foundation
 /// What the player is doing, in terms the UI cares about.
 ///
 /// Mirrors the engine's own states but does not expose them, so the controls
-/// above this module never import KSPlayer.
+/// above this module never learn what is decoding them.
 public enum PlaybackState: Sendable, Equatable {
     case idle
     case preparing

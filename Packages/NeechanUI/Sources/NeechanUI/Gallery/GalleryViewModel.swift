@@ -56,7 +56,11 @@ public final class GalleryViewModel {
     // Playback state for the page on screen. It lives here rather than inside
     // the page so the transport can sit in one control stack with the gallery's
     // own actions, instead of two bars fighting for the same strip of screen.
-    public var playbackState: PlaybackState = .idle
+    public var playbackState: PlaybackState = .idle {
+        // The moment the clip on screen is playing is the moment the
+        // connection has room for the next one.
+        didSet { if playbackState == .playing { warmNextVideo() } }
+    }
     public var playbackProgress = PlaybackProgress()
     public var playbackControl = PlaybackControl()
     public var isMuted = false
@@ -69,6 +73,11 @@ public final class GalleryViewModel {
     }
 
     private let services: AppServices
+    /// Fetches the head of the next clip while this one plays. The same one
+    /// the feed uses, so the two never fetch ahead against each other.
+    private let warmer: any MediaWarming = MediaPrefetcher.shared
+    /// What has been asked for, so paging back and forth does not ask again.
+    @ObservationIgnored private var warmedID: GalleryItem.ID?
 
     /// The cookies the media host expects, read once when the gallery opens.
     ///
@@ -151,6 +160,25 @@ public final class GalleryViewModel {
         playbackState = .idle
         playbackProgress = PlaybackProgress()
         playbackControl = PlaybackControl()
+        // Leaving a video for a still: nothing is going to load another clip
+        // into the player, so it is stopped here. Video to video is handled
+        // by the next page loading its clip, which replaces this one.
+        if currentItem?.isVideo != true { player.unload() }
+    }
+
+    /// The one player every video page shows.
+    ///
+    /// Owned here rather than by the page, because the pager is not reliable
+    /// about a page's lifetime: it builds two views for the page it lands on
+    /// and never tells the spare one it has gone, so a player owned by a view
+    /// went on playing, unseen, to the end of every clip swiped past. One
+    /// player, loaded with whatever clip is on screen, cannot play two clips
+    /// at once, and it stops when the gallery closes.
+    public let player = MediaPlayer()
+
+    /// The gallery is closing: the clip stops for good.
+    public func finishPlayback() {
+        player.shutdown()
     }
 
     public func toggleControls() {
@@ -159,9 +187,41 @@ public final class GalleryViewModel {
         }
     }
 
-    /// Full-size URL for an item, resolved against the selected mirror.
+    /// Fetches the opening seconds of the next video along, so swiping to it
+    /// lands on a picture rather than on a wait.
+    ///
+    /// Only while the clip on screen is already playing, so the two are not
+    /// fetching against each other over one connection, and only the next
+    /// video rather than the next page: stills between videos load in a moment
+    /// and need no warming. Forward only, because that is the way a gallery is
+    /// read; the prefetcher keeps one warm in flight, and a second would cancel
+    /// the first.
+    private func warmNextVideo() {
+        guard DoomscrollPolicy.mayWarm(
+            isPlaying: playbackState == .playing,
+            allowsMediaLoading: services.allowsMediaLoading
+        ) else { return }
+
+        let after = items.index(after: currentIndex)
+        guard after < items.endIndex,
+              let next = items[after...].first(where: \.isVideo),
+              next.id != warmedID,
+              let url = url(for: next)
+        else { return }
+
+        warmedID = next.id
+        let referer = referer(for: next)
+        Task { [warmer] in await warmer.warm(url, referer: referer) }
+    }
+
+    /// Full-size URL for an item, resolved against its site's media host.
     public func url(for item: GalleryItem) -> URL? {
-        services.settings.domain.url(forPath: item.attachment.path)
+        item.endpoints(mirror: services.settings.domain).url(forPath: item.attachment.path)
+    }
+
+    /// The page the item's site expects its files to be linked from.
+    public func referer(for item: GalleryItem) -> URL {
+        item.endpoints(mirror: services.settings.domain).web
     }
 
     /// Options for the video player, carrying the headers the site expects.
@@ -171,10 +231,11 @@ public final class GalleryViewModel {
     public func playerOptions(for item: GalleryItem) -> MediaPlayerOptions {
         if let cached = cachedOptions[item.kind] { return cached }
 
-        let domain = services.settings.domain
+        // One thread, one site: every item here shares a referer, so keying
+        // the cache on the kind alone is safe.
         let options = MediaPlayerOptions(
             kind: item.kind,
-            referer: domain.baseURL,
+            referer: referer(for: item),
             userAgent: UserAgent.current,
             cookies: sessionCookies,
             loops: isLooping,

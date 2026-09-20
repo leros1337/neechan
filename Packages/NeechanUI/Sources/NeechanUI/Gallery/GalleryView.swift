@@ -111,6 +111,7 @@ public struct GalleryView: View {
             // a say in the gesture.
             isZoomedIn = false
         }
+        .onDisappear { model.finishPlayback() }
     }
 
     private func page(at index: Int, item: GalleryItem) -> some View {
@@ -118,6 +119,7 @@ public struct GalleryView: View {
             item: item,
             url: model.url(for: item),
             playerOptions: model.playerOptions(for: item),
+            player: model.player,
             isCurrent: index == model.currentIndex,
             onSingleTap: { model.toggleControls() },
             onGoToPost: onGoToPost.map { goToPost in

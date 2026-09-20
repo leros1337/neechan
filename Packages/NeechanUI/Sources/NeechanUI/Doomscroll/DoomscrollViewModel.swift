@@ -82,6 +82,12 @@ public final class DoomscrollViewModel {
         }
         self.services = services
         self.warmer = warmer ?? MediaPrefetcher.shared
+        // A clip that runs out of bytes wants the connection to itself, so
+        // whatever is being read ahead for a later one is dropped at once
+        // rather than at the end of the block it happened to be fetching.
+        PlaybackDemand.whenPlaybackStartsWaiting {
+            Task { await MediaPrefetcher.shared.cancelAll() }
+        }
         self.transfers = transfers ?? MediaTransferController(services: services)
         self.sessionCookies = (cookieProvider ?? Self.storedCookies)(services.settings.domain)
         self.playingID = self.items.indices.contains(startIndex)
@@ -211,7 +217,13 @@ public final class DoomscrollViewModel {
     /// The blocks a feed leaves behind are the ones nothing else prunes: only
     /// the whole-file cache and a trip to the background evict, and this is the
     /// first screen that writes blocks at speed for clips nobody finishes.
+    /// The one player the feed shows, owned here so it stops when the feed
+    /// does rather than when its view is told it has gone, which a view is
+    /// not always told.
+    public let player = MediaPlayer()
+
     public func finish() {
+        player.shutdown()
         Task { [warmer] in
             await warmer.cancelAll()
             await MediaCache.shared.evictIfNeeded()

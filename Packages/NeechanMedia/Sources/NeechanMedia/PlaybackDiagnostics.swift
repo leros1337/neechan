@@ -1,27 +1,29 @@
-@preconcurrency import KSPlayer
+import CoreGraphics
 import Foundation
 
-/// Opens a file through the same engine and options the player view uses, and
-/// reports what the engine said, in words.
+/// Opens a file the way the viewer does and reports what happened, in words.
 ///
-/// The player view reduces every failure to "Playback failed", which is right
-/// for a reader and useless for finding out why. This is for the tests and for
-/// chasing a report: it runs headlessly, needs no view, and returns the
-/// engine's own error.
+/// The player reduces every failure to one sentence, which is right for a
+/// reader and useless for finding out why. This is for the tests and for
+/// chasing a report: it runs headlessly, needs no view, and says which path
+/// the file took as well as whether it played.
 @MainActor
 public enum PlaybackDiagnostics {
     public struct Report: Sendable {
-        /// The engine's error, or nil when the file reached ready-to-play.
+        /// What went wrong, in the player's own words, or nil if nothing did.
         public var error: String?
+        /// True once the file has been opened and its streams are known.
         public var isReady = false
-        /// True once the engine has decoded frames and can actually show
-        /// them. Ready-to-play alone is not that: a stream whose decoder is
-        /// broken still reports ready, and then never becomes playable.
+        /// True once a picture has actually been decoded. Being ready is not
+        /// that: a file whose decoder is broken still opens, and then never
+        /// produces a frame.
         public var isPlayable = false
-        /// Every state change, in order, for reading back what happened.
+        /// Every state the player reported, in order.
         public var events: [String] = []
         public var naturalSize: CGSize = .zero
         public var duration: TimeInterval = 0
+        /// Whether the picture came back from the graphics hardware.
+        public var usedHardwareDecode = false
     }
 
     /// Opens `url` and waits for it to become playable or to fail.
@@ -30,50 +32,48 @@ public enum PlaybackDiagnostics {
         options: MediaPlayerOptions,
         timeout: Duration = .seconds(20)
     ) async -> Report {
-        let watcher = Watcher()
-        let player = KSMEPlayer(url: url, options: KSPlayerBridge.playerOptions(for: options))
-        player.delegate = watcher
-        player.prepareToPlay()
-
-        let deadline = ContinuousClock.now + timeout
-        while ContinuousClock.now < deadline, !watcher.report.isPlayable, watcher.report.error == nil {
-            try? await Task.sleep(for: .milliseconds(100))
-        }
-        if !watcher.report.isPlayable, watcher.report.error == nil {
-            watcher.report.error = watcher.report.isReady
-                ? "Ready after \(timeout) but never playable: no frames were decoded."
-                : "Timed out after \(timeout) without becoming playable."
-        }
-        player.shutdown()
-        return watcher.report
-    }
-
-    private final class Watcher: MediaPlayerDelegate {
         var report = Report()
+        let player = MediaPlayer()
+        defer { player.shutdown() }
 
-        func readyToPlay(player: some MediaPlayerProtocol) {
-            report.isReady = true
-            report.naturalSize = player.naturalSize
-            report.duration = player.duration
-            report.events.append("readyToPlay \(player.naturalSize) \(player.duration)s")
-        }
-
-        func changeLoadState(player: some MediaPlayerProtocol) {
-            report.events.append("loadState \(player.loadState)")
-            if player.loadState == .playable { report.isPlayable = true }
-        }
-
-        func changeBuffering(player: some MediaPlayerProtocol, progress: Int) {}
-
-        func playBack(player: some MediaPlayerProtocol, loopCount: Int) {}
-
-        func finish(player: some MediaPlayerProtocol, error: Error?) {
-            if let error {
-                report.error = "\(error)"
-                report.events.append("finish error: \(error)")
-            } else {
-                report.events.append("finish")
+        var settled = false
+        player.onState = { state in
+            report.events.append("\(state)")
+            switch state {
+            case .playing, .paused:
+                report.isPlayable = true
+                settled = true
+            case .failed(let message):
+                report.error = message
+                settled = true
+            default:
+                break
             }
         }
+        player.onProgress = { report.duration = max(report.duration, $0.total) }
+
+        // Nothing should start playing out loud just because someone asked
+        // what a file is.
+        var quiet = options
+        quiet.startsMuted = true
+        player.load(url: url, options: quiet)
+
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline, !settled {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+
+        report.naturalSize = player.naturalSize
+        report.isReady = player.naturalSize != .zero
+        report.usedHardwareDecode = player.isDecodingInHardware
+        if let failure = player.lastFailure {
+            report.events.append("detail: \(failure)")
+        }
+        if !report.isPlayable, report.error == nil {
+            report.error = report.isReady
+                ? "Opened but never produced a picture within \(timeout)."
+                : "Timed out after \(timeout) without opening."
+        }
+        return report
     }
 }
