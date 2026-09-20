@@ -3,6 +3,66 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## 2.4.0
+
+Video is played by the app's own player now, built on a trimmed FFmpeg 9 with the
+device's hardware decoders underneath, and with that the last GPL component is gone:
+Neechan is MIT. Also in here: full-size images on 4chan open again.
+
+### Media
+
+- **WebM is decoded by the graphics hardware where the device has a VP9
+  decoder.** It was always decoded in software, because asking for hardware on
+  a device without a VP9 decoder leaves the clip sitting there rather than
+  reporting a failure. The app now asks VideoToolbox what this device has and
+  follows the answer, which on an iPhone 12 or newer, and on Apple silicon,
+  means a long clip no longer costs a full CPU core and a warm phone. Devices
+  without the decoder are unchanged.
+- **`.mkv` files play.** They were already recognised and sent to the same
+  decoder a WebM goes to, but a Matroska file is the one container that can
+  hold anything, and the codecs it usually holds outside a WebM -- H.264, HEVC,
+  AV1, FLAC, AC-3, DTS -- are now all decoded rather than opening to nothing.
+- **The player is the app's own.** Video used to go through KSPlayer, which
+  brought a second media stack with it and decided things like the engine and
+  autoplay in global state that a gallery kept fighting. Playback is now built
+  directly on FFmpeg and the system's own render synchronizer: the same clock
+  drives picture and sound, a clip that loops never blanks between repeats, and
+  muting a clip before it has opened is remembered instead of dropped.
+- **The gallery reads ahead.** A clip's next few megabytes are fetched while it
+  plays rather than one piece at a time on demand, and the next video in the
+  thread is warmed while the current one runs, so a swipe lands on a picture
+  rather than a spinner. Scrubbing lands where the finger let go, a clip stops
+  at its end and stays stopped, and swiping away from a video stops it: one
+  player serves every page, so two clips can no longer play over each other.
+- **Saving an MP4 to Photos works.** It reported success and saved nothing, and
+  an attempt to check what had landed crashed the app on devices without full
+  library access. The save is add-only now and asks for nothing more.
+
+### Fixed
+
+- **Full-size images on 4chan open.** Every one of them was refused with a 403
+  while its thumbnail loaded fine. The gallery named the 2ch mirror as the page
+  the file was linked from, whichever site the file was on, and 4chan's media
+  host serves a thumbnail to anyone but not a full file linked from elsewhere.
+  Every request for a file now names the file's own site. A refusal is also
+  written to the log with the headers that earned it, instead of surfacing as
+  "not an image".
+
+### Licensing
+
+- **Neechan is MIT now**, not GPL-3.0. The GPL came from the FFmpeg
+  distribution the app used, which was built with `--enable-gpl` for a Samba
+  client nothing here ever called, and from KSPlayer. Both are gone. FFmpeg is
+  now this project's own build, trimmed to what an imageboard serves and
+  configured without a single GPL component, and it is used under the LGPL.
+
+### Under the hood
+
+- **The FFmpeg build is a fortieth of the size.** The vendored one was 1.3 GB
+  of libraries the app never linked: an SMB client, a Vulkan shader compiler,
+  a second player. What replaces it is 57 MB and contains the containers and
+  codecs the app actually opens, and nothing else.
+
 ## 2.3.0
 
 Threads read as threads. The posts in one run together as a single list instead
