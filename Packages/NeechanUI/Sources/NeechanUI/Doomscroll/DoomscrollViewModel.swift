@@ -14,6 +14,20 @@ public protocol MediaWarming: Sendable {
     func cancelAll() async
 }
 
+/// Fetches the rest of the clip on screen while it plays.
+///
+/// Separate from `MediaWarming` because the two want opposite things: warming
+/// gives way the moment the clip on screen needs bytes, and this is the clip on
+/// screen. Behind a protocol so a test can watch what the viewer asks for
+/// without a network.
+public protocol MediaCompleting: Sendable {
+    func complete(_ url: URL, referer: URL?, onProgress: (@Sendable (Double) -> Void)?) async
+    func cancel(_ url: URL) async
+    func cancelAll() async
+}
+
+extension MediaCompleter: MediaCompleting {}
+
 extension MediaPrefetcher: MediaWarming {
     public func warm(_ url: URL, referer: URL?) async {
         await warm(url, referer: referer, bytes: Self.defaultWarmBytes)

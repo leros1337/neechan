@@ -171,6 +171,76 @@ struct MediaBlockStoreTests {
         #expect(entries.count == 1)
         #expect(entries.first?.size ?? 0 >= 2048)
     }
+
+    // MARK: How much can be watched without waiting
+
+    /// The buffer bar on the scrubber is this number. It is deliberately the
+    /// run from the start rather than a count of everything held: a clip with
+    /// its middle missing cannot be watched through, and a bar that said
+    /// otherwise would be lying in the direction that annoys.
+    @Test("an empty store is nought blocks in")
+    func contiguousFromNothing() throws {
+        let (store, directory) = try makeStore()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        #expect(store.contiguousBlocks(for: url(), total: 4096) == 0)
+    }
+
+    @Test("an unbroken run from the start counts")
+    func contiguousPrefix() throws {
+        let (store, directory) = try makeStore()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let clip = url()
+
+        for index in 0..<3 { store.store(body(1024), block: index, for: clip) }
+
+        #expect(store.contiguousBlocks(for: clip, total: 5120) == 3)
+    }
+
+    @Test("a gap stops the count, whatever is held beyond it")
+    func contiguousStopsAtAGap() throws {
+        let (store, directory) = try makeStore()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let clip = url()
+
+        // Two at the start, then a hole, then two a seek left behind.
+        for index in [0, 1, 3, 4] { store.store(body(1024), block: index, for: clip) }
+
+        #expect(store.contiguousBlocks(for: clip, total: 5120) == 2)
+    }
+
+    @Test("a hole at the very start counts for nothing")
+    func contiguousWithNothingAtTheStart() throws {
+        let (store, directory) = try makeStore()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let clip = url()
+
+        for index in [1, 2] { store.store(body(1024), block: index, for: clip) }
+
+        #expect(store.contiguousBlocks(for: clip, total: 5120) == 0)
+    }
+
+    @Test("a file all here counts every block, short last one included")
+    func contiguousWhenComplete() throws {
+        let (store, directory) = try makeStore()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let clip = url()
+
+        for index in 0..<2 { store.store(body(1024), block: index, for: clip) }
+        store.store(body(100), block: 2, for: clip)
+
+        let total = Int64(1024 * 2 + 100)
+        #expect(store.contiguousBlocks(for: clip, total: total) == store.blockCount(forTotal: total))
+    }
+
+    @Test("a file of no length is nought blocks in")
+    func contiguousWithNoLength() throws {
+        let (store, directory) = try makeStore()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        #expect(store.contiguousBlocks(for: url(), total: 0) == 0)
+    }
+
 }
 
 /// The one number in settings has to cover the pieces too, or it lies about

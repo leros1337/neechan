@@ -59,9 +59,19 @@ public final class GalleryViewModel {
     public var playbackState: PlaybackState = .idle {
         // The moment the clip on screen is playing is the moment the
         // connection has room for the next one.
-        didSet { if playbackState == .playing { warmNextVideo() } }
+        didSet {
+            guard playbackState != oldValue else { return }
+            // Fetching the rest of this clip comes first: it is the one being
+            // watched. Warming the next is the courtesy that gives way to it,
+            // and the prefetcher checks that for itself.
+            if playbackState == .preparing || playbackState == .playing { fetchWholeClip() }
+            if playbackState == .playing { warmNextVideo() }
+        }
     }
     public var playbackProgress = PlaybackProgress()
+    /// How much of the clip is on disk, 0 to 1, for the bar behind the
+    /// playhead. Reported by the thing fetching the rest of the file.
+    public var bufferedFraction: Double = 0
     public var playbackControl = PlaybackControl()
     public var isMuted = false
     /// Repeat the clip when it ends. Starts from the preference, and the button
@@ -78,6 +88,11 @@ public final class GalleryViewModel {
     private let warmer: any MediaWarming = MediaPrefetcher.shared
     /// What has been asked for, so paging back and forth does not ask again.
     @ObservationIgnored private var warmedID: GalleryItem.ID?
+    /// Fetches the rest of the clip on screen, so a connection slower than the
+    /// clip's bitrate stops meaning a stall a second or two in.
+    private let completer: any MediaCompleting
+    /// The clip being fetched, so playing on does not ask for it again.
+    @ObservationIgnored private var completingID: GalleryItem.ID?
 
     /// The cookies the media host expects, read once when the gallery opens.
     ///
@@ -96,8 +111,10 @@ public final class GalleryViewModel {
         downloader: (any MediaDownloading)? = nil,
         cache: MediaCache = .shared,
         blocks: MediaBlockStore = .shared,
+        completer: (any MediaCompleting)? = nil,
         cookieProvider: ((DvachDomain) -> [String: String])? = nil
     ) {
+        self.completer = completer ?? MediaCompleter.shared
         self.items = items
         self.currentIndex = min(max(0, startIndex), max(0, items.count - 1))
         self.services = services
@@ -160,6 +177,9 @@ public final class GalleryViewModel {
         playbackState = .idle
         playbackProgress = PlaybackProgress()
         playbackControl = PlaybackControl()
+        // The file being fetched is the one just paged away from. Its blocks
+        // stay on disk for a reader who pages back; only the fetching stops.
+        stopFetchingWholeClip()
         // Leaving a video for a still: nothing is going to load another clip
         // into the player, so it is stopped here. Video to video is handled
         // by the next page loading its clip, which replaces this one.
@@ -179,6 +199,7 @@ public final class GalleryViewModel {
     /// The gallery is closing: the clip stops for good.
     public func finishPlayback() {
         player.shutdown()
+        stopFetchingWholeClip()
     }
 
     public func toggleControls() {
@@ -212,6 +233,50 @@ public final class GalleryViewModel {
         warmedID = next.id
         let referer = referer(for: next)
         Task { [warmer] in await warmer.warm(url, referer: referer) }
+    }
+
+    /// Fetches the whole of the clip on screen while it plays.
+    ///
+    /// Reading a little way ahead is not enough for a clip whose bitrate is
+    /// higher than the connection can carry: the player runs out however far
+    /// ahead it looks, and then stops. The blocks land in the store the
+    /// player's own reader reads from, so nothing has to be handed over — the
+    /// next read simply comes off disk instead of the network.
+    ///
+    /// Deduped on the item, so playing on after a stall does not start it
+    /// again. A clip already whole in the cache costs nothing: the completer
+    /// checks that before it asks for anything.
+    private func fetchWholeClip() {
+        guard services.allowsMediaLoading,
+              let item = currentItem, item.isVideo,
+              item.id != completingID,
+              let url = url(for: item)
+        else { return }
+
+        completingID = item.id
+        let referer = referer(for: item)
+        let fetching = item.id
+        // Hoisted out of the call below: a weak capture nested inside another
+        // closure's capture is not something the compiler will take.
+        let show: @Sendable (Double) -> Void = { [weak self] fraction in
+            Task { @MainActor in
+                // Only while this is still the clip on screen: a report from
+                // the one just paged away would fill the new clip's bar with
+                // the old clip's progress.
+                guard let self, self.completingID == fetching else { return }
+                self.bufferedFraction = fraction
+            }
+        }
+        Task { [completer] in
+            await completer.complete(url, referer: referer, onProgress: show)
+        }
+    }
+
+    /// Stops fetching whatever was being fetched, and empties the bar.
+    private func stopFetchingWholeClip() {
+        completingID = nil
+        bufferedFraction = 0
+        Task { [completer] in await completer.cancelAll() }
     }
 
     /// Full-size URL for an item, resolved against its site's media host.
