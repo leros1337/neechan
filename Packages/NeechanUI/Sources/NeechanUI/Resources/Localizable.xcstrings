@@ -5045,25 +5045,25 @@
         }
       }
     },
-    "Neechan plays WebM through FFmpeg, which is distributed under the GPL. The app is therefore GPL-3.0 as well, and its source is available.": {
+    "Neechan plays video through FFmpeg, built without any GPL component and used under the LGPL. The build script and the app's own source are available, so this app can be rebuilt against a modified FFmpeg.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Neechan plays WebM through FFmpeg, which is distributed under the GPL. The app is therefore GPL-3.0 as well, and its source is available."
+            "value": "Neechan plays video through FFmpeg, built without any GPL component and used under the LGPL. The build script and the app's own source are available, so this app can be rebuilt against a modified FFmpeg."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Neechan воспроизводит WebM через FFmpeg, распространяемый по GPL. Поэтому приложение тоже под GPL-3.0, и его исходный код открыт."
+            "value": "Neechan воспроизводит видео через FFmpeg, собранный без единого GPL-компонента и используемый по LGPL. Скрипт сборки и исходный код приложения открыты, поэтому его можно пересобрать с изменённым FFmpeg."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Neechan spielt WebM über FFmpeg ab, das unter der GPL vertrieben wird. Deshalb steht die App ebenfalls unter GPL-3.0, und ihr Quelltext ist verfügbar."
+            "value": "Neechan spielt Video über FFmpeg ab, das ohne jede GPL-Komponente gebaut und unter der LGPL verwendet wird. Das Build-Skript und der Quelltext der App sind verfügbar, sodass sie gegen ein verändertes FFmpeg neu gebaut werden kann."
           }
         }
       }

@@ -1,7 +1,7 @@
 # Neechan
 
 [![Release](https://img.shields.io/github/v/release/leros1337/neechan?label=release)](../../releases/latest)
-[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [English](README.md) · **Русский**
 
@@ -73,9 +73,11 @@ make ipa            # неподписанный .ipa в .build/, ровно т�
 неудачный день.
 `make test-packages` — офлайновая половина.
 
-Первая сборка долгая: готовые xcframework от FFmpegKit весят несколько гигабайт. Они
-кешируются в `~/Library/Caches/org.swift.swiftpm-neechan` и общие для пакетов и
-приложения, так что это происходит один раз.
+FFmpeg берётся из [`neechan-ffmpeg`](https://github.com/leros1337/neechan-ffmpeg) — урезанной LGPL-сборки только
+тех библиотек, которыми пользуется приложение. Это обычная бинарная зависимость: Swift
+Package Manager скачивает xcframework'и из релиза того репозитория, около двадцати
+мегабайт в архиве против гигабайта с лишним у универсальной сборки FFmpeg. Клонировать
+и собирать что-либо руками не нужно.
 
 `Neechan.xcodeproj` генерируется и в репозиторий не коммитится. Правьте `project.yml` и
 запускайте `make gen`.
@@ -101,7 +103,7 @@ git tag v2.1.0 && git push origin v2.1.0
 | `Packages/NeechanAPI` | HTTP-клиент обоих сайтов, адаптеры под каждый, модели, парсер HTML комментариев, капча, постинг. Только Foundation |
 | `Packages/NeechanSettings` | Настройки пользователя поверх `UserDefaults` |
 | `Packages/NeechanCore` | Доменная логика (чистые значения), хранилище SwiftData, сервисы-акторы |
-| `Packages/NeechanMedia` | Картинки и видео, конвертер WebM. Единственный модуль, которому можно импортировать KSPlayer и FFmpeg |
+| `Packages/NeechanMedia` | Картинки и видео, конвертер WebM. Единственный модуль, которому можно импортировать FFmpeg |
 | `Packages/NeechanUI` | Экраны на SwiftUI, компоненты Liquid Glass, каталог строк |
 | `Packages/NeechanTestSupport` | Записанные ответы API и их загрузчик |
 | `Tests/NeechanUITests` | XCUITest'ы, которые водят приложение по живым сайтам |
@@ -113,6 +115,9 @@ SwiftData и сети. Там же живёт большая часть тест
 
 ## Лицензия
 
-Neechan распространяется под **GPL-3.0** (см. `LICENSE`). Это не выбор: FFmpeg в сборке
-FFmpegKit собран с `--enable-gpl`, поэтому всё, что с ним линкуется, наследует те же
-условия.
+Neechan распространяется под **MIT** (см. `LICENSE`).
+
+Приложение линкует FFmpeg и использует его по **LGPL-2.1-or-later**. Сборка своя:
+урезана до контейнеров и кодеков, которые реально встречаются на имиджбордах, и собрана
+без `--enable-gpl` и `--enable-version3`, то есть без единого GPL-компонента. Скрипт
+сборки и точная строка configure лежат в репозитории `neechan-ffmpeg`.
