@@ -274,8 +274,10 @@ public struct ThumbnailView: View {
 
     private func load() async {
         guard services.allowsMediaLoading || isForced else { return }
-        let domain = services.settings.domain
-        guard let url = domain.url(forPath: attachment.thumbnail) else {
+        // The site's own hosts. A thumbnail is served to anyone, but it is
+        // asked for the same way as the full file so the two cannot drift.
+        let endpoints = SiteEndpoints(services.settings.siteSelection)
+        guard let url = endpoints.url(forPath: attachment.thumbnail) else {
             didFail = true
             return
         }
@@ -286,7 +288,7 @@ public struct ThumbnailView: View {
         }
         do {
             image = try await ImageLoader.shared.image(
-                at: url, referer: domain.baseURL, maxPixelSize: pixels
+                at: url, referer: endpoints.web, maxPixelSize: pixels
             )
             didFail = false
         } catch {
