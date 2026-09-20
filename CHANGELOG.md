@@ -3,6 +3,49 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## 2.4.1
+
+Video that stopped a second or two in and never came back. The viewer fetches
+the whole clip while it plays now, shows how much of it has arrived, and a
+player that does stall starts itself again instead of sitting on a spinner.
+
+### Media
+
+- **A clip is fetched whole while you watch it.** The player read a few
+  megabytes ahead of where it had got to, which is not enough for a clip whose
+  bitrate is higher than the connection can carry: a 5800 kbps video wants
+  722 KB/s sustained, and a connection that manages less runs out however far
+  ahead the player looks. The rest of the file is now pulled in the background
+  while the opening plays. The pieces land where playback already reads from,
+  so nothing waits for a download to finish -- the picture still starts on the
+  first frames, and the reads behind it come off the disk instead of the
+  network.
+- **The scrubber shows how much has arrived**, as a dimmed bar behind the
+  playhead. It counts from the start of the file to the first piece missing,
+  so it never promises more than can actually be watched through.
+- **A clip that stopped no longer stops for good.** When playback ran out the
+  clock stopped, and with the clock stopped the display layer never handed its
+  pictures back, so it never had room for more, so the amount of video ahead of
+  the clock never grew, so the clock never started again. Everything needed to
+  carry on was already in hand and the clip waited for ever anyway. It now
+  notices, gives up what the renderer is holding, and starts again from the
+  picture that is actually next.
+- **A clip whose sound never finished now ends.** Everything that decides a
+  clip is over waited for the picture and the sound both to run out, and a seek
+  landing on the end of the file could leave the sound's half never saying so.
+  The clip then sat at its last frame, and pressing play ran the clock on over
+  a frozen picture, counting up past the end of the file. A clip with a picture
+  is over when the picture is, and playing one that has run out starts it from
+  the beginning.
+- **Sound survives a seek.** Sound arriving after a seek was held to the same
+  test a picture is: at or after where you asked, and no more than five seconds
+  past it. That upper bound belongs to pictures, which have to pick out the one
+  frame the seek was waiting for; sound only has to stop being the old
+  position's. When the first run past the target overshot the window -- a
+  sparse file, or a seek close to the end -- nothing ever matched it, and every
+  run for the rest of the clip was dropped, so the clip played silent until
+  another seek happened to land better.
+
 ## 2.4.0
 
 Video is played by the app's own player now, built on a trimmed FFmpeg 9 with the
