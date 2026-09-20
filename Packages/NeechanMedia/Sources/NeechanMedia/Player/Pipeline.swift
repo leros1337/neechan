@@ -320,7 +320,17 @@ final class Pipeline: @unchecked Sendable {
     private func emit(_ run: DecodedAudio) {
         if let target = audioSeekTarget.withLock({ $0 }) {
             let time = TimeMath.seconds(run.presentation) + run.mediaDuration
-            if run.presentation.isValid, !Self.isForSeek(time: time, target: target) { return }
+            // Only sound from before where the reader asked is dropped.
+            //
+            // Deliberately not `isForSeek`, which is a picture's test: a
+            // picture has to be recognised as *the* one the seek was waiting
+            // for, so it is bounded above as well. Sound only has to stop
+            // being the old position's. Bounding it above stranded the target
+            // whenever the first run past it overshot the window — a sparse
+            // file, or a seek close to the end — and every run for the rest of
+            // the clip was then dropped, so the clip played silent until the
+            // next seek happened to land better.
+            if run.presentation.isValid, time + 0.001 < target { return }
             guard audioRuns.push(run, generation: run.generation) else { return }
             audioSeekTarget.withLock { $0 = nil }
             return
@@ -366,6 +376,10 @@ final class Pipeline: @unchecked Sendable {
                 try? decoder.decode(nil, generation: generation) { run in
                     self.emit(run)
                 }
+                // Nothing is going to answer the seek now. Left set, it would
+                // still be filtering sound after the clip was sent somewhere
+                // else entirely.
+                audioSeekTarget.withLock { $0 = nil }
                 audioRuns.finish()
                 guard audioPackets.waitForFlush(after: generation) else { return }
                 decoder.flush()
