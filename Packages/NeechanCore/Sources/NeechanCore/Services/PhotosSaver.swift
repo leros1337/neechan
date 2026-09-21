@@ -44,7 +44,8 @@ public enum PhotosSaver {
         let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
         log.debug(
             """
-            saving \(url.lastPathComponent, privacy: .public),             \(size ?? 0, privacy: .public) bytes, video: \(isVideo, privacy: .public)
+            saving \(url.lastPathComponent, privacy: .public), \
+            \(size, privacy: .public) bytes, video: \(isVideo, privacy: .public)
             """
         )
 
@@ -61,7 +62,11 @@ public enum PhotosSaver {
                 let options = PHAssetResourceCreationOptions()
                 options.originalFilename = url.lastPathComponent
                 request.addResource(with: isVideo ? .video : .photo, fileURL: url, options: options)
-                placeholder.withLock { $0 = request.placeholderForCreatedAsset?.localIdentifier }
+                // Read out here rather than inside `withLock`: the request is
+                // not `Sendable`, and that closure is, so reaching through it
+                // in there captures what the compiler will not let cross.
+                let identifier = request.placeholderForCreatedAsset?.localIdentifier
+                placeholder.withLock { $0 = identifier }
             }
         } catch {
             log.error("Photos refused it: \(String(describing: error), privacy: .public)")

@@ -4,6 +4,10 @@
 # not committed). Everything else assumes it exists.
 
 SHELL := /bin/bash
+# xcodebuild is piped through a formatter below, and a pipeline reports only
+# its last command's status: without this a failed build would be hidden by a
+# formatter that read it happily and exited 0.
+.SHELLFLAGS := -o pipefail -c
 
 # Recursively expanded: the App Store configuration has a scheme of its own,
 # because its test action leaves out the unit bundle that needs testability.
@@ -41,11 +45,23 @@ RESULTS     := .build/TestResults.xcresult
 # Shared SwiftPM clone cache, so dependencies are not re-fetched every time
 # DerivedData is wiped.
 SPM_CACHE   := $(HOME)/Library/Caches/org.swift.swiftpm-neechan
+# No -quiet: its output filter swallows a compile task's diagnostics and then
+# reports the task as "failed with exit code 0 but produced no further output",
+# which fails a build that succeeded -- a warning in a whole-module release
+# build is enough to trigger it. xcbeautify reads the whole log instead and
+# prints the warnings and nothing else. Empty when it is not installed, which
+# leaves the raw log rather than a broken pipeline.
+BEAUTIFY    := $(if $(shell command -v xcbeautify),| xcbeautify --quieter,)
+# ONLY_ACTIVE_ARCH here and not in `ipa`: a simulator on this machine runs
+# arm64 and nothing else, while the release configurations carry no such
+# setting and would otherwise build x86_64 too -- half a build thrown away,
+# and the source of the linker's complaints about FFmpeg's x86_64 slice. An
+# archive, unlike this, really does need every device architecture.
 XCB          = xcodebuild -scheme '$(SCHEME)' -destination '$(DESTINATION)' \
                -configuration $(CONFIGURATION) \
                -derivedDataPath $(DERIVED) \
                -clonedSourcePackagesDirPath $(SPM_CACHE) \
-               -skipMacroValidation -quiet
+               -skipMacroValidation ONLY_ACTIVE_ARCH=YES
 PACKAGES    := NeechanTestSupport NeechanAPI NeechanSettings NeechanCore NeechanMedia NeechanUI
 # The configuration that starts cautious and cannot post.
 APPSTORE    := AppStore
@@ -78,7 +94,7 @@ gen:
 
 ## Build the app for the simulator. `make build CONFIGURATION=Release` to measure.
 build:
-	$(XCB) build
+	$(XCB) build $(BEAUTIFY)
 
 ## Build an unsigned .ipa for a device, the way the release workflow does.
 ##
@@ -117,11 +133,11 @@ test-packages:
 	done
 
 ## Run the app-level unit and UI test bundles on the simulator.
-## xcodebuild's own summary is unreadable under -quiet, so the result bundle is
-## parsed afterwards for a one-line verdict.
+## xcodebuild's own summary is unreadable however it is printed, so the result
+## bundle is parsed afterwards for a one-line verdict.
 test-app:
 	@rm -rf $(RESULTS)
-	$(XCB) -resultBundlePath $(RESULTS) test
+	$(XCB) -resultBundlePath $(RESULTS) test $(BEAUTIFY)
 	@./Tools/test-summary.py $(RESULTS)
 
 ## Run one package's tests: `make test-pkg PKG=NeechanAPI`
@@ -136,7 +152,7 @@ test-pkg:
 test-one:
 	@test -n "$(ONLY)" || { echo "usage: make test-one ONLY=Target/Class[/method]"; exit 1; }
 	@rm -rf $(RESULTS)
-	$(XCB) -resultBundlePath $(RESULTS) -only-testing:$(ONLY) test
+	$(XCB) -resultBundlePath $(RESULTS) -only-testing:$(ONLY) test $(BEAUTIFY)
 	@./Tools/test-summary.py $(RESULTS)
 
 ## Re-print the verdict and failures from the last app test run.

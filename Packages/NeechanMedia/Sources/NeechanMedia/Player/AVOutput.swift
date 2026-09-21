@@ -24,6 +24,15 @@ final class AVOutput: @unchecked Sendable {
     /// a torn read of a short string is a misprint, not a fault.
     nonisolated(unsafe) var name = ""
 
+    /// The layer's renderer, taken once and kept.
+    ///
+    /// `sampleBufferRenderer` belongs to the layer and is isolated to the
+    /// main actor; the renderer it hands back is the half of the pair meant
+    /// to be fed from a background thread, which is all this class ever does
+    /// with it. Holding it is what lets everything below stay off the main
+    /// actor.
+    private let videoRenderer: AVSampleBufferVideoRenderer
+
     private let synchronizer = AVSampleBufferRenderSynchronizer()
     /// Replaced on every flush rather than reused.
     ///
@@ -86,9 +95,14 @@ final class AVOutput: @unchecked Sendable {
     /// clock that has got ahead of the media is sent back to meet it.
     var onRefilled: (@Sendable (CMTime) -> Void)?
 
+    /// On the main actor because the layer's own properties are, and this is
+    /// the one place they are touched. `MediaPlayer`, which owns the only
+    /// output there is, is isolated there too.
+    @MainActor
     init() {
-        synchronizer.addRenderer(displayLayer.sampleBufferRenderer)
         displayLayer.videoGravity = .resizeAspect
+        videoRenderer = displayLayer.sampleBufferRenderer
+        synchronizer.addRenderer(videoRenderer)
     }
 
     /// Starts pulling from these queues.
@@ -111,7 +125,7 @@ final class AVOutput: @unchecked Sendable {
             attachFreshAudioRenderer()
         }
         if video != nil {
-            displayLayer.sampleBufferRenderer.requestMediaDataWhenReady(on: queue) { [weak self] in
+            videoRenderer.requestMediaDataWhenReady(on: queue) { [weak self] in
                 self?.feedVideo()
             }
         }
@@ -128,13 +142,13 @@ final class AVOutput: @unchecked Sendable {
             self.progressObserver = nil
         }
         synchronizer.rate = 0
-        displayLayer.sampleBufferRenderer.stopRequestingMediaData()
+        videoRenderer.stopRequestingMediaData()
         audioRenderer.stopRequestingMediaData()
         // The picture goes too. One player now serves every page of a
         // gallery, and a clip that took a while to open was shown, until its
         // own first picture arrived, wearing the last frame of the clip
         // before it.
-        displayLayer.sampleBufferRenderer.flush(removingDisplayedImage: true) {}
+        videoRenderer.flush(removingDisplayedImage: true) {}
         audioRenderer.flush()
         if isAudioAttached {
             // Removed as of now, not as of the start of the timeline: `.zero`
@@ -198,7 +212,7 @@ final class AVOutput: @unchecked Sendable {
 
     /// Throws away what the renderers are holding, after a seek.
     func flush() {
-        displayLayer.sampleBufferRenderer.flush()
+        videoRenderer.flush()
         if isAudioAttached {
             attachFreshAudioRenderer()
         }
@@ -266,7 +280,7 @@ final class AVOutput: @unchecked Sendable {
     /// True when the picture has to be thrown away and decoded again, which is
     /// what coming back from the background sometimes asks for.
     var needsRestartAfterBackgrounding: Bool {
-        displayLayer.sampleBufferRenderer.requiresFlushToResumeDecoding
+        videoRenderer.requiresFlushToResumeDecoding
     }
 
     // MARK: - Pulling
@@ -362,7 +376,7 @@ final class AVOutput: @unchecked Sendable {
 
     private func feedVideo() {
         guard let videoFrames else { return }
-        let renderer = displayLayer.sampleBufferRenderer
+        let renderer = videoRenderer
         if let failure = renderer.error {
             MediaLog.output.error(
                 "the video renderer stopped: \(failure.localizedDescription, privacy: .public)"
@@ -480,7 +494,7 @@ final class AVOutput: @unchecked Sendable {
             audio \(self.audioRuns?.isDrained ?? true, privacy: .public), \
             waiting \(self.state.withLock { $0.isStarved }, privacy: .public), \
             for a new position \(self.state.withLock { $0.isAwaitingNewPosition }, privacy: .public), \
-            renderer ready \(self.displayLayer.sampleBufferRenderer.isReadyForMoreMediaData, privacy: .public)
+            renderer ready \(self.videoRenderer.isReadyForMoreMediaData, privacy: .public)
             """
         )
     }
@@ -498,7 +512,7 @@ final class AVOutput: @unchecked Sendable {
         let nextPicture = videoFrames?.peek()?.presentation
         let isVideoDrained = videoFrames?.isDrained ?? true
         let isAudioDrained = audioRuns?.isDrained ?? true
-        let isRendererReady = displayLayer.sampleBufferRenderer.isReadyForMoreMediaData
+        let isRendererReady = videoRenderer.isReadyForMoreMediaData
         let isClockRunning = synchronizer.rate > 0
 
         let situation = state.withLock { current in
