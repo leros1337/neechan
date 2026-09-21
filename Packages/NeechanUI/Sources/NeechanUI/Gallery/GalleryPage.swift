@@ -55,18 +55,30 @@ struct GalleryPage: View {
             // it on screen, and the pager stopped where it was: half a page of
             // video and half a page of the black neighbour beside it.
             if item.isVideo {
-                // No long-press menu on a video, and not for want of one: the
-                // controls under it already save and share.
+                // The menu hangs on a pane of glass over the page rather than
+                // on the page, because the page is what the player is in.
                 //
-                // The reason is what the menu does to the view it is attached
-                // to. For the press-and-hold animation, SwiftUI hosts a second
-                // copy of that view, and a copy of this one is a copy of the
-                // player: it opened the file, started its threads and began
-                // playing, fifty milliseconds behind the one on screen, and
-                // since the copy is thrown away rather than removed it was
-                // never told to stop. Every video played twice over itself,
-                // and the copies piled up as the reader swiped.
-                surface
+                // For the press-and-hold animation SwiftUI hosts a second copy
+                // of the view the menu is attached to, and a copy of this one
+                // was a copy of the player: it opened the file, started its
+                // threads and began playing, fifty milliseconds behind the one
+                // on screen, and since the copy is thrown away rather than
+                // removed it was never told to stop. Every video played twice
+                // over itself, and the copies piled up as the reader swiped.
+                // A copy of an empty rectangle costs nothing.
+                //
+                // The tap moves up here with it: the glass is over the video,
+                // so the player's own tap no longer sees one.
+                surface.overlay {
+                    Color.clear
+                        .contentShape(.rect)
+                        .onTapGesture(perform: onSingleTap)
+                        .contextMenu {
+                            menu
+                        } preview: {
+                            menuPreview
+                        }
+                }
             } else {
                 // The system's own press, with a preview of our own. Left to
                 // itself it lifts the view the menu is attached to, and here
@@ -333,11 +345,6 @@ private struct VideoPage: View {
     let url: URL
     let options: MediaPlayerOptions
     var onSingleTap: () -> Void
-    /// The long-press menu's actions, which belong to the gallery rather than
-    /// to one page: saving and sharing are about the file on screen.
-    var onGoToPost: (() -> Void)?
-    var onSave: () -> Void = {}
-    var onShare: () -> Void = {}
 
     @Binding var state: PlaybackState
     @Binding var progress: PlaybackProgress
