@@ -3,6 +3,32 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## 2.4.2
+
+A long press on a video offers what a long press on a picture always has.
+
+### Gallery
+
+- **The long-press menu works on a clip.** Pressing and holding a picture in
+  the viewer offers the post it came from, saving, sharing and the link
+  actions; pressing and holding a video did nothing at all. The menu was left
+  off on purpose: for the press-and-hold animation the system holds a second
+  copy of whatever the menu is attached to, and a copy of the page was a copy
+  of the player -- it opened the file again and took the picture with it, so
+  the clip played twice over itself and the copies piled up as you swiped. The
+  menu now hangs on a pane of glass over the page rather than on the page, and
+  a copy of an empty rectangle costs nothing.
+
+### Under the hood
+
+- **A build that succeeded no longer fails.** `xcodebuild -quiet` swallows a
+  compiler's warnings and then reports the task that printed them as a command
+  that failed, which stopped the App Store build being installed although it
+  had built. The build is read by xcbeautify instead, builds only the
+  architecture the simulator actually runs -- it was compiling x86_64 as well,
+  for a machine that has none -- and the warnings it was complaining about are
+  fixed rather than hidden.
+
 ## 2.4.1
 
 Video that stopped a second or two in and never came back. The viewer fetches
