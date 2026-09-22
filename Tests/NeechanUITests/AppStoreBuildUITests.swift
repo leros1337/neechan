@@ -81,12 +81,13 @@ final class AppStoreBuildUITests: LiveUITestCase {
         )
         XCTAssertTrue(app.staticTexts["Age Restriction"].exists, "the age term is missing")
         XCTAssertTrue(app.staticTexts["Content Reporting (DMCA)"].exists, "the DMCA term is missing")
-        // The section this build deliberately leaves out: Neechan has no report
-        // button and no way to block a poster, so promising both would be a
-        // term it does not keep.
-        XCTAssertFalse(
+        // Promised because it is kept: any post can be reported from its own
+        // menu, and anything can be hidden. A term the app does not keep is
+        // worse than one it never made, so this is what fails if the report
+        // action is ever taken away again.
+        XCTAssertTrue(
             app.staticTexts["Reporting & Blocking"].exists,
-            "the agreement promises reporting and blocking, which do not exist"
+            "the agreement no longer mentions reporting, which the app offers"
         )
 
         attach(app, name: "appstore-agreement")

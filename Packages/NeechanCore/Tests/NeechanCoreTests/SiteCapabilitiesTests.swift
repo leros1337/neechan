@@ -17,6 +17,7 @@ struct SiteCapabilitiesTests {
                 #expect(capabilities.incrementalThreadRefresh)
                 #expect(capabilities.cheapThreadPoll)
                 #expect(capabilities.serverSearch)
+                #expect(capabilities.reporting == .api)
                 #expect(capabilities.captcha == .emoji)
                 #expect(capabilities.markup == .wakaba)
             case .fourchan:
@@ -31,9 +32,22 @@ struct SiteCapabilitiesTests {
                 #expect(capabilities.voting == false)
                 #expect(capabilities.passcode == false)
                 #expect(capabilities.userBoards == false)
+                // `.web`, not `.none`: 4chan has no report endpoint, but it
+                // does have a report page, and a browser engine reaches it.
+                #expect(capabilities.reporting == .web)
                 #expect(capabilities.captcha == .slider)
                 #expect(capabilities.markup == .fourchan)
             }
+        }
+    }
+
+    /// The report action is the one thing Apple's rules for user-generated
+    /// content require that the reader cannot supply for themselves, so a site
+    /// that offers neither route is a site the app should not be reading.
+    @Test("every imageboard can be reported to, one way or the other")
+    func everySiteCanBeReported() {
+        for site in Imageboard.allCases {
+            #expect(SiteCapabilities.of(site).reporting != .none)
         }
     }
 

@@ -24,6 +24,22 @@ public enum MarkupDialect: Sendable, Hashable {
     case fourchan
 }
 
+/// How a site takes a report.
+///
+/// An enum rather than a flag, for the same reason as ``CaptchaKind``: the post
+/// menu offers one action, but the two sites answer it with different screens.
+public enum ReportingStyle: Sendable, Hashable {
+    /// A call the app makes itself. 2ch's `POST /user/report`.
+    case api
+    /// The site's own report page, opened in a web view.
+    ///
+    /// 4chan's form is on the posting host behind its T-Captcha — the same
+    /// gate that already refuses this app's posts — so the page the reader
+    /// fills in has to be the real one.
+    case web
+    case none
+}
+
 /// What one imageboard can do.
 ///
 /// Views gate on a capability rather than on the site, so a third imageboard
@@ -44,7 +60,7 @@ public struct SiteCapabilities: Sendable, Hashable {
     /// Whether an archive row carries a title and a date, or only a number.
     public let archiveCarriesTitles: Bool
     public let voting: Bool
-    public let reporting: Bool
+    public let reporting: ReportingStyle
     public let passcode: Bool
     /// A catalog the server itself orders by thread creation.
     public let catalogByCreation: Bool
@@ -65,7 +81,7 @@ public struct SiteCapabilities: Sendable, Hashable {
         archive: true,
         archiveCarriesTitles: true,
         voting: true,
-        reporting: true,
+        reporting: .api,
         passcode: true,
         catalogByCreation: true,
         userBoards: true,
@@ -83,6 +99,11 @@ public struct SiteCapabilities: Sendable, Hashable {
     /// `savingThreads` is off because the archiver keeps the raw bytes and
     /// re-reads them as 2ch's thread shape; saving a 4chan thread would write a
     /// file nothing can open.
+    ///
+    /// `reporting` is `.web` rather than `.none`: 4chan has no report API, but
+    /// it does have a report *page*, and that page is the one thing on the
+    /// posting host the app can still put in front of a reader — the browser
+    /// engine passes the gate that the app's own requests cannot.
     ///
     /// `posting` is on, and is known not to reach the site today. 4chan's
     /// posting host sits behind its own gate — a script that computes a `_tcs`
@@ -102,7 +123,7 @@ public struct SiteCapabilities: Sendable, Hashable {
         archive: true,
         archiveCarriesTitles: false,
         voting: false,
-        reporting: false,
+        reporting: .web,
         passcode: false,
         catalogByCreation: false,
         userBoards: false,

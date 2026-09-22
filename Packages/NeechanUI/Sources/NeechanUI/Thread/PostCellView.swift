@@ -62,6 +62,11 @@ struct PostCellView: View {
     /// Nil where nothing is listening, so the item is left out rather than
     /// offered and ignored.
     var onToggleOwn: (() -> Void)? = nil
+    /// Opens the report form for this post.
+    /// Nil where the site takes no reports, and where the screen presenting
+    /// this cell is itself a sheet — a second sheet over one already up does
+    /// not present, so the action would do nothing.
+    var onReport: (() -> Void)? = nil
     /// This post's own address on the site, for copying and sharing.
     var postURL: URL?
     /// Card by default, so the replies sheet keeps the look it was written for.
@@ -225,6 +230,22 @@ struct PostCellView: View {
                     } icon: {
                         Image(systemName: "eye.slash")
                     }
+                }
+            }
+            if let onReport {
+                // A section of its own rather than a row in Hide: hiding is
+                // between the reader and this device, reporting tells the site.
+                // Sitting them together would suggest they were two strengths
+                // of the same thing.
+                Section {
+                    Button(action: onReport) {
+                        Label {
+                            Text("Report", bundle: .module)
+                        } icon: {
+                            Image(systemName: "flag")
+                        }
+                    }
+                    .accessibilityIdentifier("report-post-\(post.num)")
                 }
             }
             if let postURL {

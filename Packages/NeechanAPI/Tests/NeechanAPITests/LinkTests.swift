@@ -32,6 +32,25 @@ struct SiteLinkTests {
         #expect(url.absoluteString == "https://2ch.org/b/res/123.html")
     }
 
+    @Test("4chan's report form is on the posting host, not the readable one")
+    func reportLink() throws {
+        let url = try #require(
+            SiteLinks.report(board: "tv", postNum: 223_326_855, on: .init(site: .fourchan))
+        )
+        #expect(
+            url.absoluteString
+                == "https://sys.4chan.org/tv/imgboard.php?mode=report&no=223326855"
+        )
+    }
+
+    /// Nil is the answer, not an oversight: 2ch takes a report through
+    /// `/user/report`, and a caller handed a URL here would open a page the
+    /// site does not serve.
+    @Test("2ch has no report page, because it has a report endpoint")
+    func noReportLinkOnDvach() {
+        #expect(SiteLinks.report(board: "b", postNum: 1, on: .init(site: .dvach, mirror: .org)) == nil)
+    }
+
     @Test("links follow the selected mirror")
     func followsMirror() throws {
         let url = try #require(SiteLinks.thread(board: "po", threadNum: 7, on: .init(site: .dvach, mirror: .life)))

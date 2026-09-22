@@ -1267,6 +1267,29 @@
         }
       }
     },
+    "Any post can be reported from its own menu, which reaches the moderators of the imageboard carrying it. You can also block a poster: hiding everything posted under a name keeps it out of every thread you open afterwards.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Any post can be reported from its own menu, which reaches the moderators of the imageboard carrying it. You can also block a poster: hiding everything posted under a name keeps it out of every thread you open afterwards."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На любой пост можно пожаловаться из его меню — жалоба уйдёт модераторам имиджборды, где он лежит. Ещё можно заблокировать постера: скрытое по имени не появится ни в одном треде, который вы откроете потом."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jeder Beitrag kann über sein eigenes Menü gemeldet werden; das erreicht die Moderatoren des Imageboards, auf dem er liegt. Sie können außerdem einen Poster blockieren: Was unter einem Namen ausgeblendet ist, bleibt in jedem später geöffneten Thread verborgen."
+          }
+        }
+      }
+    },
     "App icon": {
       "extractionState": "manual",
       "localizations": {
@@ -7506,6 +7529,98 @@
         }
       }
     },
+    "Report": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Report"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пожаловаться"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Melden"
+          }
+        }
+      }
+    },
+    "Report post": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Report post"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Жалоба на пост"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beitrag melden"
+          }
+        }
+      }
+    },
+    "Report sent": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Report sent"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Жалоба отправлена"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meldung gesendet"
+          }
+        }
+      }
+    },
+    "Reporting & Blocking": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reporting & Blocking"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Жалобы и скрытие"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Melden & Blockieren"
+          }
+        }
+      }
+    },
     "Reset": {
       "extractionState": "manual",
       "localizations": {
@@ -9668,6 +9783,29 @@
         }
       }
     },
+    "This goes to the moderators of the imageboard, who decide what happens to the post. Neechan does not host it and cannot remove it.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This goes to the moderators of the imageboard, who decide what happens to the post. Neechan does not host it and cannot remove it."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Жалоба уйдёт модераторам имиджборды — они решают, что будет с постом. Neechan его не хостит и удалить не может."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das geht an die Moderatoren des Imageboards, die über den Beitrag entscheiden. Neechan hostet ihn nicht und kann ihn nicht entfernen."
+          }
+        }
+      }
+    },
     "This imageboard does not offer that.": {
       "extractionState": "manual",
       "localizations": {
@@ -10770,6 +10908,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Willkommen bei Neechan"
+          }
+        }
+      }
+    },
+    "What is wrong with this post?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What is wrong with this post?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Что не так с этим постом?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was stimmt mit diesem Beitrag nicht?"
           }
         }
       }

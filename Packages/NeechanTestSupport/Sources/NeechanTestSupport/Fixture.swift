@@ -82,6 +82,7 @@ public enum Fixture: String, CaseIterable, Sendable {
     case passloginOK = "passlogin_ok"
     case passloginError = "passlogin_error"
     case reportOK = "report_ok"
+    case reportAlreadySent = "report_already_sent"
     case likeForbidden = "like_forbidden"
 
     // 4chan read endpoints

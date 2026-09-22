@@ -15,6 +15,8 @@ public struct ThreadView: View {
     @State private var scrollPosition = ScrollPosition()
     @State private var galleryStart: GalleryStart?
     @State private var replyTarget: ReplyTarget?
+    @State private var reportTarget: ReportTarget?
+    @State private var hasReported = false
     @State private var isShowingHiddenPosts = false
     @State private var isSaving = false
     @State private var isShowingGalleryGrid = false
@@ -150,6 +152,7 @@ public struct ThreadView: View {
                                 )
                             }
                         },
+                        onReport: reportAction(for: post.num),
                         postURL: SiteLinks.post(
                             board: key.board,
                             threadNum: key.threadNum,
@@ -211,6 +214,12 @@ public struct ThreadView: View {
         .overlay { statusOverlay(model, posts: posts) }
         .overlay(alignment: .bottom) { refreshToast(model) }
         .overlay(alignment: .bottom) { quoteStatusToast(model) }
+        .reportPresentation(
+            board: key.board,
+            thread: key.threadNum,
+            target: $reportTarget,
+            hasReported: $hasReported
+        )
         .internalBrowser(link: $browserLink)
         .sheet(isPresented: $isShowingGalleryGrid) {
             GalleryGridView(items: model.snapshot.galleryItems) { postNum in
@@ -219,10 +228,7 @@ public struct ThreadView: View {
             }
             .duoPresentationPlacement(.trailing)
         }
-        .sheet(item: Binding(
-            get: { model.repliesSheetPostNum.map(RepliesSheetTarget.init) },
-            set: { model.repliesSheetPostNum = $0?.postNum }
-        )) { target in
+        .sheet(item: repliesSheetTarget(model)) { target in
             RepliesSheet(
                 rootPostNum: target.postNum,
                 snapshot: model.snapshot,
@@ -507,6 +513,31 @@ public struct ThreadView: View {
                 }
             )
         }
+    }
+
+    /// The replies sheet's target, as something `sheet(item:)` can be driven by.
+    ///
+    /// A method rather than a `Binding(get:set:)` written inline. Built in the
+    /// body it is one more thing for the type checker to solve inside a chain
+    /// that is already at its limit, and it was what tipped the chain over when
+    /// the report sheet joined it.
+    private func repliesSheetTarget(_ model: ThreadViewModel) -> Binding<RepliesSheetTarget?> {
+        Binding(
+            get: { model.repliesSheetPostNum.map(RepliesSheetTarget.init) },
+            set: { model.repliesSheetPostNum = $0?.postNum }
+        )
+    }
+
+    /// Opens the report sheet for a post, or nil where the site takes no
+    /// reports and the menu item should be left out.
+    ///
+    /// A method rather than a ternary in the cell's argument list: that list is
+    /// already at the edge of what the type checker will solve in reasonable
+    /// time, and an inline conditional producing an optional closure is what
+    /// pushed it over.
+    private func reportAction(for postNum: Int) -> (() -> Void)? {
+        guard services.capabilities.reporting != .none else { return nil }
+        return { reportTarget = ReportTarget(postNum: postNum) }
     }
 
     /// Says what a `>>` tap is doing when it cannot simply show the post.
