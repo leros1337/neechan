@@ -84,7 +84,13 @@ struct ForumSettingsView: View {
             }
 
             Section {
-                if services.capabilities.passcode {
+                // A passcode buys a shorter path to posting — no captcha and
+                // larger files — so a build that cannot post has nothing to
+                // spend one on, and a screen pointing at a purchase made off
+                // the store would be pointing at nothing. Asked of the posting
+                // lock rather than of the build, so the reason stays in the
+                // condition.
+                if services.capabilities.passcode, services.allowsPosting {
                     NavigationLink {
                         PasscodeLoginView()
                     } label: {

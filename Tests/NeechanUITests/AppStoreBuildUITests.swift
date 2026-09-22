@@ -121,6 +121,32 @@ final class AppStoreBuildUITests: LiveUITestCase {
         )
     }
 
+    /// A passcode is bought on the site and spent on posting — no captcha and
+    /// larger files. This build cannot post, so the screen would be pointing at
+    /// a purchase it has nothing to do with.
+    func testSettingsOffersNoPasscodeScreen() throws {
+        let app = launchApp()
+        try XCTSkipUnless(try openRestrictions(app), "not the App Store build")
+
+        switchToTab(app, "Settings")
+        let forum = app.buttons["Forum"].firstMatch
+        XCTAssertTrue(forum.waitForExistence(timeout: 10), "Forum is not in Settings")
+        forum.tap()
+
+        // Cookies first: it is the row below the one that should be gone, so
+        // waiting on it proves the screen drew rather than that it was slow.
+        XCTAssertTrue(
+            app.buttons["Cookies"].firstMatch.waitForExistence(timeout: 10),
+            "the Forum screen did not open"
+        )
+        XCTAssertFalse(
+            app.buttons["Passcode"].firstMatch.exists,
+            "the App Store build offers a passcode sign-in it cannot spend"
+        )
+
+        attach(app, name: "appstore-forum")
+    }
+
     /// The point of the whole variant: no way to write, anywhere.
     func testAThreadOffersNoWayToPost() throws {
         let app = launchApp(pinsRestrictions: false)
