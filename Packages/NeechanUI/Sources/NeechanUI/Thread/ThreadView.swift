@@ -18,7 +18,6 @@ public struct ThreadView: View {
     @State private var reportTarget: ReportTarget?
     @State private var hasReported = false
     @State private var isShowingHiddenPosts = false
-    @State private var isSaving = false
     @State private var isShowingGalleryGrid = false
     @State private var doomscrollStart: GalleryStart?
     /// Whether the favorites are open over the thread.
@@ -214,6 +213,7 @@ public struct ThreadView: View {
         .overlay { statusOverlay(model, posts: posts) }
         .overlay(alignment: .bottom) { refreshToast(model) }
         .overlay(alignment: .bottom) { quoteStatusToast(model) }
+        .saveProgress(model.saveProgress) { model.cancelSave() }
         .reportPresentation(
             board: key.board,
             thread: key.threadNum,
@@ -508,9 +508,7 @@ public struct ThreadView: View {
                 onShowDoomscroll: { startDoomscroll(in: model) },
                 onShowHiddenPosts: { isShowingHiddenPosts = true },
                 onReload: { Task { await model.reload(userInitiated: true) } },
-                onSave: { includingFiles in
-                    Task { await save(model, includingFiles: includingFiles) }
-                }
+                onSave: { model.startSave(includingFiles: $0) }
             )
         }
     }
@@ -606,15 +604,6 @@ public struct ThreadView: View {
                 withAnimation(.snappy) { model.dismissRefreshAnnouncement() }
             }
         }
-    }
-
-    /// Writes the thread to the device. Saving with files can take a while and
-    /// a lot of space, so the two sizes are separate menu items rather than one
-    /// button with a setting behind it.
-    private func save(_ model: ThreadViewModel, includingFiles: Bool) async {
-        isSaving = true
-        defer { isSaving = false }
-        _ = await model.save(includingFiles: includingFiles)
     }
 
     @ViewBuilder

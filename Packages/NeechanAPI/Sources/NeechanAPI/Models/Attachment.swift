@@ -11,10 +11,17 @@ public struct Attachment: Sendable, Hashable, Identifiable, Decodable {
     public let fullName: String
     /// Original name, shortened by the server for display.
     public let displayName: String
-    /// Server-relative path to the full file.
-    public let path: String
-    /// Server-relative path to the thumbnail.
-    public let thumbnail: String
+    /// Where the full file is: server-relative on 2ch, absolute on a site
+    /// whose media lives on another host, and a `file:` URL once a saved
+    /// thread has been pointed at its own copy on disk.
+    ///
+    /// Mutable for that last case alone. `SavedThreadsRepository` rewrites
+    /// these when it reads a thread back, which is what lets every thumbnail,
+    /// gallery and player go on resolving a path without knowing that an
+    /// offline copy is a thing that exists.
+    public var path: String
+    /// Where the thumbnail is. Rewritten alongside ``path``.
+    public var thumbnail: String
     public let md5: String?
     /// The type code the server sent. See `effectiveType` for the corrected one.
     public let declaredType: AttachmentType

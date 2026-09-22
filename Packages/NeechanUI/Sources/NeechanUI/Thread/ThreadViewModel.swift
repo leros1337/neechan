@@ -165,9 +165,24 @@ public final class ThreadViewModel {
     }
 
     /// Reads the copy on the device, so a saved thread opens with no network.
+    ///
+    /// A missing thread and an unreadable one are told apart on purpose. This
+    /// used to swallow both with a `try?` and report the first, which is how a
+    /// saved file that could not be decoded claimed never to have been saved --
+    /// the one failure mode worth naming, since it is what a wrong decoder
+    /// looks like from the outside.
     public func loadSaved() async {
         loadState = .loading
-        guard let response = try? await services.savedThreads.load(key) else {
+        let response: ThreadResponse?
+        do {
+            response = try await services.savedThreads.load(key)
+        } catch {
+            loadState = .failed(
+                String(localized: "The saved copy of this thread could not be read.", bundle: .neechanUI, locale: AppLocale.current)
+            )
+            return
+        }
+        guard let response else {
             loadState = .failed(
                 String(localized: "This thread is no longer saved on this device.", bundle: .neechanUI, locale: AppLocale.current)
             )
@@ -181,26 +196,76 @@ public final class ThreadViewModel {
         await refreshHiddenPosts()
     }
 
+    /// How far a save has got, or nil when none is running.
+    public struct SaveProgress: Sendable, Equatable {
+        public var filesDone: Int
+        public var filesTotal: Int
+
+        /// Zero rather than a division by zero for a thread with no files: the
+        /// bar then sits empty for the moment the JSON takes to write.
+        public var fraction: Double {
+            filesTotal == 0 ? 0 : Double(filesDone) / Double(filesTotal)
+        }
+    }
+
+    public private(set) var saveProgress: SaveProgress?
+
+    /// Held so the reader can stop a save that is fetching more than they
+    /// meant it to. Not observed -- only `saveProgress` is drawn.
+    @ObservationIgnored private var saveTask: Task<Void, Never>?
+
     /// Writes the thread to the device, with its thumbnails, so it can be read
     /// again with no network.
-    public func save(includingFiles: Bool) async -> Bool {
+    ///
+    /// Fire and forget, and deliberately: a full save runs for minutes, and
+    /// awaiting it would tie it to the lifetime of whatever view started it.
+    /// The task is kept here so ``cancelSave()`` can reach it.
+    public func startSave(includingFiles: Bool) {
+        guard saveTask == nil else { return }
+        saveProgress = SaveProgress(filesDone: 0, filesTotal: 0)
+        saveTask = Task { [weak self] in
+            await self?.performSave(includingFiles: includingFiles)
+            await MainActor.run { self?.saveTask = nil }
+        }
+    }
+
+    /// Stops a running save.
+    ///
+    /// Safe to leave half-done: the archiver writes the thread's JSON before it
+    /// fetches anything, so what stays behind is a readable thread with some of
+    /// its files, which is what the saved-copy row already reports.
+    public func cancelSave() {
+        saveTask?.cancel()
+        saveTask = nil
+        saveProgress = nil
+    }
+
+    private func performSave(includingFiles: Bool) async {
         guard
             let (response, rawJSON) = try? await services.client.threadWithRawJSON(
                 board: key.board, num: key.threadNum
             )
         else {
-            return false
+            saveProgress = nil
+            return
         }
         let saved = try? await services.savedThreads.save(
             response,
             rawJSON: rawJSON,
             key: key,
-            endpoints: services.settings.siteSelection.endpoints,
+            // The thread's own site, not the selected one. They are the same
+            // when the reader is looking at it, and this does not rely on that.
+            endpoints: SiteSelection(site: key.site, mirror: services.settings.domain).endpoints,
             policy: includingFiles ? .fullFiles : .thumbnails,
-            downloader: services.downloader
+            downloader: services.downloader,
+            onProgress: { [weak self] done, total in
+                Task { @MainActor in
+                    self?.saveProgress = SaveProgress(filesDone: done, filesTotal: total)
+                }
+            }
         )
         isSaved = saved != nil
-        return isSaved
+        saveProgress = nil
     }
 
     /// Whether the thread already has a copy on the device.

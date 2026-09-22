@@ -1,5 +1,6 @@
 import Foundation
 import NeechanAPI
+import Synchronization
 import NeechanTestSupport
 import Testing
 @testable import NeechanCore
@@ -158,6 +159,215 @@ struct SavedThreadsRepositoryTests {
         ThreadKey(site: .dvach, board: "test-\(UUID().uuidString)", threadNum: 1)
     }
 
+    /// The gap that kept saving off on 4chan, and the reason it was invisible:
+    /// the 2ch test above feeds one fixture in both as a decoded `ThreadResponse`
+    /// and as raw bytes, which is a coincidence that holds on 2ch alone. 4chan's
+    /// file is `{"posts": […]}` and has to be mapped to become posts at all.
+    @Test("a 4chan thread can be read back without a network")
+    func saveAndLoadFourchan() async throws {
+        let repository = try makeRepository()
+        let selection = SiteSelection(site: .fourchan)
+        let rawJSON = try FixtureLoader.data(.fourchanThread)
+        // Through the same seam the archiver reads with, which is the only way
+        // to a 4chan `ThreadResponse` from outside NeechanAPI.
+        let response = try StoredThread.response(
+            from: rawJSON,
+            on: selection,
+            board: Board(id: "a", defaultName: "Anonymous")
+        )
+        #expect(response.posts.isEmpty == false, "the fixture decoded to nothing")
+
+        let key = ThreadKey(site: .fourchan, board: "test-\(UUID().uuidString)", threadNum: 1)
+        _ = try await repository.save(
+            response,
+            rawJSON: rawJSON,
+            key: key,
+            endpoints: selection.endpoints,
+            policy: .thumbnails,
+            downloader: OfflineDownloader()
+        )
+
+        let loaded = try await repository.load(key)
+        #expect(loaded?.posts.count == response.posts.count)
+        #expect(loaded?.posts.first?.num == response.posts.first?.num)
+
+        try await repository.remove(key)
+    }
+
+    /// What the V2 schema migration existed for, and never had a test: the two
+    /// sites' `/a/123` are two threads.
+    @Test("the same board and number on two sites are two saved threads")
+    func sitesDoNotCollide() async throws {
+        let repository = try makeRepository()
+        let board = "test-\(UUID().uuidString)"
+        let dvach = ThreadKey(site: .dvach, board: board, threadNum: 1)
+        let fourchan = ThreadKey(site: .fourchan, board: board, threadNum: 1)
+
+        let response = try FixtureLoader.decode(ThreadResponse.self, from: .thread)
+        let rawJSON = try FixtureLoader.data(.thread)
+        for key in [dvach, fourchan] {
+            _ = try await repository.save(
+                response,
+                rawJSON: rawJSON,
+                key: key,
+                endpoints: SiteEndpoints(.default),
+                policy: .thumbnails,
+                downloader: OfflineDownloader()
+            )
+        }
+
+        #expect(try await repository.isSaved(dvach))
+        #expect(try await repository.isSaved(fourchan))
+        #expect(try await repository.saved(site: .dvach).count == 1)
+        #expect(try await repository.saved(site: .fourchan).count == 1)
+
+        // Removing one leaves the other, which is the point of the constraint.
+        try await repository.remove(dvach)
+        #expect(try await repository.isSaved(dvach) == false)
+        #expect(try await repository.isSaved(fourchan))
+
+        try await repository.remove(fourchan)
+    }
+
+    /// The point of downloading them at all. These were being written and never
+    /// read: a saved thread still asked the site for every thumbnail, so
+    /// "offline" meant the text and nothing else.
+    @Test("a saved thread's attachments point at the files kept beside it")
+    func loadedAttachmentsPointAtDisk() async throws {
+        let repository = try makeRepository()
+        let response = try FixtureLoader.decode(ThreadResponse.self, from: .thread)
+        let rawJSON = try FixtureLoader.data(.thread)
+        let key = uniqueKey()
+
+        _ = try await repository.save(
+            response,
+            rawJSON: rawJSON,
+            key: key,
+            endpoints: SiteEndpoints(.default),
+            policy: .thumbnails,
+            downloader: BytesDownloader()
+        )
+
+        let loaded = try #require(try await repository.load(key))
+        let files = loaded.posts.flatMap(\.files)
+        try #require(files.isEmpty == false)
+
+        for file in files {
+            let thumbnail = try #require(URL(string: file.thumbnail))
+            #expect(thumbnail.isFileURL, "a thumbnail still points at the site")
+            #expect(
+                FileManager.default.fileExists(atPath: thumbnail.path),
+                "a thumbnail points at a file that is not there"
+            )
+        }
+
+        // Thumbnails only: the full files were never fetched, so they must
+        // still name the site rather than a path with nothing behind it.
+        for file in files {
+            #expect(
+                URL(string: file.path)?.isFileURL != true,
+                "a full file was repointed at a copy that was never saved"
+            )
+        }
+
+        try await repository.remove(key)
+    }
+
+    /// With everything kept, the full files are on disk too.
+    @Test("a full save points the files at disk as well as the thumbnails")
+    func fullSavePointsFilesAtDisk() async throws {
+        let repository = try makeRepository()
+        let response = try FixtureLoader.decode(ThreadResponse.self, from: .thread)
+        let rawJSON = try FixtureLoader.data(.thread)
+        let key = uniqueKey()
+
+        _ = try await repository.save(
+            response,
+            rawJSON: rawJSON,
+            key: key,
+            endpoints: SiteEndpoints(.default),
+            policy: .fullFiles,
+            downloader: BytesDownloader()
+        )
+
+        let loaded = try #require(try await repository.load(key))
+        for file in loaded.posts.flatMap(\.files) {
+            #expect(URL(string: file.path)?.isFileURL == true, "a full file still points at the site")
+            #expect(URL(string: file.thumbnail)?.isFileURL == true)
+        }
+
+        try await repository.remove(key)
+    }
+
+    @Test("progress counts every file and ends on the total")
+    func progressReportsEveryFile() async throws {
+        let repository = try makeRepository()
+        let response = try FixtureLoader.decode(ThreadResponse.self, from: .thread)
+        let rawJSON = try FixtureLoader.data(.thread)
+        let key = uniqueKey()
+        let total = response.posts.flatMap(\.files).count
+        try #require(total > 0, "the fixture has no files to count")
+
+        // The count moves per attachment whether or not its bytes arrived, so
+        // an offline downloader still exercises the whole sequence.
+        let counts = Mutex<[Int]>([])
+        let totals = Mutex<Set<Int>>([])
+        _ = try await repository.save(
+            response,
+            rawJSON: rawJSON,
+            key: key,
+            endpoints: SiteEndpoints(.default),
+            policy: .thumbnails,
+            downloader: OfflineDownloader(),
+            onProgress: { done, reported in
+                counts.withLock { $0.append(done) }
+                totals.withLock { $0.insert(reported) }
+            }
+        )
+
+        #expect(counts.withLock { $0 } == Array(1...total), "the count skipped or repeated")
+        #expect(totals.withLock { $0 } == [total], "the total moved while saving")
+
+        try await repository.remove(key)
+    }
+
+    /// The guarantee that makes cancelling safe, and the reason the JSON is
+    /// written before anything is fetched: an interrupted save leaves a
+    /// readable thread rather than an empty folder.
+    ///
+    /// Asserted as an ordering invariant rather than by racing a real
+    /// cancellation, which would need a hook into the middle of the download
+    /// loop and would be timing-dependent either way.
+    @Test("the thread is on disk before the first file is fetched")
+    func jsonIsWrittenBeforeMedia() async throws {
+        let repository = try makeRepository()
+        let response = try FixtureLoader.decode(ThreadResponse.self, from: .thread)
+        let rawJSON = try FixtureLoader.data(.thread)
+        let key = uniqueKey()
+        try #require(response.posts.flatMap(\.files).isEmpty == false)
+
+        let jsonURL = SavedThreadsRepository.rootDirectory
+            .appending(path: key.identifier)
+            .appending(path: "thread.json")
+        let downloader = ThreadWatchingDownloader(jsonURL: jsonURL)
+
+        _ = try await repository.save(
+            response,
+            rawJSON: rawJSON,
+            key: key,
+            endpoints: SiteEndpoints(.default),
+            policy: .thumbnails,
+            downloader: downloader
+        )
+
+        #expect(
+            downloader.sawJSON.withLock { $0 } == true,
+            "media was fetched before the thread was readable"
+        )
+
+        try await repository.remove(key)
+    }
+
     @Test("a saved thread can be read back without a network")
     func saveAndLoad() async throws {
         let repository = try makeRepository()
@@ -212,6 +422,33 @@ struct SavedThreadsRepositoryTests {
         let name = SavedThreadsRepository.fileName(for: "/po/src/123/456.jpg")
         #expect(name.contains("/") == false)
         #expect(name.hasSuffix(".jpg"))
+    }
+}
+
+/// Notes whether the thread's JSON was already on disk when the first file was
+/// asked for, then refuses like the offline stub.
+private final class ThreadWatchingDownloader: MediaFetching {
+    let sawJSON = Mutex<Bool?>(nil)
+    private let jsonURL: URL
+
+    init(jsonURL: URL) {
+        self.jsonURL = jsonURL
+    }
+
+    func data(_ url: URL, referer: URL?) async throws -> Data {
+        sawJSON.withLock { seen in
+            guard seen == nil else { return }
+            seen = FileManager.default.fileExists(atPath: jsonURL.path)
+        }
+        throw URLError(.notConnectedToInternet)
+    }
+}
+
+/// A fetcher that answers with bytes instead of reaching the network, so a test
+/// can have real files on disk without one.
+private struct BytesDownloader: MediaFetching {
+    func data(_ url: URL, referer: URL?) async throws -> Data {
+        Data("saved".utf8)
     }
 }
 

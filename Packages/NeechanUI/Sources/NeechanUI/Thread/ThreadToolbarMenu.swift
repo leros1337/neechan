@@ -99,6 +99,9 @@ struct ThreadToolbarMenu: View {
                             )
                         }
                     }
+                    // Its label changes with whether a copy exists, so a test
+                    // that looked for the words would only ever find one state.
+                    .accessibilityIdentifier("save-for-offline")
                 }
             }
             if let threadURL {

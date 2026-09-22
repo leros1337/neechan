@@ -37,7 +37,9 @@ public struct Post: Sendable, Hashable, Identifiable, Decodable {
     /// Thread tags, as a single comma-separated string.
     public let tags: String
 
-    public let files: [Attachment]
+    /// Mutable so a saved thread can be pointed at the copies on disk; see
+    /// ``Attachment/path``.
+    public var files: [Attachment]
 
     public let views: Int
     /// Pin priority; `0` means not pinned.

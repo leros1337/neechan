@@ -8058,6 +8058,29 @@
         }
       }
     },
+    "Saving files: %lld of %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saving files: %lld of %lld"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сохранение файлов: %1$lld из %2$lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateien werden gespeichert: %1$lld von %2$lld"
+          }
+        }
+      }
+    },
     "Scale: %lld%%": {
       "extractionState": "manual",
       "localizations": {
@@ -9365,6 +9388,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Der Rest der Einstellungen kommt in Meilenstein M5."
+          }
+        }
+      }
+    },
+    "The saved copy of this thread could not be read.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The saved copy of this thread could not be read."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сохранённую копию этого треда не удалось прочитать."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die gespeicherte Kopie dieses Threads konnte nicht gelesen werden."
           }
         }
       }

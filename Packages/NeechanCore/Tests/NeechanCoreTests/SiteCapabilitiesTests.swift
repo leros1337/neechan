@@ -61,12 +61,17 @@ struct SiteCapabilitiesTests {
         }
     }
 
-    /// The saved-thread archiver keeps the server's own bytes and reads them
-    /// back as 2ch's shape, so it must not be offered anywhere else until it
-    /// records which site wrote them.
-    @Test("saving threads is only offered where the saved copy can be read back")
+    /// Offered wherever the saved copy can be read back, which is now both
+    /// sites. It was 2ch-only for as long as the archiver read every saved file
+    /// as 2ch's shape; it reads each one the way the site that wrote it writes
+    /// threads, and the saved row had recorded which site that was all along.
+    ///
+    /// A site added later has to answer for this: saving is not free to turn on
+    /// until `SavedThreadsRepository.load` can decode what it wrote.
+    @Test("saving threads is offered wherever the saved copy can be read back")
     func savingIsOnlyWhereItWorks() {
-        #expect(SiteCapabilities.of(.dvach).savingThreads)
-        #expect(SiteCapabilities.of(.fourchan).savingThreads == false)
+        for site in Imageboard.allCases {
+            #expect(SiteCapabilities.of(site).savingThreads, "\(site) cannot save")
+        }
     }
 }

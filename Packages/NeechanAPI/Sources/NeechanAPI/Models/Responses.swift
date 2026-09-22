@@ -109,7 +109,9 @@ public struct PagedThread: Sendable, Hashable, Identifiable, Decodable {
 /// `GET /{board}/res/{thread}.json`
 public struct ThreadResponse: Sendable, Decodable {
     public let board: Board
-    public let posts: [Post]
+    /// Mutable so a saved thread can be pointed at the copies on disk; see
+    /// ``Attachment/path``.
+    public var posts: [Post]
     public let currentThread: Int
     /// Highest post number in the thread; the anchor for incremental refreshes.
     public let maxNum: Int

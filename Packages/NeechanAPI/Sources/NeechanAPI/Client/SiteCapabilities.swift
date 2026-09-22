@@ -68,6 +68,11 @@ public struct SiteCapabilities: Sendable, Hashable {
     public let userBoards: Bool
     public let posting: Bool
     /// Keeping a thread on the device for offline reading.
+    ///
+    /// On for both sites. It was 2ch-only for as long as the archiver read
+    /// every saved file as 2ch's shape; it now reads each one the way the site
+    /// that wrote it writes threads, which the saved row has recorded all
+    /// along.
     public let savingThreads: Bool
     public let captcha: CaptchaKind
     public let markup: MarkupDialect
@@ -95,10 +100,6 @@ public struct SiteCapabilities: Sendable, Hashable {
     /// no count-only poll, no search, no voting. What it does have is
     /// `threads.json`, which answers for a whole board at once and is cheaper
     /// than 2ch's per-thread poll.
-    ///
-    /// `savingThreads` is off because the archiver keeps the raw bytes and
-    /// re-reads them as 2ch's thread shape; saving a 4chan thread would write a
-    /// file nothing can open.
     ///
     /// `reporting` is `.web` rather than `.none`: 4chan has no report API, but
     /// it does have a report *page*, and that page is the one thing on the
@@ -128,7 +129,7 @@ public struct SiteCapabilities: Sendable, Hashable {
         catalogByCreation: false,
         userBoards: false,
         posting: true,
-        savingThreads: false,
+        savingThreads: true,
         captcha: .slider,
         markup: .fourchan
     )
