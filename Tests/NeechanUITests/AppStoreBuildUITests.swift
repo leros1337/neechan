@@ -147,6 +147,44 @@ final class AppStoreBuildUITests: LiveUITestCase {
         attach(app, name: "appstore-forum")
     }
 
+    /// A count of posts sent is a count that could only ever read zero here,
+    /// so the row is left out rather than shown empty. The reading statistics
+    /// beside it still mean something and stay.
+    func testStatisticsCountsNoPostsItCannotSend() throws {
+        let app = launchApp()
+        try XCTSkipUnless(try openRestrictions(app), "not the App Store build")
+
+        goBack(app)
+        openSettingsRow(app, "Statistics")
+
+        // Waited on first: it proves the screen drew, so the absence below is
+        // an absence rather than a screen that had not arrived yet.
+        XCTAssertTrue(
+            app.staticTexts["Threads opened"].waitForExistence(timeout: 10),
+            "the Statistics screen did not open"
+        )
+        XCTAssertFalse(
+            app.staticTexts["Posts sent"].exists,
+            "the App Store build counts posts it cannot send"
+        )
+        XCTAssertFalse(app.otherElements["stat-posts-sent"].exists)
+
+        attach(app, name: "appstore-statistics")
+    }
+
+    /// Back out of a settings screen to the list it was pushed from.
+    private func goBack(_ app: XCUIApplication) {
+        let back = app.navigationBars.buttons.element(boundBy: 0)
+        XCTAssertTrue(back.waitForExistence(timeout: 10), "no way back out of this screen")
+        back.tap()
+    }
+
+    private func openSettingsRow(_ app: XCUIApplication, _ name: String) {
+        let row = app.buttons[name].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "\(name) is not in Settings")
+        row.tap()
+    }
+
     /// The point of the whole variant: no way to write, anywhere.
     func testAThreadOffersNoWayToPost() throws {
         let app = launchApp(pinsRestrictions: false)
