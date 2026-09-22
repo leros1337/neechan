@@ -3,7 +3,7 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
-## Unreleased
+## 2.4.3
 
 Any post can be reported, a saved thread reads properly with no network, and the
 App Store build stops offering what it cannot give.
