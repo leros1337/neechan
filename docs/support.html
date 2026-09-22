@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Neechan — Support</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --fg: #1c1c1e;
+    --muted: #6b6b70;
+    --rule: #e5e5ea;
+    --accent: #c77d1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f0f11;
+      --fg: #f2f2f7;
+      --muted: #9a9aa0;
+      --rule: #2c2c2e;
+      --accent: #e8930c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 48px 20px 96px;
+    background: var(--bg);
+    color: var(--fg);
+    font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 680px; margin: 0 auto; }
+  h1 { font-size: 2em; line-height: 1.2; margin: 0 0 4px; }
+  h2 {
+    font-size: 1.25em;
+    margin: 40px 0 12px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+  }
+  h2:first-of-type { border-top: none; padding-top: 0; }
+  .updated { color: var(--muted); margin: 0 0 8px; font-size: .9em; }
+  .lang { margin: 0 0 40px; font-size: .9em; }
+  .lang a { color: var(--accent); }
+  ul { padding-left: 1.2em; }
+  li { margin: 6px 0; }
+  code {
+    font: .9em ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: var(--rule);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+  a { color: var(--accent); }
+  .lead { font-size: 1.1em; }
+  footer {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: .9em;
+  }
+  hr.section {
+    margin: 88px 0 56px;
+    border: none;
+    border-top: 4px double var(--rule);
+  }
+</style>
+</head>
+<body>
+<main>
+
+<h1 id="en">Neechan — Support</h1>
+<p class="updated">Last updated 22 September 2026</p>
+<p class="lang"><a href="#ru">Русская версия ↓</a> · <a href="#de">Deutsche Fassung ↓</a></p>
+
+<p class="lead">Neechan is an unofficial reader for the public imageboards
+<b>2ch</b> and <b>4chan</b>. If something is broken, unclear, or should not be
+online, write to us — one person reads every message.</p>
+
+<h2>How to reach us</h2>
+<ul>
+  <li><b>Email</b> — <a href="mailto:neechan-dev@proton.me">neechan-dev@proton.me</a>,
+      in English, Russian or German. We answer as soon as we can, usually within
+      a few days.</li>
+  <li><b>Bug reports and feature requests</b> —
+      <a href="https://github.com/leros1337/neechan/issues">github.com/leros1337/neechan/issues</a></li>
+</ul>
+<p>When reporting a problem, the app version helps: <b>Settings → About →
+Version</b>.</p>
+
+<h2>Reporting a post</h2>
+<p>Any post can be reported to the moderators of the imageboard carrying it:</p>
+<ul>
+  <li>Open the post’s menu and choose <b>Report</b> (the flag).</li>
+  <li>On 2ch the report is sent from inside the app. On 4chan the site’s own
+      report page opens, because 4chan handles reports itself.</li>
+</ul>
+<p>The report goes to that site’s moderators, who decide what happens to the
+post. Neechan does not host any of this content and cannot remove it.</p>
+<p><b>If you find material that should not exist online at all</b> — anything
+illegal, or involving a minor — report it to the site hosting it and also write
+to <a href="mailto:neechan-dev@proton.me">neechan-dev@proton.me</a>. We will
+pass it on to the imageboard’s administration. There is no tolerance for this.</p>
+
+<h2>Hiding posts and posters</h2>
+<p>You do not have to see something twice:</p>
+<ul>
+  <li>A post’s menu has <b>Hide</b>, which also offers to hide everything from
+      the same poster.</li>
+  <li><b>Settings → Autohide</b> holds rules that hide posts by name, word or
+      pattern, on one board or on all of them.</li>
+  <li><b>Settings → Hidden threads</b> lists what you have hidden, so you can
+      bring any of it back.</li>
+</ul>
+
+<h2>Your data, and how to delete it</h2>
+<p>Neechan has no account and no server. Everything it remembers sits on your
+device, and you can remove any part of it:</p>
+<ul>
+  <li><b>Reading history</b> — Settings → General → <b>Clear history</b></li>
+  <li><b>Saved threads and their pictures</b> — Settings → <b>Saved threads</b></li>
+  <li><b>Cached images and video</b> — Settings → <b>Media</b> → clear the cache
+      (this does not touch threads you saved)</li>
+  <li><b>Favourites</b> — from the Favorites tab, or from a thread’s own menu</li>
+  <li><b>Everything at once</b> — delete the app. Nothing of yours is left
+      anywhere else, because there is nowhere else.</li>
+</ul>
+<p><b>Settings → About → Export backup</b> writes your favourites, history and
+rules to a file you keep, in case you want them back on another device.</p>
+<p>Details are in the <a href="privacy.html">Privacy Policy</a>.</p>
+
+<h2>Common questions</h2>
+<p><b>I cannot post anything.</b> The App Store version of Neechan is a reader
+only. Replying and creating threads are not available in it.</p>
+<p><b>A board I want is not in the list.</b> Boards meant for adults are hidden
+until you confirm your age in <b>Settings → Restrictions</b>.</p>
+<p><b>Reading without a connection.</b> A thread’s menu has <b>Save for
+offline</b>, with or without pictures. Saved threads are listed in
+<b>Settings → Saved threads</b> and open with no network at all.</p>
+<p><b>Links keep opening in Safari.</b> The in-app browser is switched on in
+<b>Settings → General → Open links in the app</b>, once age confirmation is on.</p>
+
+<h2>About this app</h2>
+<ul>
+  <li>Current version <b>2.4.3</b>, requires <b>iOS 26</b> or later</li>
+  <li>No account, no registration, no analytics, no advertising</li>
+  <li>Not affiliated with 2ch or 4chan. Content belongs to those sites and is
+      governed by their own rules.</li>
+</ul>
+
+<footer>
+  <p>Support: <a href="mailto:neechan-dev@proton.me">neechan-dev@proton.me</a></p>
+  <p>Source code: <a href="https://github.com/leros1337/neechan">github.com/leros1337/neechan</a>
+  · <a href="privacy.html">Privacy Policy</a></p>
+</footer>
+
+<hr class="section">
+
+<h1 id="ru" lang="ru">Neechan — Поддержка</h1>
+<p class="updated" lang="ru">Обновлено 22 сентября 2026 года</p>
+<p class="lang"><a href="#en">English ↑</a> · <a href="#de">Deutsche Fassung ↓</a></p>
+
+<div lang="ru">
+
+<p class="lead">Neechan — неофициальный клиент для публичных имиджборд
+<b>2ch</b> и <b>4chan</b>. Если что-то не работает, непонятно или вовсе не
+должно быть в сети — напишите нам: каждое письмо читает живой человек.</p>
+
+<h2>Как с нами связаться</h2>
+<ul>
+  <li><b>Почта</b> — <a href="mailto:neechan-dev@proton.me">neechan-dev@proton.me</a>,
+      по-русски, по-английски или по-немецки. Отвечаем настолько быстро,
+      насколько можем, обычно в течение нескольких дней.</li>
+  <li><b>Ошибки и пожелания</b> —
+      <a href="https://github.com/leros1337/neechan/issues">github.com/leros1337/neechan/issues</a></li>
+</ul>
+<p>Если сообщаете о проблеме, укажите версию приложения: <b>Настройки → О программе →
+Версия</b>.</p>
+
+<h2>Жалоба на пост</h2>
+<p>На любой пост можно пожаловаться модераторам той имиджборды, где он лежит:</p>
+<ul>
+  <li>Откройте меню поста и выберите <b>Пожаловаться</b> (флажок).</li>
+  <li>На 2ch жалоба уходит прямо из приложения. На 4chan открывается
+      собственная страница жалоб сайта, потому что 4chan обрабатывает их сам.</li>
+</ul>
+<p>Жалоба попадает к модераторам сайта — они и решают судьбу поста. Neechan
+ничего из этого не хостит и удалить не может.</p>
+<p><b>Если вы наткнулись на то, чего вообще не должно быть в сети</b> — на
+противоправное или на материалы с участием несовершеннолетних — сообщите об
+этом сайту, который это размещает, и напишите нам на
+<a href="mailto:neechan-dev@proton.me">neechan-dev@proton.me</a>. Мы передадим
+это администрации имиджборды. Никакой терпимости к такому нет.</p>
+
+<h2>Скрытие постов и авторов</h2>
+<p>Видеть одно и то же дважды необязательно:</p>
+<ul>
+  <li>В меню поста есть <b>Скрыть</b> — оттуда же можно скрыть всё от того же
+      автора.</li>
+  <li><b>Настройки → Автоскрытие</b> — правила, скрывающие посты по имени,
+      слову или шаблону, на одной доске или на всех.</li>
+  <li><b>Настройки → Скрытые треды</b> — список скрытого, откуда любое можно
+      вернуть.</li>
+</ul>
+
+<h2>Ваши данные и как их удалить</h2>
+<p>В Neechan нет учётной записи и нет сервера. Всё, что приложение помнит,
+лежит на вашем устройстве, и любую часть можно удалить:</p>
+<ul>
+  <li><b>История чтения</b> — Настройки → Общие → <b>Очистить историю</b></li>
+  <li><b>Сохранённые треды и их картинки</b> — Настройки → <b>Сохранённые
+      треды</b></li>
+  <li><b>Кэш изображений и видео</b> — Настройки → <b>Медиа</b> → очистить кэш
+      (сохранённые треды это не затрагивает)</li>
+  <li><b>Избранное</b> — на вкладке «Избранное» или из меню самого треда</li>
+  <li><b>Всё сразу</b> — удалите приложение. Больше ваших данных нигде нет,
+      потому что и негде.</li>
+</ul>
+<p><b>Настройки → О программе → Экспортировать копию</b> сохранит избранное, историю
+и правила в файл, если захотите перенести их на другое устройство.</p>
+<p>Подробности — в <a href="privacy.html">Политике конфиденциальности</a>.</p>
+
+<h2>Частые вопросы</h2>
+<p><b>Не получается ничего написать.</b> Версия Neechan из App Store — только
+для чтения. Ответы и создание тредов в ней недоступны.</p>
+<p><b>Нужной доски нет в списке.</b> Доски для взрослых скрыты, пока вы не
+подтвердите возраст в разделе <b>Настройки → Ограничения</b>.</p>
+<p><b>Чтение без сети.</b> В меню треда есть <b>Сохранить офлайн</b> — с
+картинками или без. Сохранённое лежит в <b>Настройки → Сохранённые треды</b> и
+открывается вообще без сети.</p>
+<p><b>Ссылки открываются в Safari.</b> Встроенный браузер включается в
+<b>Настройки → Общие → Открывать ссылки в приложении</b>, после подтверждения
+возраста.</p>
+
+<h2>О приложении</h2>
+<ul>
+  <li>Текущая версия <b>2.4.3</b>, требуется <b>iOS 26</b> или новее</li>
+  <li>Без учётной записи, без регистрации, без аналитики и без рекламы</li>
+  <li>Не связано с 2ch или 4chan. Содержимое принадлежит этим сайтам и
+      подчиняется их собственным правилам.</li>
+</ul>
+
+<footer lang="ru">
+  <p>Поддержка: <a href="mailto:neechan-dev@proton.me">neechan-dev@proton.me</a></p>
+  <p>Исходный код: <a href="https://github.com/leros1337/neechan">github.com/leros1337/neechan</a>
+  · <a href="privacy.html">Политика конфиденциальности</a></p>
+</footer>
+
+</div>
+
+<hr class="section">
+
+<h1 id="de" lang="de">Neechan — Support</h1>
+<p class="updated" lang="de">Zuletzt aktualisiert am 22. September 2026</p>
+<p class="lang"><a href="#en">English ↑</a> · <a href="#ru">Русская версия ↑</a></p>
+
+<div lang="de">
+
+<p class="lead">Neechan ist ein inoffizieller Leser für die öffentlichen
+Imageboards <b>2ch</b> und <b>4chan</b>. Wenn etwas nicht funktioniert, unklar
+ist oder gar nicht online sein sollte, schreiben Sie uns — jede Nachricht liest
+ein Mensch.</p>
+
+<h2>So erreichen Sie uns</h2>
+<ul>
+  <li><b>E-Mail</b> — <a href="mailto:neechan-dev@proton.me">neechan-dev@proton.me</a>,
+      auf Deutsch, Englisch oder Russisch. Wir antworten so schnell wir können,
+      in der Regel innerhalb weniger Tage.</li>
+  <li><b>Fehler und Wünsche</b> —
+      <a href="https://github.com/leros1337/neechan/issues">github.com/leros1337/neechan/issues</a></li>
+</ul>
+<p>Bei einem Problem hilft die Version der App: <b>Einstellungen → Über →
+Version</b>.</p>
+
+<h2>Einen Beitrag melden</h2>
+<p>Jeder Beitrag lässt sich den Moderatoren des Imageboards melden, das ihn
+bereitstellt:</p>
+<ul>
+  <li>Öffnen Sie das Menü des Beitrags und wählen Sie <b>Melden</b> (die
+      Flagge).</li>
+  <li>Bei 2ch wird die Meldung direkt aus der App gesendet. Bei 4chan öffnet
+      sich die eigene Meldeseite der Website, da 4chan Meldungen selbst
+      bearbeitet.</li>
+</ul>
+<p>Die Meldung geht an die Moderatoren dieser Website, die über den Beitrag
+entscheiden. Neechan stellt nichts davon bereit und kann nichts entfernen.</p>
+<p><b>Sollten Sie auf Material stoßen, das überhaupt nicht online sein darf</b> —
+Rechtswidriges oder Darstellungen Minderjähriger — melden Sie es der Website,
+die es hostet, und schreiben Sie zusätzlich an
+<a href="mailto:neechan-dev@proton.me">neechan-dev@proton.me</a>. Wir leiten es
+an die Administration des Imageboards weiter. Dafür gibt es keinerlei
+Toleranz.</p>
+
+<h2>Beiträge und Verfasser ausblenden</h2>
+<p>Sie müssen nichts zweimal sehen:</p>
+<ul>
+  <li>Das Menü eines Beitrags bietet <b>Ausblenden</b> und dort auch alles vom
+      selben Verfasser.</li>
+  <li><b>Einstellungen → Auto-Ausblenden</b> enthält Regeln, die Beiträge nach
+      Name, Wort oder Muster ausblenden, auf einem Board oder auf allen.</li>
+  <li><b>Einstellungen → Verborgene Threads</b> listet alles Ausgeblendete auf,
+      sodass Sie es zurückholen können.</li>
+</ul>
+
+<h2>Ihre Daten und wie Sie sie löschen</h2>
+<p>Neechan hat kein Konto und keinen Server. Alles, was die App sich merkt,
+liegt auf Ihrem Gerät, und jeder Teil davon lässt sich entfernen:</p>
+<ul>
+  <li><b>Leseverlauf</b> — Einstellungen → Allgemein → <b>Verlauf löschen</b></li>
+  <li><b>Gesicherte Threads samt Bildern</b> — Einstellungen → <b>Gesicherte
+      Threads</b></li>
+  <li><b>Zwischengespeicherte Bilder und Videos</b> — Einstellungen →
+      <b>Medien</b> → Cache leeren (gesicherte Threads bleiben unberührt)</li>
+  <li><b>Favoriten</b> — im Tab „Favoriten“ oder über das Menü des Threads</li>
+  <li><b>Alles auf einmal</b> — löschen Sie die App. Danach liegt nichts von
+      Ihnen mehr irgendwo, denn es gibt kein Anderswo.</li>
+</ul>
+<p><b>Einstellungen → Über → Backup exportieren</b> schreibt Favoriten, Verlauf
+und Regeln in eine Datei, falls Sie sie auf ein anderes Gerät mitnehmen
+möchten.</p>
+<p>Einzelheiten stehen in der <a href="privacy.html">Datenschutzerklärung</a>.</p>
+
+<h2>Häufige Fragen</h2>
+<p><b>Ich kann nichts schreiben.</b> Die App-Store-Fassung von Neechan ist
+reines Lesen. Antworten und das Erstellen von Threads sind darin nicht
+verfügbar.</p>
+<p><b>Ein Board fehlt in der Liste.</b> Boards für Erwachsene bleiben
+verborgen, bis Sie Ihr Alter unter <b>Einstellungen → Beschränkungen</b>
+bestätigen.</p>
+<p><b>Lesen ohne Verbindung.</b> Das Menü eines Threads bietet <b>Offline
+sichern</b>, mit oder ohne Bilder. Gesichertes steht unter
+<b>Einstellungen → Gesicherte Threads</b> und öffnet sich ganz ohne Netz.</p>
+<p><b>Links öffnen sich immer in Safari.</b> Den internen Browser schalten Sie
+unter <b>Einstellungen → Allgemein → Links in der App öffnen</b> ein, sobald die
+Altersbestätigung aktiv ist.</p>
+
+<h2>Über diese App</h2>
+<ul>
+  <li>Aktuelle Version <b>2.4.3</b>, erfordert <b>iOS 26</b> oder neuer</li>
+  <li>Kein Konto, keine Registrierung, keine Analyse, keine Werbung</li>
+  <li>Nicht mit 2ch oder 4chan verbunden. Die Inhalte gehören diesen Websites
+      und unterliegen deren eigenen Regeln.</li>
+</ul>
+
+<footer lang="de">
+  <p>Support: <a href="mailto:neechan-dev@proton.me">neechan-dev@proton.me</a></p>
+  <p>Quellcode: <a href="https://github.com/leros1337/neechan">github.com/leros1337/neechan</a>
+  · <a href="privacy.html">Datenschutzerklärung</a></p>
+</footer>
+
+</div>
+
+</main>
+</body>
+</html>
