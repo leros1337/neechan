@@ -75,6 +75,32 @@ class LiveUITestCase: XCTestCase {
         return app
     }
 
+    /// Switches imageboards through the control a reader actually reaches for.
+    ///
+    /// Driven through the screen rather than pinned with `-imageboard`: the
+    /// argument domain outranks what the app writes, so a pinned site cannot be
+    /// changed afterwards, and a test that only needs to *start* somewhere else
+    /// still has to walk back to the board list first. This works from wherever
+    /// the app happens to be.
+    func switchToImageboard(_ name: String, in app: XCUIApplication) {
+        // The switcher lives on the board list, and the tab may be showing a
+        // board or a thread pushed on top of it.
+        app.buttons["Boards"].firstMatch.tap()
+        for _ in 0..<4 where !app.segmentedControls["imageboard-picker"].exists {
+            let back = app.navigationBars.buttons.element(boundBy: 0)
+            guard back.exists, back.isHittable else { break }
+            back.tap()
+        }
+        let picker = app.segmentedControls["imageboard-picker"]
+        XCTAssertTrue(
+            picker.waitForExistence(timeout: Self.networkTimeout),
+            "the board list has no imageboard switcher"
+        )
+        let segment = picker.buttons[name]
+        XCTAssertTrue(segment.waitForExistence(timeout: 5), "no \(name) segment")
+        segment.tap()
+    }
+
     /// Answers the photo library prompt if one is on screen right now.
     ///
     /// Saving to Photos asks the first time on a fresh simulator, and the prompt

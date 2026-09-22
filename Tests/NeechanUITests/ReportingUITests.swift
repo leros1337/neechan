@@ -80,12 +80,15 @@ final class ReportingUITests: LiveUITestCase {
     /// 4chan is reported through its own page rather than through an API, so the
     /// branch the sheet takes is a different one and worth its own run.
     ///
-    /// `/a/` rather than the `/b/` the other tests use: this one waits on the
+    /// `/3/` rather than the `/b/` the other tests use: this one waits on the
     /// page's own wording, and a board that turns over every few seconds is a
-    /// worse place to be holding a thread open.
+    /// worse place to hold a thread open. It is also near the top of 4chan's
+    /// board list, which is lazily built -- a code further down is not in the
+    /// hierarchy to be tapped at all.
     func testFourchanOpensTheSitesOwnReportPage() throws {
-        let app = launchApp(extraArguments: ["-imageboard", "fourchan"], pinsImageboard: false)
-        openPostMenu(app, board: "/a/")
+        let app = launchApp(pinsImageboard: false)
+        switchToImageboard("4chan", in: app)
+        openPostMenu(app, board: "/3/")
 
         let report = app.buttons["Report"].firstMatch
         XCTAssertTrue(
@@ -94,11 +97,20 @@ final class ReportingUITests: LiveUITestCase {
         )
         report.tap()
 
-        // The page's own heading, which is what tells the real form apart from
-        // the one the app draws for 2ch.
+        // A web view, and no comment field: together they say this took the
+        // page route rather than drawing the form the app uses for 2ch.
+        //
+        // Asserted on the branch rather than on the page's own wording --
+        // "Report type" is an HTML `legend`, which does not come back as a
+        // static text, and pinning a test to a third party's markup would
+        // break the day they reword it.
         XCTAssertTrue(
-            app.staticTexts["Report type"].waitForExistence(timeout: Self.networkTimeout),
-            "4chan's report form did not load"
+            app.webViews.firstMatch.waitForExistence(timeout: Self.networkTimeout),
+            "4chan's report page did not open"
+        )
+        XCTAssertFalse(
+            commentField(app).exists,
+            "4chan was given the 2ch report form"
         )
         attach(app, name: "report-fourchan")
 
