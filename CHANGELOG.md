@@ -18,6 +18,18 @@ give.
   Blocking section, which had been left out for as long as there was nothing to
   promise.
 
+### Boards
+
+- **The App Store build lists 2ch's Творчество section.** Its 2ch directory
+  carried four boards -- Аниме, Манга, Фэндомы, Визуальные новеллы -- which is
+  a thin thing to hand a reader. Дизайн, Столовая, Хобби, Музыканты,
+  Фотография, Живопись and Работа и карьера join them, read off the site's own
+  directory and checked one by one against the age gate: a board that is listed
+  and then refuses to open reads as a broken app rather than as a restriction.
+  /wp/ Обои is left out, because a wallpaper board is an image dump with no
+  subject holding it together; /izd/ Графомания is left out because 2ch files
+  it under reader-made boards, which are gated wholesale.
+
 ### Restrictions
 
 - **Links leave the app until you say you are 18.** A link off the imageboard
@@ -31,6 +43,15 @@ give.
 
 ### Settings
 
+- **The App Store build drops three more settings it cannot act on.** The
+  Uploads section in Media -- make files unique, remove metadata, random file
+  names -- is about a file on its way to a post, and that build attaches
+  nothing. "Add to favorites when I reply" cannot fire there either. And the
+  watcher's "Replies to me" notification mode wants posts of the reader's own
+  for a reply to arrive at, so it is left out of the picker; a stored value
+  naming it now reads as Off, which matters because it was the default. The
+  watcher itself stays: it checks favourited threads for new posts, which is
+  reading, and it works the same in both builds.
 - **The passcode screen is gone from the App Store build.** A passcode is
   bought on the site and spent on posting -- it skips the captcha and raises the
   file limit -- and that build cannot post, so the screen pointed at a purchase
