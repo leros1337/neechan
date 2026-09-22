@@ -3,6 +3,71 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## 2.4.4
+
+Searching a thread finds in it rather than filtering it, the gallery grid
+answers a long press, and the App Store build clears the last things standing
+between it and a submission.
+
+### Search
+
+- **Searching a thread is find-in-page.** It used to narrow the thread to the
+  posts that matched, which took away the replies around each one and said
+  nothing about how many there were. The whole thread now stays, and a bar at
+  its foot says where you are -- "12 of 55" -- with arrows to the previous and
+  next hit; Return in the field steps on as well. Every hit is marked in the
+  text, the one you are on in orange and the rest in pale yellow, and its post
+  is outlined.
+- **Every hit is a stop, not every post.** A long post with the word in it
+  fifty times is fifty stops, and stepping scrolls to the hit itself rather than
+  to the top of its post. A post found only by its name, number or a file name
+  is one stop, at the post.
+- **It starts where you are.** A new search goes to the first hit at or below
+  the post you are reading, not to the top of a thread you may be hundreds of
+  posts into, and posts arriving mid-search leave you on the hit you were on.
+  A long post that matches opens out, so its hit is not behind "Show more". A
+  hidden spoiler stays hidden, and a post hidden by a rule is not a hit.
+
+### Gallery
+
+- **A thumbnail in the gallery grid has the viewer's menu.** Long-press any
+  file in a thread's gallery and the menu offers what the full-screen viewer
+  always has: Go to post, Save, Share, and the post's link to copy, share or
+  open. It acts on the thumbnail pressed, so saving three files no longer means
+  opening each one first. Going to the post closes the grid and leaves the
+  thread on it; a save shows the same capsule, and a video the same tap, as it
+  does in the viewer. The two menus are one view now, so they cannot drift.
+
+### Translations
+
+- **Ten labels were English in every language.** Each was the second half of a
+  choice -- "Unpin board" beside "Pin board" -- and whatever seeded the catalog
+  took only the first, so a reader who asked for Russian or German saw the
+  other in English. All ten are translated; no existing translation changed.
+
+### Building
+
+- **The submitted build is signed, and only that one.** App Store Connect
+  refuses an archive with no team in it, and the team had been set in Xcode's
+  editor -- inside the generated project, where the next `make gen` would have
+  thrown it away. It lives in `project.yml` now, scoped to the `AppStore`
+  configuration. Debug and Release stay unsigned, which is what the sideloaded
+  `.ipa` is meant to be.
+- **The privacy manifest parses as XML.** A comment in it quoted two FFmpeg
+  flags written with a double hyphen, which XML forbids inside a comment.
+  Nothing on the device minded, but App Store Connect reads the manifest with a
+  strict parser. The flags are described instead of quoted.
+- **The store screenshots have a pipeline.** `Tools/screenshots.sh` captures
+  the booted simulator and frames the result: the device drawn around it, a
+  background taken from the screenshot's own colours, a caption from
+  `screenshot-titles.txt`, and the alpha channel and pixel sizes the store is
+  strict about handled rather than discovered on upload.
+
+### Documents
+
+- **A privacy policy and a support page.** App Store Connect asks for a URL to
+  each before it accepts a submission. Both are in `docs/`.
+
 ## 2.4.3
 
 Any post can be reported, a saved thread reads properly with no network, and the

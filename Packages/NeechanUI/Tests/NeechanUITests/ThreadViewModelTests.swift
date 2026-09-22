@@ -106,20 +106,120 @@ struct ThreadViewModelTests {
         await model.load()
 
         #expect(model.visiblePosts.count == model.snapshot.posts.count)
+        #expect(model.searchMatches.isEmpty)
+        #expect(model.currentMatchIndex == nil)
     }
 
-    @Test("a search narrows the thread once it settles")
-    func searchNarrowsTheThread() async throws {
+    /// Every post number in the fixture shares its leading digits, so this
+    /// query matches the whole thread: enough stops to step between.
+    private func queryMatchingEveryPost(_ model: ThreadViewModel) throws -> String {
+        let first = try #require(model.snapshot.posts.first)
+        return String(String(first.num).prefix(3))
+    }
+
+    /// Searching is find-in-page: the thread stays whole, and the matches are
+    /// what the reader steps through.
+    @Test("a search finds posts without narrowing the thread")
+    func searchFindsWithoutNarrowing() async throws {
         let model = try makeModel(try await stubbedTransport())
         await model.load()
-        let target = try #require(model.snapshot.posts.first)
+        let target = try #require(model.snapshot.posts.dropFirst(2).first)
 
         model.searchQuery = "\(target.num)"
         await model.updateSearch()
 
-        #expect(model.visiblePosts.count < model.snapshot.posts.count)
-        #expect(model.visiblePosts.contains { $0.num == target.num })
+        #expect(model.visiblePosts.count == model.snapshot.posts.count)
+        #expect(model.searchMatches.contains { $0.postNum == target.num })
+        #expect(Set(model.searchMatches.map(\.postNum)).count < model.snapshot.posts.count)
         #expect(model.isSearching)
+    }
+
+    @Test("the first match is the one at or below where the reader is")
+    func firstMatchFollowsTheReader() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+        let posts = model.snapshot.posts
+        let reading = posts[2].num
+
+        model.searchQuery = try queryMatchingEveryPost(model)
+        await model.updateSearch(near: reading)
+
+        #expect(model.currentMatchPostNum == reading)
+        #expect(model.matchJump == 1, "a new search should take the reader to its match")
+    }
+
+    @Test("with no match below the reader, the first match in the thread is taken")
+    func firstMatchFallsBackToTheTop() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+        let first = try #require(model.snapshot.posts.first)
+
+        model.searchQuery = "\(first.num)"
+        await model.updateSearch(near: model.snapshot.posts.last?.num)
+
+        #expect(model.currentMatchPostNum == first.num)
+    }
+
+    @Test("stepping through matches goes both ways and wraps at the ends")
+    func stepsWrapAround() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+        model.searchQuery = try queryMatchingEveryPost(model)
+        await model.updateSearch()
+        let matches = model.searchMatches
+        try #require(matches.count > 2)
+        #expect(model.currentMatch == matches[0])
+
+        model.nextMatch()
+        #expect(model.currentMatch == matches[1])
+
+        model.previousMatch()
+        model.previousMatch()
+        #expect(model.currentMatch == matches.last, "going back from the first wraps")
+
+        model.nextMatch()
+        #expect(model.currentMatch == matches[0], "going on from the last wraps")
+        #expect(model.matchJump == 5, "every step asks the view to scroll")
+    }
+
+    /// A long post with the word in it many times is many stops, in the order
+    /// they appear. Counting it once made "1 of 3" of a thread with fifty-five
+    /// hits, and stepping went nowhere a reader could see.
+    @Test("every hit is a stop, and a post's hits come in order")
+    func everyOccurrenceIsAStop() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+
+        // The commonest letter in Russian: some post holds it more than once.
+        model.searchQuery = "о"
+        await model.updateSearch()
+
+        let matches = model.searchMatches
+        #expect(matches.count > Set(matches.map(\.postNum)).count)
+        for postNum in Set(matches.map(\.postNum)) {
+            let hits = matches.filter { $0.postNum == postNum }.map(\.occurrence)
+            let plain = model.snapshot.content(of: postNum).plainText
+            let expected = SearchText.ranges(of: "о", in: plain).count
+            #expect(hits == (expected == 0 ? [nil] : (0..<expected).map { $0 }), "post \(postNum)")
+        }
+    }
+
+    /// The view re-runs the search whenever the thread changes. That must not
+    /// throw the reader back to the first match, nor scroll them anywhere.
+    @Test("re-running the same search keeps the reader's match and does not scroll")
+    func rematchKeepsPlace() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+        model.searchQuery = try queryMatchingEveryPost(model)
+        await model.updateSearch()
+        model.nextMatch()
+        let kept = model.currentMatch
+        let jumps = model.matchJump
+
+        await model.updateSearch()
+
+        #expect(model.currentMatch == kept)
+        #expect(model.matchJump == jumps)
     }
 
     /// Typing replaces the query several times a second, and the matches for a
@@ -137,21 +237,67 @@ struct ThreadViewModelTests {
         model.searchQuery = "\(target.num)"
         await model.updateSearch()
 
-        #expect(model.visiblePosts.contains { $0.num == target.num })
+        #expect(model.searchMatches.contains { $0.postNum == target.num })
     }
 
-    @Test("clearing the search shows the whole thread again, at once")
-    func clearingSearchRestoresEverything() async throws {
+    @Test("a search that finds nothing has no current match")
+    func noHitsHasNoCurrentMatch() async throws {
         let model = try makeModel(try await stubbedTransport())
         await model.load()
+
         model.searchQuery = "zzzzz-no-such-post"
+        await model.updateSearch()
+        model.nextMatch()
+
+        #expect(model.searchMatches.isEmpty)
+        #expect(model.currentMatchIndex == nil)
+        #expect(model.visiblePosts.count == model.snapshot.posts.count)
+    }
+
+    @Test("clearing the search forgets the matches, at once")
+    func clearingSearchForgetsMatches() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+        model.searchQuery = try queryMatchingEveryPost(model)
         await model.updateSearch()
 
         model.searchQuery = ""
         await model.updateSearch()
 
-        #expect(model.visiblePosts.count == model.snapshot.posts.count)
+        #expect(model.searchMatches.isEmpty)
+        #expect(model.currentMatchIndex == nil)
         #expect(model.isSearching == false)
+        #expect(model.isMatch(model.snapshot.posts[0].num) == false)
+    }
+
+    /// A hidden post is drawn as a stub, with nothing in it to show the reader.
+    @Test("a post hidden by a rule is not a match")
+    func hiddenPostsAreNotMatches() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+        let hidden = model.snapshot.posts[1].num
+        await model.hide(.post(num: hidden))
+
+        model.searchQuery = try queryMatchingEveryPost(model)
+        await model.updateSearch()
+
+        #expect(model.searchMatches.contains { $0.postNum == hidden } == false)
+        #expect(model.searchMatches.contains { $0.postNum == model.snapshot.posts[2].num })
+    }
+
+    /// The search counts hits in a post's plain text and the highlighter marks
+    /// them in the rendered body; "the third hit" only means the same thing in
+    /// both if the two hold the same characters.
+    @Test("a rendered body holds exactly the characters the search reads")
+    func renderedBodyMatchesPlainText() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+
+        for post in model.snapshot.posts {
+            let content = model.snapshot.content(of: post.num)
+            let rendered = PostTextRenderer().render(content, options: .init(postNum: post.num))
+            #expect(String(rendered.characters) == content.plainText, "post \(post.num)")
+        }
     }
 
     @Test("a failure is reported in words the reader can act on")

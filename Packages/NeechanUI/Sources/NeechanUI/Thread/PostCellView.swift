@@ -71,6 +71,23 @@ struct PostCellView: View {
     var postURL: URL?
     /// Card by default, so the replies sheet keeps the look it was written for.
     var style: Style = .card
+    /// Set while a thread search has found this post. Nil everywhere else,
+    /// including the replies sheet and the quote popup, which do not search.
+    var searchHighlight: SearchHighlight?
+
+    /// What a thread search found in this post, and whether the reader is on it.
+    struct SearchHighlight: Equatable {
+        let query: String
+        let isCurrent: Bool
+        /// Which hit in the body the reader is on, when it is in this post.
+        /// Nil for the other matching posts, and for a post found by something
+        /// other than its body.
+        var currentOccurrence: Int?
+    }
+
+    /// The view the thread scrolls to when stepping between hits: placed on
+    /// the hit the reader is on, in the one post that holds it.
+    static let searchAnchorID = "search-current-hit"
 
     @Environment(AppServices.self) private var services
     @Environment(\.neechanTheme) private var theme
@@ -78,6 +95,9 @@ struct PostCellView: View {
     /// own text scale multiplies it.
     @ScaledMetric(relativeTo: .callout) private var bodyPointSize: CGFloat = 16
     @State private var isExpanded = false
+    /// How far down the body the current hit's line ends, measured by laying
+    /// out the body only as far as the hit.
+    @State private var currentHitBottom: CGFloat?
 
 
     /// Posts longer than this are collapsed, with a control to open them.
@@ -106,14 +126,18 @@ struct PostCellView: View {
                     Text(rendered)
                         .font(bodyFont)
                         .textSelection(.enabled)
-                        .lineLimit(isExpanded ? nil : collapsedLineLimit)
+                        // A match may be past the fold, and a found post that
+                        // hides why it was found is no help.
+                        .lineLimit(isExpanded || searchHighlight != nil ? nil : collapsedLineLimit)
                         .fixedSize(horizontal: false, vertical: true)
                         .background { truncationProbe(rendered) }
+                        .background { currentHitProbe }
+                        .overlay(alignment: .topLeading) { currentHitAnchor }
                         // Named so the text scale can be checked by measuring
                         // the thing it is supposed to resize.
                         .accessibilityIdentifier("post-body-\(post.num)")
 
-                    if isTruncated, !isExpanded {
+                    if isTruncated, !isExpanded, searchHighlight == nil {
                         expandButton
                     }
                 }
@@ -134,6 +158,24 @@ struct PostCellView: View {
             if style == .card, isOwn || repliesToOwn {
                 RoundedRectangle(cornerRadius: 16)
                     .strokeBorder(ownMarkColor, lineWidth: 1.5)
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            // A hit that is not in the body has nowhere in it to go, so the
+            // post itself is where the thread scrolls.
+            if searchHighlight?.isCurrent == true, searchHighlight?.currentOccurrence == nil {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .id(Self.searchAnchorID)
+            }
+        }
+        .overlay {
+            // The post the reader stepped to, outlined: the match may be in the
+            // name, the number or a file name, where nothing in the body lights up.
+            if searchHighlight?.isCurrent == true {
+                RoundedRectangle(cornerRadius: style == .card ? 16 : 0)
+                    .strokeBorder(Color.yellow, lineWidth: 2)
+                    .accessibilityHidden(true)
             }
         }
         .overlay(alignment: .leading) {
@@ -257,6 +299,63 @@ struct PostCellView: View {
     }
 
     private var attributedBody: AttributedString {
+        let body = cachedBody
+        guard let searchHighlight else { return body }
+        return SearchHighlighter.highlight(
+            body,
+            query: searchHighlight.query,
+            current: searchHighlight.isCurrent ? searchHighlight.currentOccurrence : nil
+        )
+    }
+
+    /// The body laid out only as far as the current hit, hidden, to find how
+    /// far down the post the hit is.
+    ///
+    /// SwiftUI does not say where a character landed in a `Text`, so this asks
+    /// the same question the truncation probe does: the height of the same text,
+    /// the same width and the same font, cut off at the hit. Its last line is
+    /// the hit's line.
+    @ViewBuilder
+    private var currentHitProbe: some View {
+        if let searchHighlight, searchHighlight.isCurrent,
+           let occurrence = searchHighlight.currentOccurrence,
+           let prefix = SearchHighlighter.prefix(
+               cachedBody, throughOccurrence: occurrence, of: searchHighlight.query
+           ) {
+            Color.clear.overlay(alignment: .top) {
+                Text(prefix)
+                    .font(bodyFont)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .hidden()
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                        currentHitBottom = height
+                    }
+            }
+        }
+    }
+
+    /// The point the thread scrolls to: the middle of the current hit's line.
+    @ViewBuilder
+    private var currentHitAnchor: some View {
+        if searchHighlight?.isCurrent == true,
+           searchHighlight?.currentOccurrence != nil,
+           let currentHitBottom {
+            // Pushed down by a spacer rather than offset: an offset moves only
+            // the drawing, and scrolling goes by where the view is laid out.
+            VStack(spacing: 0) {
+                Color.clear.frame(
+                    width: 1,
+                    height: max(0, currentHitBottom - bodyPointSize * services.settings.textScale * 0.6)
+                )
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .id(Self.searchAnchorID)
+            }
+            .accessibilityHidden(true)
+        }
+    }
+
+    private var cachedBody: AttributedString {
         PostBodyCache.shared.body(
             for: content,
             board: post.board,

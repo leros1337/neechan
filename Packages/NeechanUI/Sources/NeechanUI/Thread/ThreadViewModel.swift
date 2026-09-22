@@ -17,11 +17,10 @@ public final class ThreadViewModel {
     public private(set) var snapshot: ThreadSnapshot {
         // Every path that replaces the snapshot — the first load, a refresh, a
         // saved copy being adopted — has to reconsider what is shown, so it
-        // hangs off the property rather than off any one of them. Only the
-        // no-search case is answered here, and only from the async paths that
-        // assign a snapshot; a search is re-run by the view's own task.
+        // hangs off the property rather than off any one of them. A search
+        // never narrows the list, so the whole thread is always what is shown;
+        // the matches are re-found by the view's own task.
         didSet {
-            guard !isSearching else { return }
             if visiblePosts.count != snapshot.posts.count || visiblePosts.isEmpty {
                 visiblePosts = snapshot.posts
             }
@@ -95,8 +94,12 @@ public final class ThreadViewModel {
     }
     /// Post whose replies are listed in a sheet.
     public var repliesSheetPostNum: Int?
-    /// Filters the thread to matching posts. Searching happens here rather than
-    /// in the search tab, so the reader never leaves the thread to do it.
+    /// Finds posts in the thread. Searching happens here rather than in the
+    /// search tab, so the reader never leaves the thread to do it.
+    ///
+    /// Find-in-page rather than a filter: the thread stays whole, so the replies
+    /// around a match are still there to read it by, and the reader steps from
+    /// one match to the next.
     ///
     /// Deliberately without a `didSet` that narrows the list: SwiftUI's search
     /// field writes this binding during a view update, and recomputing observed
@@ -521,29 +524,69 @@ public final class ThreadViewModel {
         )
     }
 
-    /// The posts to show, narrowed by the search when there is one.
+    /// The posts to show: the whole thread, searching or not.
     ///
     /// Hidden posts stay in the list as stubs rather than vanishing, so a reply
     /// to one still makes sense.
-    ///
-    /// Stored rather than computed: searching compares every post's rendered
-    /// text, and the thread's body read this three times per pass, so a query
-    /// was matched against the whole thread several times per keystroke on the
-    /// main actor.
     public private(set) var visiblePosts: [Post] = []
 
-    /// Narrows the thread to whatever is in the search field.
+    /// One stop for the search's arrows: a hit in a post.
+    public struct SearchMatch: Hashable, Sendable {
+        public let postNum: Int
+        /// Which hit in the post's body this is, counting from zero. Nil for a
+        /// post found by its name, subject, number or a file name, where there
+        /// is nothing in the body to go to and the post itself is the stop.
+        public let occurrence: Int?
+    }
+
+    /// Every hit the search found, in thread order.
+    ///
+    /// Occurrences rather than posts: a long post with the word in it fifty
+    /// times is fifty stops, and a counter that called it one would be wrong
+    /// about what is on screen.
+    public private(set) var searchMatches: [SearchMatch] = [] {
+        didSet { searchMatchPosts = Set(searchMatches.map(\.postNum)) }
+    }
+    /// The posts holding a hit, for the question every row asks.
+    @ObservationIgnored private var searchMatchPosts: Set<Int> = []
+    /// Which of `searchMatches` the reader is on.
+    public private(set) var currentMatchIndex: Int?
+    /// Bumped whenever the view should bring the current match on screen.
+    ///
+    /// A counter rather than the match itself, so that re-finding the same
+    /// match after a refresh moves nobody, while stepping onto a match that
+    /// happens to be the same post still scrolls to it.
+    public private(set) var matchJump = 0
+    /// The query the matches were found for, so a re-run for new posts can
+    /// be told apart from a new search.
+    @ObservationIgnored private var matchedQuery: String?
+
+    public var currentMatch: SearchMatch? {
+        currentMatchIndex.map { searchMatches[$0] }
+    }
+
+    public var currentMatchPostNum: Int? {
+        currentMatch?.postNum
+    }
+
+    public func isMatch(_ postNum: Int) -> Bool {
+        searchMatchPosts.contains(postNum)
+    }
+
+    /// Finds whatever is in the search field.
     ///
     /// Owned by the view, which runs it in a task keyed on the query and the
     /// snapshot: a keystroke cancels the task before it, which is the debounce,
     /// and leaving the screen cancels it altogether. Matching compares every
     /// post's rendered text, so it is done away from the main actor.
-    public func updateSearch() async {
-        let query = searchQuery
-        guard isSearching else {
-            if visiblePosts.count != snapshot.posts.count {
-                visiblePosts = snapshot.posts
-            }
+    ///
+    /// - Parameter topPostNum: the post the reader is looking at. A new search
+    ///   starts from the first match there or below, rather than from the top
+    ///   of a thread the reader may be hundreds of posts into.
+    public func updateSearch(near topPostNum: Int? = nil) async {
+        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            clearMatches()
             return
         }
 
@@ -551,12 +594,69 @@ public final class ThreadViewModel {
         guard !Task.isCancelled else { return }
 
         let snapshot = self.snapshot
+        let hidden = effectiveHiddenPostNums
         let matched = await Task.detached(priority: .userInitiated) {
             snapshot.posts(matching: query)
+                .filter { !hidden.contains($0.num) }
+                .flatMap { post in
+                    let hits = SearchText.ranges(
+                        of: query, in: snapshot.content(of: post.num).plainText
+                    ).count
+                    return hits == 0
+                        ? [SearchMatch(postNum: post.num, occurrence: nil)]
+                        : (0..<hits).map { SearchMatch(postNum: post.num, occurrence: $0) }
+                }
         }.value
 
-        guard !Task.isCancelled, searchQuery == query else { return }
-        visiblePosts = matched
+        guard !Task.isCancelled,
+              searchQuery.trimmingCharacters(in: .whitespacesAndNewlines) == query
+        else { return }
+
+        if query == matchedQuery {
+            // New posts, same search: stay on the hit the reader was on, or
+            // failing that on the same post.
+            let kept = currentMatch
+            searchMatches = matched
+            currentMatchIndex = kept.flatMap { kept in
+                matched.firstIndex(of: kept)
+                    ?? matched.firstIndex { $0.postNum == kept.postNum }
+            } ?? (matched.isEmpty ? nil : 0)
+            return
+        }
+
+        matchedQuery = query
+        searchMatches = matched
+        guard !matched.isEmpty else {
+            currentMatchIndex = nil
+            return
+        }
+        let position = topPostNum.flatMap { snapshot.position(of: $0) }
+        currentMatchIndex = position.flatMap { top in
+            matched.firstIndex { (snapshot.position(of: $0.postNum) ?? 0) >= top }
+        } ?? 0
+        matchJump &+= 1
+    }
+
+    public func nextMatch() {
+        step(by: 1)
+    }
+
+    public func previousMatch() {
+        step(by: -1)
+    }
+
+    private func step(by offset: Int) {
+        guard !searchMatches.isEmpty else { return }
+        let count = searchMatches.count
+        let current = currentMatchIndex ?? (offset > 0 ? -1 : 0)
+        currentMatchIndex = ((current + offset) % count + count) % count
+        matchJump &+= 1
+    }
+
+    private func clearMatches() {
+        matchedQuery = nil
+        if !searchMatches.isEmpty { searchMatches = [] }
+        if currentMatchIndex != nil { currentMatchIndex = nil }
     }
 
     public func isHidden(_ postNum: Int) -> Bool {
