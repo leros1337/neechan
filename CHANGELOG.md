@@ -27,6 +27,12 @@ App Store build stops offering what it cannot give.
   that wrote it writes threads -- which the saved row had recorded all along,
   since the schema gained a site column. Threads saved before this are
   unaffected and need no migration.
+- **A saved thread's pictures come off the device.** The thumbnails and files
+  were being downloaded and then never read: a saved thread still asked the
+  site for every one of them, so "offline" meant the text and nothing else, and
+  the bytes on disk were dead weight. A thread read from the device now points
+  at its own copies. Save with thumbnails only and the full picture is still
+  fetched if you open it, which is what that choice means.
 - **Saving says what it is doing.** Keeping a thread with all its files can run
   to hundreds of megabytes, and it used to happen in complete silence: the
   archiver counted its progress and the caller threw every value away. A
@@ -34,9 +40,6 @@ App Store build stops offering what it cannot give.
   be cancelled -- the thread's text is written before any file is fetched, so
   stopping halfway leaves a thread that still reads, with some pictures
   missing.
-- **A saved thread that cannot be read says so.** An unreadable copy reported
-  itself as "no longer saved on this device", which is a different thing and
-  sent you looking in the wrong place.
 
 ### Boards
 
