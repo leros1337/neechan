@@ -23,8 +23,11 @@
 		(active keyboards).
 
 		FFmpeg is covered here rather than by a manifest of its own. It is
-		built `--enable-static --disable-shared`, so its code is linked into
-		this executable, and the declaration is per executable. The five
+		configured as a static library rather than a shared one, so its code is
+		linked into this executable, and the declaration is per executable.
+		(See `build.sh` in neechan-ffmpeg for the configure line; the flags
+		cannot be quoted here, because a double hyphen is illegal inside an XML
+		comment and Xcode's plist editor refuses the file.) The five
 		`Libav*.framework` bundles that ship beside it are carriers: each holds
 		a stub that exports nothing and imports nothing, so none of them
 		reaches an API worth declaring.
