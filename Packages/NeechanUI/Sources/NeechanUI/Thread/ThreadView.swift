@@ -15,8 +15,9 @@ public struct ThreadView: View {
     @State private var scrollPosition = ScrollPosition()
     @State private var galleryStart: GalleryStart?
     @State private var replyTarget: ReplyTarget?
+    @State private var reportTarget: ReportTarget?
+    @State private var hasReported = false
     @State private var isShowingHiddenPosts = false
-    @State private var isSaving = false
     @State private var isShowingGalleryGrid = false
     @State private var doomscrollStart: GalleryStart?
     /// Whether the favorites are open over the thread.
@@ -150,6 +151,7 @@ public struct ThreadView: View {
                                 )
                             }
                         },
+                        onReport: reportAction(for: post.num),
                         postURL: SiteLinks.post(
                             board: key.board,
                             threadNum: key.threadNum,
@@ -211,6 +213,13 @@ public struct ThreadView: View {
         .overlay { statusOverlay(model, posts: posts) }
         .overlay(alignment: .bottom) { refreshToast(model) }
         .overlay(alignment: .bottom) { quoteStatusToast(model) }
+        .saveProgress(model.saveProgress) { model.cancelSave() }
+        .reportPresentation(
+            board: key.board,
+            thread: key.threadNum,
+            target: $reportTarget,
+            hasReported: $hasReported
+        )
         .internalBrowser(link: $browserLink)
         .sheet(isPresented: $isShowingGalleryGrid) {
             GalleryGridView(items: model.snapshot.galleryItems) { postNum in
@@ -219,10 +228,7 @@ public struct ThreadView: View {
             }
             .duoPresentationPlacement(.trailing)
         }
-        .sheet(item: Binding(
-            get: { model.repliesSheetPostNum.map(RepliesSheetTarget.init) },
-            set: { model.repliesSheetPostNum = $0?.postNum }
-        )) { target in
+        .sheet(item: repliesSheetTarget(model)) { target in
             RepliesSheet(
                 rootPostNum: target.postNum,
                 snapshot: model.snapshot,
@@ -502,11 +508,34 @@ public struct ThreadView: View {
                 onShowDoomscroll: { startDoomscroll(in: model) },
                 onShowHiddenPosts: { isShowingHiddenPosts = true },
                 onReload: { Task { await model.reload(userInitiated: true) } },
-                onSave: { includingFiles in
-                    Task { await save(model, includingFiles: includingFiles) }
-                }
+                onSave: { model.startSave(includingFiles: $0) }
             )
         }
+    }
+
+    /// The replies sheet's target, as something `sheet(item:)` can be driven by.
+    ///
+    /// A method rather than a `Binding(get:set:)` written inline. Built in the
+    /// body it is one more thing for the type checker to solve inside a chain
+    /// that is already at its limit, and it was what tipped the chain over when
+    /// the report sheet joined it.
+    private func repliesSheetTarget(_ model: ThreadViewModel) -> Binding<RepliesSheetTarget?> {
+        Binding(
+            get: { model.repliesSheetPostNum.map(RepliesSheetTarget.init) },
+            set: { model.repliesSheetPostNum = $0?.postNum }
+        )
+    }
+
+    /// Opens the report sheet for a post, or nil where the site takes no
+    /// reports and the menu item should be left out.
+    ///
+    /// A method rather than a ternary in the cell's argument list: that list is
+    /// already at the edge of what the type checker will solve in reasonable
+    /// time, and an inline conditional producing an optional closure is what
+    /// pushed it over.
+    private func reportAction(for postNum: Int) -> (() -> Void)? {
+        guard services.capabilities.reporting != .none else { return nil }
+        return { reportTarget = ReportTarget(postNum: postNum) }
     }
 
     /// Says what a `>>` tap is doing when it cannot simply show the post.
@@ -575,15 +604,6 @@ public struct ThreadView: View {
                 withAnimation(.snappy) { model.dismissRefreshAnnouncement() }
             }
         }
-    }
-
-    /// Writes the thread to the device. Saving with files can take a while and
-    /// a lot of space, so the two sizes are separate menu items rather than one
-    /// button with a setting behind it.
-    private func save(_ model: ThreadViewModel, includingFiles: Bool) async {
-        isSaving = true
-        defer { isSaving = false }
-        _ = await model.save(includingFiles: includingFiles)
     }
 
     @ViewBuilder
@@ -692,9 +712,11 @@ public struct ThreadView: View {
             ), !services.contentPolicy.allowsOpening(target) {
                 return
             }
-            // Links off the site open in the app unless the reader asked for
-            // Safari, so a tap does not lose the thread.
-            if services.settings.usesInternalBrowser {
+            // Links off the site open in the app so a tap does not lose the
+            // thread -- unless the reader asked for Safari, or has not yet said
+            // they are 18, in which case the link leaves rather than being
+            // followed on a surface this app answers for.
+            if services.settings.opensLinksInApp {
                 browserLink = BrowserLink(url: url)
             } else {
                 openURL(url)

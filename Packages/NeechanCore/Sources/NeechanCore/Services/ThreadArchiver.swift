@@ -47,6 +47,12 @@ public actor SavedThreadsRepository {
     ///
     /// The JSON snapshot is written first, so a save interrupted midway through
     /// downloading media still leaves a readable thread.
+    ///
+    /// - Parameter onProgress: called with the number of attachments stored so
+    ///   far and the number there are in total. Attachments, not requests: a
+    ///   full save fetches a thumbnail *and* the file for each one, and a count
+    ///   that moved twice per picture would not be the count a reader is
+    ///   watching. Called from this actor, so a main-actor observer has to hop.
     @discardableResult
     public func save(
         _ response: ThreadResponse,
@@ -55,7 +61,7 @@ public actor SavedThreadsRepository {
         endpoints: SiteEndpoints,
         policy: MediaPolicy,
         downloader: any MediaFetching,
-        onProgress: (@Sendable (Double) -> Void)? = nil
+        onProgress: (@Sendable (Int, Int) -> Void)? = nil
     ) async throws -> SavedThreadItem {
         // Qualified by the site so two imageboards' /b/12345 do not share a
         // folder. Folders written before this are found by the path stored on
@@ -93,7 +99,7 @@ public actor SavedThreadsRepository {
                 }
             }
             downloaded += 1
-            onProgress?(Double(downloaded) / Double(max(attachments.count, 1)))
+            onProgress?(downloaded, attachments.count)
         }
 
         let stored = try storedThread(key) ?? {
@@ -117,18 +123,70 @@ public actor SavedThreadsRepository {
     }
 
     /// Reads a saved thread back, without touching the network.
+    ///
+    /// Decoded the way the site that wrote it writes threads, which the row has
+    /// recorded since the schema gained `siteRaw`. Reading them all as 2ch's
+    /// shape is what kept saving off on 4chan: the bytes were fine and nothing
+    /// could read them.
+    ///
+    /// The board is a placeholder. 4chan's mapping refuses without one and
+    /// there is none on disk -- and none to be fetched either, since the whole
+    /// point of a saved thread is that it opens with no network. What a
+    /// placeholder costs is the board's posting limits and flags, which nothing
+    /// on a saved thread reads. 2ch does not even look: its own board object is
+    /// inside the bytes.
+    ///
+    /// The mirror in the selection is the default one, and that is fine: 2ch's
+    /// decode ignores endpoints, and its attachment paths stay server-relative
+    /// and are resolved against whichever mirror the reader is on when a
+    /// thumbnail is drawn.
     public func load(_ key: ThreadKey) throws -> ThreadResponse? {
         guard let stored = try storedThread(key) else { return nil }
         let url = Self.rootDirectory
             .appending(path: stored.directoryRelativePath)
             .appending(path: "thread.json")
         guard let data = try? Data(contentsOf: url) else { return nil }
-        return try JSONDecoder().decode(ThreadResponse.self, from: data)
+        let response = try StoredThread.response(
+            from: data,
+            on: SiteSelection(site: stored.site),
+            board: Board(id: key.board, defaultName: "Anonymous")
+        )
+        return Self.pointingAtLocalMedia(response, in: stored.directoryRelativePath)
     }
 
-    /// Where a saved thread's media folder is, for resolving its attachments.
-    public func mediaDirectory(for key: ThreadKey) throws -> String? {
-        try storedThread(key)?.directoryRelativePath
+    /// Repoints a thread's attachments at the copies kept beside it.
+    ///
+    /// The files were being downloaded and never read: a saved thread still
+    /// asked the site for every thumbnail, so "offline" meant the text and
+    /// nothing else. Rewriting the paths here rather than teaching each screen
+    /// about saved copies is what keeps the thumbnails, the gallery and the
+    /// player as they are -- `SiteEndpoints.url(forPath:)` hands back an
+    /// absolute URL untouched, and a `file:` URL is absolute.
+    ///
+    /// A path with no file beside it is left pointing at the site. That is the
+    /// thumbnails-only save, whose full files were never fetched: the thumbnail
+    /// comes off the disk and the full picture is asked for if the reader opens
+    /// it and there is a network to ask over.
+    nonisolated static func pointingAtLocalMedia(
+        _ response: ThreadResponse,
+        in directory: String
+    ) -> ThreadResponse {
+        var response = response
+        response.posts = response.posts.map { post in
+            var post = post
+            post.files = post.files.map { file in
+                var file = file
+                if let local = localMediaURL(for: file.path, in: directory) {
+                    file.path = local.absoluteString
+                }
+                if let local = localMediaURL(for: file.thumbnail, in: directory) {
+                    file.thumbnail = local.absoluteString
+                }
+                return file
+            }
+            return post
+        }
+        return response
     }
 
     /// Where a saved attachment lives, if it was kept.

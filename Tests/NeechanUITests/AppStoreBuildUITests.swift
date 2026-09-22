@@ -81,12 +81,13 @@ final class AppStoreBuildUITests: LiveUITestCase {
         )
         XCTAssertTrue(app.staticTexts["Age Restriction"].exists, "the age term is missing")
         XCTAssertTrue(app.staticTexts["Content Reporting (DMCA)"].exists, "the DMCA term is missing")
-        // The section this build deliberately leaves out: Neechan has no report
-        // button and no way to block a poster, so promising both would be a
-        // term it does not keep.
-        XCTAssertFalse(
+        // Promised because it is kept: any post can be reported from its own
+        // menu, and anything can be hidden. A term the app does not keep is
+        // worse than one it never made, so this is what fails if the report
+        // action is ever taken away again.
+        XCTAssertTrue(
             app.staticTexts["Reporting & Blocking"].exists,
-            "the agreement promises reporting and blocking, which do not exist"
+            "the agreement no longer mentions reporting, which the app offers"
         )
 
         attach(app, name: "appstore-agreement")
@@ -118,6 +119,96 @@ final class AppStoreBuildUITests: LiveUITestCase {
             app.buttons["agreement-accept"].exists,
             "the copy in About asks to be agreed to again"
         )
+    }
+
+    /// A passcode is bought on the site and spent on posting — no captcha and
+    /// larger files. This build cannot post, so the screen would be pointing at
+    /// a purchase it has nothing to do with.
+    func testSettingsOffersNoPasscodeScreen() throws {
+        let app = launchApp()
+        try XCTSkipUnless(try openRestrictions(app), "not the App Store build")
+
+        switchToTab(app, "Settings")
+        let forum = app.buttons["Forum"].firstMatch
+        XCTAssertTrue(forum.waitForExistence(timeout: 10), "Forum is not in Settings")
+        forum.tap()
+
+        // Cookies first: it is the row below the one that should be gone, so
+        // waiting on it proves the screen drew rather than that it was slow.
+        XCTAssertTrue(
+            app.buttons["Cookies"].firstMatch.waitForExistence(timeout: 10),
+            "the Forum screen did not open"
+        )
+        XCTAssertFalse(
+            app.buttons["Passcode"].firstMatch.exists,
+            "the App Store build offers a passcode sign-in it cannot spend"
+        )
+
+        attach(app, name: "appstore-forum")
+    }
+
+    /// A count of posts sent is a count that could only ever read zero here,
+    /// so the row is left out rather than shown empty. The reading statistics
+    /// beside it still mean something and stay.
+    func testStatisticsCountsNoPostsItCannotSend() throws {
+        let app = launchApp()
+        try XCTSkipUnless(try openRestrictions(app), "not the App Store build")
+
+        goBack(app)
+        openSettingsRow(app, "Statistics")
+
+        // Waited on first: it proves the screen drew, so the absence below is
+        // an absence rather than a screen that had not arrived yet.
+        XCTAssertTrue(
+            app.staticTexts["Threads opened"].waitForExistence(timeout: 10),
+            "the Statistics screen did not open"
+        )
+        XCTAssertFalse(
+            app.staticTexts["Posts sent"].exists,
+            "the App Store build counts posts it cannot send"
+        )
+        XCTAssertFalse(app.otherElements["stat-posts-sent"].exists)
+
+        attach(app, name: "appstore-statistics")
+    }
+
+    /// Every switch in Uploads is about a file on its way to a post, so on a
+    /// build that attaches nothing the whole section is settings that cannot
+    /// act. The rest of Media is about reading and stays.
+    func testMediaOffersNoUploadSettings() throws {
+        let app = launchApp()
+        try XCTSkipUnless(try openRestrictions(app), "not the App Store build")
+
+        goBack(app)
+        openSettingsRow(app, "Media")
+
+        // Waited on first, so the absence below is an absence and not a screen
+        // that had yet to draw. "Convert WebM to MP4" is the section after the
+        // one that should be gone.
+        XCTAssertTrue(
+            app.switches["convert-webm"].waitForExistence(timeout: 10),
+            "the Media screen did not open"
+        )
+        XCTAssertFalse(
+            app.staticTexts["Uploads"].exists,
+            "the App Store build offers upload settings it cannot apply"
+        )
+        XCTAssertFalse(app.switches["Remove metadata"].exists)
+
+        attach(app, name: "appstore-media")
+    }
+
+    /// Back out of a settings screen to the list it was pushed from.
+    private func goBack(_ app: XCUIApplication) {
+        let back = app.navigationBars.buttons.element(boundBy: 0)
+        XCTAssertTrue(back.waitForExistence(timeout: 10), "no way back out of this screen")
+        back.tap()
+    }
+
+    private func openSettingsRow(_ app: XCUIApplication, _ name: String) {
+        let row = app.buttons[name].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "\(name) is not in Settings")
+        row.tap()
     }
 
     /// The point of the whole variant: no way to write, anywhere.

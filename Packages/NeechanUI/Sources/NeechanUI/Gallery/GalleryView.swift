@@ -111,6 +111,7 @@ public struct GalleryView: View {
             // a say in the gesture.
             isZoomedIn = false
         }
+        .onDisappear { model.finishPlayback() }
     }
 
     private func page(at index: Int, item: GalleryItem) -> some View {
@@ -118,6 +119,7 @@ public struct GalleryView: View {
             item: item,
             url: model.url(for: item),
             playerOptions: model.playerOptions(for: item),
+            player: model.player,
             isCurrent: index == model.currentIndex,
             onSingleTap: { model.toggleControls() },
             onGoToPost: onGoToPost.map { goToPost in
@@ -335,6 +337,7 @@ private struct ScrubberRow: View {
     var body: some View {
         PlaybackScrubber(
             fraction: model.playbackProgress.fraction,
+            bufferedFraction: model.bufferedFraction,
             isSeekable: model.playbackProgress.isSeekable,
             timeLabel: model.timeLabel,
             isBusy: model.playbackState.isBusy,
@@ -419,6 +422,10 @@ private struct LoopButton: View {
 /// expected to do.
 private struct PlaybackScrubber: View {
     let fraction: Double
+    /// How much of the file is on disk, 0 to 1: the dimmed bar behind the
+    /// playhead. Bytes rather than seconds, so it is a close approximation
+    /// rather than an exact one, which is what every player's buffer bar is.
+    let bufferedFraction: Double
     let isSeekable: Bool
     let timeLabel: String
     let isBusy: Bool
@@ -467,6 +474,16 @@ private struct PlaybackScrubber: View {
                 Capsule()
                     .fill(.quaternary)
                     .frame(height: trackHeight)
+
+                // How much can be watched without waiting. Behind the played
+                // part, so the two read as one bar filling up rather than as
+                // two things racing.
+                Capsule()
+                    .fill(.tertiary)
+                    .frame(width: width * clamp(bufferedFraction), height: trackHeight)
+                    // Blocks land a megabyte at a time; unanimated, the bar
+                    // jumps in visible steps.
+                    .animation(.easeOut(duration: 0.25), value: bufferedFraction)
 
                 Capsule()
                     .fill(.tint)

@@ -2,12 +2,17 @@
 import PackageDescription
 
 // WebM (VP8/VP9 with Vorbis or Opus) cannot be opened by AVFoundation at all,
-// so video goes through KSPlayer, which wraps kingslay/FFmpegKit. That checkout
-// vendors prebuilt xcframeworks and is several gigabytes once cloned, and it is
-// GPL-3.0, which is why this project is too.
+// and neither can the `hev1`-tagged HEVC the boards serve in MP4, so video is
+// decoded by FFmpeg whatever the container. VideoToolbox does the work
+// wherever the device has a decoder for what is in the file.
 //
-// Only this package may import KSPlayer. Everything above it sees
-// `MediaPlayerView` and knows nothing about the engine underneath.
+// The FFmpeg build is this project's own: trimmed to the containers and codecs
+// an imageboard actually serves, and configured without a single GPL
+// component, which is what lets the app be MIT. See the neechan-ffmpeg
+// repository for the configure line and how to rebuild it.
+//
+// Only this package may import the FFmpeg modules. Everything above it sees
+// `MediaPlayerView` and knows nothing about what is underneath.
 let package = Package(
     name: "NeechanMedia",
     defaultLocalization: "en",
@@ -19,11 +24,7 @@ let package = Package(
         .package(path: "../NeechanAPI"),
         .package(path: "../NeechanSettings"),
         .package(path: "../NeechanTestSupport"),
-        .package(url: "https://github.com/kingslay/KSPlayer.git", from: "2.3.4"),
-        // Already in the graph as KSPlayer's own dependency, at the same pin.
-        // Named here because the WebM converter uses the libraries directly:
-        // playback goes through KSPlayer, but a transcode has no player in it.
-        .package(url: "https://github.com/kingslay/FFmpegKit.git", from: "6.1.4")
+        .package(url: "https://github.com/leros1337/neechan-ffmpeg.git", from: "9.0.2")
     ],
     targets: [
         .target(
@@ -31,12 +32,7 @@ let package = Package(
             dependencies: [
                 "NeechanAPI",
                 "NeechanSettings",
-                .product(name: "KSPlayer", package: "KSPlayer"),
-                .product(name: "Libavcodec", package: "FFmpegKit"),
-                .product(name: "Libavformat", package: "FFmpegKit"),
-                .product(name: "Libavutil", package: "FFmpegKit"),
-                .product(name: "Libswresample", package: "FFmpegKit"),
-                .product(name: "Libswscale", package: "FFmpegKit")
+                .product(name: "FFmpeg", package: "neechan-ffmpeg")
             ],
             resources: [.process("Resources")],
             swiftSettings: [.swiftLanguageMode(.v6)]

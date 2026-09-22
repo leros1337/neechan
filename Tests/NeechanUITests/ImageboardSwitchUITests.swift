@@ -9,27 +9,6 @@ import XCTest
 /// own data belongs to the imageboard it came from.
 @MainActor
 final class ImageboardSwitchUITests: LiveUITestCase {
-    /// Taps the switcher on the board list itself, which is the control a
-    /// reader actually reaches for.
-    private func selectImageboard(_ name: String, in app: XCUIApplication) {
-        // Back to the board list first: the switcher lives on it, and the tab
-        // may still be showing a board or a thread pushed on top.
-        app.buttons["Boards"].firstMatch.tap()
-        for _ in 0..<4 where !app.segmentedControls["imageboard-picker"].exists {
-            let back = app.navigationBars.buttons.element(boundBy: 0)
-            guard back.exists, back.isHittable else { break }
-            back.tap()
-        }
-        let picker = app.segmentedControls["imageboard-picker"]
-        XCTAssertTrue(
-            picker.waitForExistence(timeout: Self.networkTimeout),
-            "the board list has no imageboard switcher"
-        )
-        let segment = picker.buttons[name]
-        XCTAssertTrue(segment.waitForExistence(timeout: 5), "no \(name) segment")
-        segment.tap()
-    }
-
     func testTheSwitcherIsOnTheBoardListAndCanBeTapped() {
         let app = launchApp()
         let picker = app.segmentedControls["imageboard-picker"]
@@ -51,7 +30,7 @@ final class ImageboardSwitchUITests: LiveUITestCase {
             "2ch's board list did not load"
         )
 
-        selectImageboard("4chan", in: app)
+        switchToImageboard("4chan", in: app)
         // /3/ exists only on 4chan, and is the board code that used to be
         // rejected outright for having no letter in it.
         XCTAssertTrue(
@@ -60,7 +39,7 @@ final class ImageboardSwitchUITests: LiveUITestCase {
         )
         attach(app, name: "30-fourchan-boards")
 
-        selectImageboard("2ch", in: app)
+        switchToImageboard("2ch", in: app)
         XCTAssertTrue(
             app.staticTexts["/b/"].waitForExistence(timeout: Self.networkTimeout),
             "2ch's board list did not come back"
@@ -89,7 +68,7 @@ final class ImageboardSwitchUITests: LiveUITestCase {
         )
 
         // Over to 4chan: the list is the other site's, and this is not on it.
-        selectImageboard("4chan", in: app)
+        switchToImageboard("4chan", in: app)
         app.buttons["Favorites"].firstMatch.tap()
         XCTAssertFalse(
             app.staticTexts["Threads"].waitForExistence(timeout: 5),
@@ -98,7 +77,7 @@ final class ImageboardSwitchUITests: LiveUITestCase {
         attach(app, name: "32-favorites-are-per-imageboard")
 
         // And back: nothing was lost on the way.
-        selectImageboard("2ch", in: app)
+        switchToImageboard("2ch", in: app)
         app.buttons["Favorites"].firstMatch.tap()
         XCTAssertTrue(
             app.staticTexts["Threads"].waitForExistence(timeout: 10),
@@ -109,7 +88,7 @@ final class ImageboardSwitchUITests: LiveUITestCase {
     /// 4chan has none of these, so offering them would lead nowhere.
     func testWhatFourchanCannotDoIsNotOffered() {
         let app = launchApp()
-        selectImageboard("4chan", in: app)
+        switchToImageboard("4chan", in: app)
         XCTAssertTrue(
             app.staticTexts["/3/"].waitForExistence(timeout: Self.networkTimeout),
             "4chan's board list did not load"
@@ -143,7 +122,7 @@ final class ImageboardSwitchUITests: LiveUITestCase {
     /// closed. Driven the way a reader would: choose it, quit, come back.
     func testTheChosenImageboardSurvivesARelaunch() {
         let app = launchApp(pinsImageboard: false)
-        selectImageboard("4chan", in: app)
+        switchToImageboard("4chan", in: app)
         XCTAssertTrue(
             app.staticTexts["/3/"].waitForExistence(timeout: Self.networkTimeout),
             "4chan's board list did not load"
@@ -161,6 +140,6 @@ final class ImageboardSwitchUITests: LiveUITestCase {
         )
 
         // Left as it was found, so the rest of the suite starts on 2ch.
-        selectImageboard("2ch", in: relaunched)
+        switchToImageboard("2ch", in: relaunched)
     }
 }

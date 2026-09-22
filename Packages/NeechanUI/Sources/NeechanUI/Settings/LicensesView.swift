@@ -2,8 +2,8 @@ import SwiftUI
 
 /// The licences the app ships under and depends on.
 ///
-/// FFmpeg is built GPL-3, and linking it makes this app GPL-3 as well, so the
-/// notice is part of the app rather than a file in the repository.
+/// FFmpeg is linked statically and is LGPL, which asks that the notice travel
+/// with the app rather than sit only in the repository.
 struct LicensesView: View {
     private struct Entry: Identifiable {
         let id = UUID()
@@ -15,18 +15,13 @@ struct LicensesView: View {
     private let entries = [
         Entry(
             name: "Neechan",
-            license: "GPL-3.0",
-            url: "https://www.gnu.org/licenses/gpl-3.0.html"
+            license: "MIT",
+            url: "https://opensource.org/license/mit"
         ),
         Entry(
-            name: "KSPlayer",
-            license: "GPL-3.0",
-            url: "https://github.com/kingslay/KSPlayer"
-        ),
-        Entry(
-            name: "FFmpegKit",
-            license: "GPL-3.0",
-            url: "https://github.com/kingslay/FFmpegKit"
+            name: "FFmpeg",
+            license: "LGPL-2.1-or-later",
+            url: "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html"
         ),
     ]
 
@@ -47,7 +42,7 @@ struct LicensesView: View {
                 }
             } footer: {
                 Text(
-                    "Neechan plays WebM through FFmpeg, which is distributed under the GPL. The app is therefore GPL-3.0 as well, and its source is available.",
+                    "Neechan plays video through FFmpeg, built without any GPL component and used under the LGPL. The build script and the app's own source are available, so this app can be rebuilt against a modified FFmpeg.",
                     bundle: .module
                 )
             }

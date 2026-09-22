@@ -24,11 +24,21 @@ struct StatisticsView: View {
                     Text("Threads opened", bundle: .module)
                 }
 
-                LabeledContent {
-                    Text(services.settings.statistics.postsSent, format: .number)
-                        .monospacedDigit()
-                } label: {
-                    Text("Posts sent", bundle: .module)
+                // Left out where posting is locked off: the count could only
+                // ever read zero, and a statistic that cannot move is not one.
+                //
+                // Asked of `settings.allowsPosting` rather than of
+                // `services.allowsPosting`, which folds in the selected site's
+                // capability -- this figure covers every site the reader has
+                // posted on, so it must not come and go with the switcher.
+                if services.settings.allowsPosting {
+                    LabeledContent {
+                        Text(services.settings.statistics.postsSent, format: .number)
+                            .monospacedDigit()
+                    } label: {
+                        Text("Posts sent", bundle: .module)
+                    }
+                    .accessibilityIdentifier("stat-posts-sent")
                 }
             } footer: {
                 Text("Counted on this device only, and never sent anywhere.", bundle: .module)

@@ -55,8 +55,12 @@ struct ContentsSettingsView: View {
                 } label: {
                     Text("Order", bundle: .module)
                 }
-                Toggle(isOn: $settings.favoritesOnReply) {
-                    Text("Add to favorites when I reply", bundle: .module)
+                // A build that never replies can never trip this one. The
+                // rest of the section is about reading and stays.
+                if settings.allowsPosting {
+                    Toggle(isOn: $settings.favoritesOnReply) {
+                        Text("Add to favorites when I reply", bundle: .module)
+                    }
                 }
                 Toggle(isOn: $settings.watchesNewFavorites) {
                     Text("Watch new favorites", bundle: .module)
@@ -67,12 +71,13 @@ struct ContentsSettingsView: View {
 
             Section {
                 Picker(selection: notificationsBinding) {
-                    Text("Off", bundle: .module).tag(WatcherNotificationSetting.off)
-                    Text("Replies to me", bundle: .module).tag(WatcherNotificationSetting.repliesOnly)
-                    Text("All new posts", bundle: .module).tag(WatcherNotificationSetting.allNewPosts)
+                    ForEach(settings.watcherNotificationChoices) { choice in
+                        label(for: choice).tag(choice)
+                    }
                 } label: {
                     Text("Notifications", bundle: .module)
                 }
+                .accessibilityIdentifier("watcher-notifications")
 
                 Stepper(value: $settings.watcherIntervalSeconds, in: 15...600, step: 15) {
                     Text(
@@ -99,6 +104,14 @@ struct ContentsSettingsView: View {
             try? await Task.sleep(for: .milliseconds(600))
             guard !Task.isCancelled else { return }
             await services.startWatching()
+        }
+    }
+
+    private func label(for choice: WatcherNotificationSetting) -> Text {
+        switch choice {
+        case .off: Text("Off", bundle: .module)
+        case .repliesOnly: Text("Replies to me", bundle: .module)
+        case .allNewPosts: Text("All new posts", bundle: .module)
         }
     }
 

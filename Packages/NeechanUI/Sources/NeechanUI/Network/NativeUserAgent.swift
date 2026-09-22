@@ -34,7 +34,7 @@ enum NativeUserAgent {
         UserAgent.set(agent)
         // Logged because a Cloudflare refusal is usually an argument about who
         // the client claims to be, and this is the answer to that question.
-        Logger(subsystem: "com.lain.neechan", category: "network")
+        Logger(subsystem: Signposts.subsystem, category: "network")
             .notice("user agent: \(agent, privacy: .public)")
         #endif
     }

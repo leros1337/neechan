@@ -101,6 +101,30 @@ public final class MediaBlockStore: @unchecked Sendable {
         missingBlocks(for: url, total: total).isEmpty
     }
 
+    /// How many blocks are held in an unbroken run from the start of the file.
+    ///
+    /// What the buffer bar on the scrubber shows, and so deliberately the run
+    /// from the start rather than a count of everything held: a clip with a
+    /// hole in the middle cannot be watched through it, and a bar that claimed
+    /// otherwise would stop exactly where it promised not to. After a seek this
+    /// understates what is on disk, which is the harmless direction.
+    ///
+    /// Stops at the first gap, so it costs what it finds rather than a look at
+    /// every block the way `missingBlocks(for:total:)` does.
+    public func contiguousBlocks(for url: URL, total: Int64) -> Int {
+        let count = blockCount(forTotal: total)
+        guard count > 0 else { return 0 }
+        return lock.withLock {
+            var held = 0
+            while held < count,
+                  fileManager.fileExists(atPath: blockLocation(held, for: url).path)
+            {
+                held += 1
+            }
+            return held
+        }
+    }
+
     // MARK: Turning pieces back into a file
 
     public enum StoreError: Error {

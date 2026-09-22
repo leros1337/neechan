@@ -31,9 +31,9 @@ jobs:
   release:
     # macOS 26, not merely Xcode 26: every package declares `.macOS(.v26)`, so
     # `swift test` will not run on an older image. This one also still ships the
-    # Metal compiler that KSPlayer's shaders need, which Xcode 27 dropped.
+    # Metal compiler some dependencies need, which Xcode 27 dropped.
     runs-on: macos-26
-    # A resolve of FFmpegKit that hangs would otherwise burn macOS minutes,
+    # A dependency resolve that hangs would otherwise burn macOS minutes,
     # which bill at ten times the Linux rate.
     timeout-minutes: 90
 
@@ -65,11 +65,13 @@ jobs:
       - name: Restore the SwiftPM cache
         uses: actions/cache@v6
         with:
-          # KSPlayer and FFmpegKit come to some gigabytes, most of it FFmpeg's
-          # prebuilt xcframeworks. Both are pinned, so the key is the pins.
+          # Keyed on the manifests and on the resolved versions. The one
+          # remote dependency is neechan-ffmpeg, a binary package whose
+          # release zips land in this directory; everything else is a local
+          # path.
           path: ~/Library/Caches/org.swift.swiftpm-neechan
-          key: spm-${{ runner.os }}-${{ hashFiles('Packages/*/Package.resolved') }}
-          restore-keys: spm-${{ runner.os }}-
+          key: spm2-${{ runner.os }}-${{ hashFiles('Packages/*/Package.swift', 'Packages/*/Package.resolved') }}
+          restore-keys: spm2-${{ runner.os }}-
 
       - name: Generate the Xcode project
         run: make gen

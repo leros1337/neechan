@@ -7,7 +7,13 @@ import Foundation
 /// The system decides when, and may not run it for hours, so this is a bonus on
 /// top of the foreground timer rather than the thing readers rely on.
 public enum BackgroundRefresh {
-    public static let taskIdentifier = "com.lain.neechan.watcher"
+    /// Must match `BGTaskSchedulerPermittedIdentifiers` in the app's
+    /// `Info.plist` exactly: the scheduler raises rather than returns when
+    /// asked to register one the plist does not list, so a drift here is a
+    /// crash on launch. `BackgroundTaskIdentifierTests` holds the two
+    /// together, because the plist half is generated from `project.yml` and
+    /// so is not even edited in the same file as this.
+    public static let taskIdentifier = "pro.neechan.app.watcher"
 
     /// Registers the handler. Must be called before the app finishes launching.
     public static func register(handler: @escaping @Sendable () async -> Void) {

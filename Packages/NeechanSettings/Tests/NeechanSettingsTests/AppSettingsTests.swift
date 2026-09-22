@@ -19,7 +19,7 @@ struct AppSettingsTests {
         #expect(settings.mediaLoadPolicy == .always)
         #expect(settings.appearance == .system)
         #expect(settings.textScale == 1)
-        #expect(settings.thumbnailScale == 0.8, "thumbnails start a little under full size")
+        #expect(settings.thumbnailScale == 1.0, "thumbnails start at full size")
         #expect(settings.remembersHistory)
         #expect(settings.locksApp == false, "the app does not lock itself until asked")
         #expect(settings.catalogByDefault, "a board opens as the catalog until told otherwise")
@@ -838,5 +838,138 @@ struct AppStoreBuildTests {
 
         #expect(settings.allowsPosting)
         #expect(settings.allowsMatureBoards)
+    }
+}
+
+/// Where a link off the imageboard opens.
+///
+/// Two preferences decide it, and the age gate is the one that wins: an in-app
+/// browser is a surface the app answers for, and it will follow wherever a link
+/// a stranger wrote goes. Until the reader has said they are 18, links leave.
+@MainActor
+@Suite("Links off the imageboard")
+struct ExternalLinkDestinationTests {
+    private func makeSettings(isAppStoreBuild: Bool = false) throws -> AppSettings {
+        let defaults = try #require(UserDefaults(suiteName: "neechan.tests.\(UUID().uuidString)"))
+        return AppSettings(defaults: defaults, isAppStoreBuild: isAppStoreBuild)
+    }
+
+    @Test(
+        "the in-app browser needs the preference and the age together",
+        arguments: [
+            (true, true, true),
+            (true, false, false),
+            (false, true, false),
+            (false, false, false),
+        ]
+    )
+    func bothConditionsAreRequired(
+        usesInternalBrowser: Bool, allowsMature: Bool, expected: Bool
+    ) throws {
+        let settings = try makeSettings()
+        settings.usesInternalBrowser = usesInternalBrowser
+        settings.allowsMatureBoards = allowsMature
+
+        #expect(settings.opensLinksInApp == expected)
+    }
+
+    /// The ordinary build starts with the age confirmed, so this is the one
+    /// case where nothing changed: links keep opening in the app.
+    @Test("the ordinary build opens links in the app out of the box")
+    func ordinaryBuildIsUnchanged() throws {
+        let settings = try makeSettings()
+
+        #expect(settings.usesInternalBrowser)
+        #expect(settings.allowsMatureBoards)
+        #expect(settings.opensLinksInApp)
+    }
+
+    /// The App Store build starts with the age unconfirmed, so it starts by
+    /// handing links to Safari -- while the preference itself is still on, and
+    /// still says so once the reader answers the gate.
+    @Test("the App Store build sends links to Safari until the age is confirmed")
+    func appStoreBuildLeavesUntilConfirmed() throws {
+        let settings = try makeSettings(isAppStoreBuild: true)
+
+        #expect(settings.usesInternalBrowser)
+        #expect(!settings.allowsMatureBoards)
+        #expect(!settings.opensLinksInApp)
+
+        settings.allowsMatureBoards = true
+        #expect(settings.opensLinksInApp)
+    }
+
+    /// Turning the gate off again takes the browser back with it, rather than
+    /// leaving the reader with what they had before they answered.
+    @Test("turning the age gate back off sends links out again")
+    func revokingTheAgeTakesItBack() throws {
+        let settings = try makeSettings()
+        settings.allowsMatureBoards = false
+
+        #expect(!settings.opensLinksInApp)
+        #expect(settings.usesInternalBrowser, "the reader's own preference was overwritten")
+    }
+}
+
+/// Which notification modes a build offers, and what happens to a stored mode
+/// it does not.
+///
+/// The watcher itself is a reading feature and is the same in both builds; only
+/// "Replies to me" is build-dependent, because it needs posts of the reader's
+/// own for a reply to arrive at.
+@MainActor
+@Suite("Watcher notification modes")
+struct WatcherNotificationChoiceTests {
+    private func makeSettings(isAppStoreBuild: Bool) throws -> AppSettings {
+        let defaults = try #require(UserDefaults(suiteName: "neechan.tests.\(UUID().uuidString)"))
+        return AppSettings(defaults: defaults, isAppStoreBuild: isAppStoreBuild)
+    }
+
+    @Test("a build that can post offers every mode")
+    func ordinaryBuildOffersAll() throws {
+        let settings = try makeSettings(isAppStoreBuild: false)
+
+        #expect(settings.watcherNotificationChoices == WatcherNotificationSetting.allCases)
+        #expect(settings.watcherNotifications == .repliesOnly, "the default moved")
+    }
+
+    @Test("a build that cannot post leaves out replies to me")
+    func appStoreBuildLeavesOutRepliesOnly() throws {
+        let settings = try makeSettings(isAppStoreBuild: true)
+
+        #expect(settings.watcherNotificationChoices == [.off, .allNewPosts])
+        #expect(!settings.watcherNotificationChoices.contains(.repliesOnly))
+    }
+
+    /// The stored default *is* the mode that build does not offer, so without
+    /// narrowing a fresh install would sit on it and the picker would have no
+    /// matching tag to draw.
+    @Test("the unoffered default reads as off rather than as itself")
+    func theDefaultIsNarrowed() throws {
+        let settings = try makeSettings(isAppStoreBuild: true)
+
+        #expect(settings.watcherNotifications == .off)
+    }
+
+    /// The same narrowing for a value that was chosen rather than defaulted —
+    /// a backup restored from the other build, say.
+    @Test("a stored mode the build does not offer reads as off")
+    func storedRepliesOnlyIsNarrowed() throws {
+        let settings = try makeSettings(isAppStoreBuild: true)
+        settings.watcherNotifications = .repliesOnly
+
+        #expect(settings.watcherNotifications == .off)
+    }
+
+    /// Narrowed towards quiet, not towards noise: coercing to `.allNewPosts`
+    /// would hand the reader more notifications than they ever asked for.
+    @Test("the modes the build does offer are untouched")
+    func offeredModesRoundTrip() throws {
+        let settings = try makeSettings(isAppStoreBuild: true)
+
+        for mode in [WatcherNotificationSetting.allNewPosts, .off] {
+            settings.watcherNotifications = mode
+            #expect(settings.watcherNotifications == mode, "\(mode) did not round-trip")
+        }
     }
 }

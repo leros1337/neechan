@@ -213,4 +213,113 @@ struct MediaFileCompletionTests {
 
         #expect(whole == nil)
     }
+
+    // MARK: Filling the blocks in without assembling
+
+    @Test("filling in leaves the pieces where playback can read them")
+    func fillingLeavesThePieces() async throws {
+        let blockDirectory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: blockDirectory) }
+        let store = MediaBlockStore(directory: blockDirectory, blockSize: blockSize)
+        let url = URL(string: "https://example.invalid/watching.webm")!
+
+        let source = body(blockSize * 3 + 100)
+        CompletionServingProtocol.reset(body: source)
+        seed(source, upToBlock: 1, for: url, in: store)
+        CompletionServingProtocol.requestedRanges.withLock { $0 = [] }
+
+        let filled = await MediaFileCompletion.fillBlocks(
+            for: url, referer: nil, store: store, session: makeSession()
+        )
+
+        #expect(filled)
+        #expect(store.isComplete(for: url, total: Int64(source.count)))
+        // The whole point of the split: the pieces stay, because the player is
+        // still reading them.
+        #expect(store.sizeOnDisk() > 0, "the pieces are what playback reads")
+        #expect(try store.assemble(for: url).isFileURL, "and they add back up to the file")
+    }
+
+    @Test("filling in asks only for what is missing")
+    func fillingAsksOnlyForWhatIsMissing() async throws {
+        let blockDirectory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: blockDirectory) }
+        let store = MediaBlockStore(directory: blockDirectory, blockSize: blockSize)
+        let url = URL(string: "https://example.invalid/mostly-here.webm")!
+
+        let source = body(blockSize * 2 + 5000)
+        CompletionServingProtocol.reset(body: source)
+        seed(source, upToBlock: 2, for: url, in: store)
+        CompletionServingProtocol.requestedRanges.withLock { $0 = [] }
+
+        #expect(await MediaFileCompletion.fillBlocks(
+            for: url, referer: nil, store: store, session: makeSession()
+        ))
+
+        let asked = CompletionServingProtocol.requestedRanges.withLock { $0 }
+        #expect(asked == ["bytes=131072-196607"], "asked for \(asked)")
+    }
+
+    @Test("filling in reports how far it has got")
+    func fillingReportsProgress() async throws {
+        let blockDirectory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: blockDirectory) }
+        let store = MediaBlockStore(directory: blockDirectory, blockSize: blockSize)
+        let url = URL(string: "https://example.invalid/progress.webm")!
+
+        let source = body(blockSize * 4)
+        CompletionServingProtocol.reset(body: source)
+        seed(source, upToBlock: 1, for: url, in: store)
+
+        let seen = Mutex([Int]())
+        let blocks = Mutex(0)
+        #expect(await MediaFileCompletion.fillBlocks(
+            for: url, referer: nil, store: store, session: makeSession(),
+            onProgress: { done, all in
+                seen.withLock { $0.append(done) }
+                blocks.withLock { $0 = all }
+            }
+        ))
+
+        let done = seen.withLock { $0 }
+        #expect(blocks.withLock { $0 } == 4)
+        #expect(done.first == 1, "one of four blocks was already here: \(done)")
+        #expect(done.last == 4, "it never reached the end: \(done)")
+        #expect(done == done.sorted(), "progress went backwards: \(done)")
+    }
+
+    @Test("filling in works from nothing, for a clip only just opened")
+    func fillingWorksFromNothing() async throws {
+        let blockDirectory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: blockDirectory) }
+        let store = MediaBlockStore(directory: blockDirectory, blockSize: blockSize)
+        let url = URL(string: "https://example.invalid/fresh.webm")!
+
+        // Nothing held and no length remembered: the shape the completer meets
+        // when it starts before the player has kept its first block.
+        let source = body(blockSize * 2)
+        CompletionServingProtocol.reset(body: source)
+
+        #expect(await MediaFileCompletion.fillBlocks(
+            for: url, referer: nil, store: store, session: makeSession()
+        ))
+        #expect(store.isComplete(for: url, total: Int64(source.count)))
+    }
+
+    @Test("a server that will not answer stops the fill rather than spinning")
+    func aDeadServerStopsTheFill() async throws {
+        let blockDirectory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: blockDirectory) }
+        let store = MediaBlockStore(directory: blockDirectory, blockSize: blockSize)
+        let url = URL(string: "https://example.invalid/gone.webm")!
+
+        // A server that ignores ranges answers the whole body however far in
+        // the reader asked, which the store refuses to keep as a block.
+        let source = body(blockSize * 3)
+        CompletionServingProtocol.reset(body: source, honoursRanges: false)
+
+        #expect(await MediaFileCompletion.fillBlocks(
+            for: url, referer: nil, store: store, session: makeSession()
+        ) == false)
+    }
 }

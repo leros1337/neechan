@@ -89,6 +89,72 @@ final class RestrictionsUITests: LiveUITestCase {
         XCTAssertEqual(toggle.value as? String, "1")
     }
 
+    /// Until the reader says they are 18, a link off the imageboard leaves for
+    /// Safari rather than being followed inside the app, on a surface this app
+    /// answers for. The switch that would say otherwise is disabled while the
+    /// gate is shut, and its footer says where links go instead.
+    ///
+    /// Driven through the screen for the same reason as the test above: a
+    /// pinned preference cannot be moved at all, and this one has to move
+    /// twice. Starts from whatever is stored and leaves the gate open, as the
+    /// rest of the suite expects to find it.
+    func testTheInAppBrowserWaitsForTheAgeGate() {
+        let app = launchApp(pinsRestrictions: false)
+        openSettings(app)
+        app.buttons["Restrictions"].firstMatch.tap()
+
+        let mature = app.switches["mature-toggle"]
+        XCTAssertTrue(mature.waitForExistence(timeout: 10), "the 18+ toggle is missing")
+        if mature.value as? String == "0" {
+            confirmAge(in: app, toggle: mature)
+        }
+        XCTAssertEqual(mature.value as? String, "1", "could not reach a known starting state")
+
+        // Shutting the gate takes the browser preference with it.
+        flip(mature)
+        XCTAssertEqual(mature.value as? String, "0", "the gate did not close")
+
+        let browser = app.switches["internal-browser-toggle"]
+        backToSettings(app)
+        openGeneral(app)
+        XCTAssertTrue(browser.waitForExistence(timeout: 10), "the General screen did not open")
+        XCTAssertFalse(
+            browser.isEnabled,
+            "links could be made to open in the app while the gate was shut"
+        )
+
+        // Opening it again hands the preference back.
+        backToSettings(app)
+        app.buttons["Restrictions"].firstMatch.tap()
+        confirmAge(in: app, toggle: mature)
+        XCTAssertEqual(mature.value as? String, "1", "the gate did not reopen")
+
+        backToSettings(app)
+        openGeneral(app)
+        XCTAssertTrue(browser.waitForExistence(timeout: 10), "General did not come back")
+        XCTAssertTrue(
+            browser.isEnabled,
+            "confirming the age did not give the browser preference back"
+        )
+    }
+
+    /// Back out of a pushed settings screen onto the list it came from.
+    private func backToSettings(_ app: XCUIApplication) {
+        let back = app.navigationBars.buttons.element(boundBy: 0)
+        XCTAssertTrue(back.waitForExistence(timeout: 10), "no way back to Settings")
+        back.tap()
+        XCTAssertTrue(
+            app.buttons["Restrictions"].firstMatch.waitForExistence(timeout: 10),
+            "did not land back on the settings list"
+        )
+    }
+
+    private func openGeneral(_ app: XCUIApplication) {
+        let row = app.buttons["General"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "General is not in Settings")
+        row.tap()
+    }
+
     /// Taps the switch itself rather than the row.
     ///
     /// A `Toggle` in this Form reports the whole row as its element, and its

@@ -1,6 +1,7 @@
 import Foundation
 import ImageIO
 import NeechanAPI
+import os
 import UniformTypeIdentifiers
 #if canImport(UIKit)
 import UIKit
@@ -20,7 +21,11 @@ public actor ImageLoader {
 
     public enum LoaderError: Error {
         case notAnImage(URL)
+        /// The server answered, and said no.
+        case refused(URL, status: Int)
     }
+
+    private static let log = Logger(subsystem: "io.neechan.media", category: "images")
 
     /// One in-flight fetch and how many callers are waiting on it.
     private struct Load {
@@ -95,7 +100,19 @@ public actor ImageLoader {
                     // into 403s.
                     request.setValue(referer.absoluteString, forHTTPHeaderField: "Referer")
                 }
-                let (data, _) = try await session.data(for: request)
+                let (data, response) = try await session.data(for: request)
+                // A refusal used to fall through to the decoder and come out
+                // as "not an image", which hid what the server actually said.
+                if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                    Self.log.error(
+                        """
+                        refused with \(http.statusCode, privacy: .public): \
+                        \(url.host() ?? "?", privacy: .public)\(url.path(), privacy: .public), \
+                        referer \(referer?.absoluteString ?? "none", privacy: .public)
+                        """
+                    )
+                    throw LoaderError.refused(url, status: http.statusCode)
+                }
                 guard let image = ImageLoader.decode(data, maxPixelSize: maxPixelSize) else {
                     throw LoaderError.notAnImage(url)
                 }

@@ -22,6 +22,42 @@ struct AppStoreBoardsTests {
         #expect(overlap.isEmpty, "listed but unopenable on \(site): \(overlap)")
     }
 
+    /// The same invariant as above, asked the way the app asks it.
+    ///
+    /// `nothingListedIsAlsoMature` compares two tables; this goes through
+    /// ``ContentPolicy`` with the App Store build's own starting policy — the
+    /// directory narrowed, the age gate shut — which is what the router and the
+    /// board rows actually call. So it catches a bad addition to either table
+    /// *and* a change to how the policy composes them.
+    @Test("every listed board opens on the build that lists it", arguments: [Imageboard.dvach, .fourchan])
+    func everyListedBoardOpens(site: Imageboard) {
+        let policy = ContentPolicy(allowsMatureBoards: false, listsEveryBoard: false)
+        let refused = AppStoreBoards.codes(on: site)
+            .filter { !policy.allowsOpening(code: $0, on: site) }
+            .sorted()
+
+        #expect(refused.isEmpty, "listed but refused on \(site): \(refused)")
+    }
+
+    /// The section as it was added, and the two boards it stops short of.
+    ///
+    /// `/izd/` and `/wp/` are left out for different reasons, and the
+    /// difference is worth keeping: `/wp/` is merely unlisted and could be
+    /// added by anyone who wants it, while `/izd/` is *gated* — 2ch files it
+    /// under Пользовательские, and every reader-made board is adult-gated, so
+    /// listing it would show a board that then refused to open. This is here so
+    /// that adding either has to be deliberate.
+    @Test("the Творчество section is listed, without the two it leaves out")
+    func creativitySectionIsListed() {
+        for code in ["de", "di", "diy", "mus", "p", "pa", "wrk"] {
+            #expect(AppStoreBoards.contains(code, on: .dvach), "/\(code)/ is not listed")
+        }
+
+        #expect(!AppStoreBoards.contains("wp", on: .dvach), "/wp/ was listed")
+        #expect(!AppStoreBoards.contains("izd", on: .dvach), "/izd/ was listed, and it is gated")
+        #expect(MatureBoards.contains("izd", on: .dvach), "/izd/ stopped being gated")
+    }
+
     /// The codes genuinely collide between the two sites — `/m/` is Mecha on
     /// 4chan and a reader-made board on 2ch — so a table read on the wrong
     /// site gives the wrong answer.

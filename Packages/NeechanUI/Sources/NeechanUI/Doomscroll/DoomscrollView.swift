@@ -96,11 +96,13 @@ struct DoomscrollView: View {
     private var player: some View {
         if let item = model.currentItem, let url = model.url(for: item) {
             MediaPlayerView(
+                player: model.player,
                 url: url,
                 options: model.playerOptions(for: item),
                 state: Binding(get: { model.playbackState }, set: { model.playbackStateChanged($0) }),
                 progress: $model.playbackProgress,
-                control: $model.playbackControl
+                control: $model.playbackControl,
+                screen: "feed"
             )
             .ignoresSafeArea()
             // A swap is a new clip, not a new player: the id is deliberately

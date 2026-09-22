@@ -1,8 +1,9 @@
 import Foundation
 import NeechanAPI
 
-/// The boards the App Store build lists: anime, manga, comics, and the art
-/// boards around them.
+/// The boards the App Store build lists: anime, manga and comics, the art
+/// boards around them, and 2ch's own Творчество section — design, painting,
+/// photography, music and the other boards about making something.
 ///
 /// A table of codes rather than a category name, because the two sites do not
 /// agree on categories and neither answer would survive:
@@ -69,20 +70,35 @@ public enum AppStoreBoards {
         "gd",   // Graphic Design
     ]
 
-    /// 2ch's Японская культура section, plus the art boards.
+    /// 2ch's Японская культура and Творчество sections.
     ///
     /// Worth re-checking against the live directory when it changes: unlike
     /// 4chan's, this list could not be read out of the repository, because the
-    /// recorded fixture carries only one board per section.
-    /// Shorter than 4chan's, and not for want of trying: 2ch has no first-party
-    /// art boards. Every board a reader made — which is where /aa/ Аниме арт,
-    /// /td/ Трёхмерная графика and /izd/ Графомания live — is adult-gated
-    /// wholesale by ``MatureBoards``, as is /to/ Touhou, so naming any of them
-    /// here would list a board that then refused to open.
+    /// recorded fixture carries only one board per section. It was read off
+    /// `/api/mobile/v2/boards` on 2026-09-22.
+    ///
+    /// What is missing is the *reader-made* art: every board a reader made is
+    /// adult-gated wholesale by ``MatureBoards``, and that is where /aa/ Аниме
+    /// арт, /td/ Трёхмерная графика and /izd/ Графомания live, as does /to/
+    /// Touhou. Naming any of them here would list a board that then refused to
+    /// open. The art boards 2ch runs itself — /pa/ Живопись, /de/ Дизайн — are
+    /// not gated, and are below.
     private static let dvach: Set<String> = [
+        // Японская культура
         "a",    // Аниме
         "ma",   // Манга
         "fd",   // Фэндомы
         "vn",   // Визуальные новеллы
+
+        // Творчество, less /wp/ Обои: a wallpaper board is an image dump with
+        // no subject holding it together, which is the one shape in this
+        // section that says nothing about what will be on it.
+        "de",   // Дизайн
+        "di",   // Столовая
+        "diy",  // Хобби
+        "mus",  // Музыканты
+        "p",    // Фотография
+        "pa",   // Живопись
+        "wrk",  // Работа и карьера
     ]
 }

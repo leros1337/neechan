@@ -4,6 +4,10 @@
 # not committed). Everything else assumes it exists.
 
 SHELL := /bin/bash
+# xcodebuild is piped through a formatter below, and a pipeline reports only
+# its last command's status: without this a failed build would be hidden by a
+# formatter that read it happily and exited 0.
+.SHELLFLAGS := -o pipefail -c
 
 # Recursively expanded: the App Store configuration has a scheme of its own,
 # because its test action leaves out the unit bundle that needs testability.
@@ -38,22 +42,40 @@ CONFIGURATION ?= Debug
 # module cache.
 DERIVED      = .build/DerivedData$(if $(filter-out Debug,$(CONFIGURATION)),-$(CONFIGURATION),)
 RESULTS     := .build/TestResults.xcresult
-# Shared SwiftPM clone cache: FFmpegKit alone is a multi-gigabyte checkout, so
-# it must not be re-cloned every time DerivedData is wiped.
+# Shared SwiftPM clone cache, so dependencies are not re-fetched every time
+# DerivedData is wiped.
 SPM_CACHE   := $(HOME)/Library/Caches/org.swift.swiftpm-neechan
+# No -quiet: its output filter swallows a compile task's diagnostics and then
+# reports the task as "failed with exit code 0 but produced no further output",
+# which fails a build that succeeded -- a warning in a whole-module release
+# build is enough to trigger it. xcbeautify reads the whole log instead and
+# prints the warnings and nothing else. Empty when it is not installed, which
+# leaves the raw log rather than a broken pipeline.
+BEAUTIFY    := $(if $(shell command -v xcbeautify),| xcbeautify --quieter,)
+# ONLY_ACTIVE_ARCH here and not in `ipa`: a simulator on this machine runs
+# arm64 and nothing else, while the release configurations carry no such
+# setting and would otherwise build x86_64 too -- half a build thrown away,
+# and the source of the linker's complaints about FFmpeg's x86_64 slice. An
+# archive, unlike this, really does need every device architecture.
 XCB          = xcodebuild -scheme '$(SCHEME)' -destination '$(DESTINATION)' \
                -configuration $(CONFIGURATION) \
                -derivedDataPath $(DERIVED) \
                -clonedSourcePackagesDirPath $(SPM_CACHE) \
-               -skipMacroValidation -quiet
+               -skipMacroValidation ONLY_ACTIVE_ARCH=YES
 PACKAGES    := NeechanTestSupport NeechanAPI NeechanSettings NeechanCore NeechanMedia NeechanUI
 # The configuration that starts cautious and cannot post.
 APPSTORE    := AppStore
+# What the submitted build must call itself. Permanent once published, so both
+# checks below read it from here rather than spelling it out twice.
+APPSTORE_BUNDLE_ID := pro.neechan.app
 # Recursively expanded and derived from the configuration: the App Store build
 # installs beside the ordinary one under its own identifier, so `simctl launch`
 # has to be told which of the two was just put there. Keeping this tied to the
 # configuration is what stops the two drifting apart.
-BUNDLE_ID    = com.lain.neechan$(if $(filter $(APPSTORE),$(CONFIGURATION)),.appstore,)
+#
+# The bare identifier is the App Store one, because that is the one that ships
+# and the one that is permanent; the sideloaded build wears the suffix.
+BUNDLE_ID    = pro.neechan.app$(if $(filter $(APPSTORE),$(CONFIGURATION)),,-dev)
 # The configuration an archive is cut from. `ipa` stays on Release, which is
 # what the release workflow builds and names.
 ARCHIVE_CONFIG ?= Release
@@ -78,7 +100,7 @@ gen:
 
 ## Build the app for the simulator. `make build CONFIGURATION=Release` to measure.
 build:
-	$(XCB) build
+	$(XCB) build $(BEAUTIFY)
 
 ## Build an unsigned .ipa for a device, the way the release workflow does.
 ##
@@ -117,11 +139,11 @@ test-packages:
 	done
 
 ## Run the app-level unit and UI test bundles on the simulator.
-## xcodebuild's own summary is unreadable under -quiet, so the result bundle is
-## parsed afterwards for a one-line verdict.
+## xcodebuild's own summary is unreadable however it is printed, so the result
+## bundle is parsed afterwards for a one-line verdict.
 test-app:
 	@rm -rf $(RESULTS)
-	$(XCB) -resultBundlePath $(RESULTS) test
+	$(XCB) -resultBundlePath $(RESULTS) test $(BEAUTIFY)
 	@./Tools/test-summary.py $(RESULTS)
 
 ## Run one package's tests: `make test-pkg PKG=NeechanAPI`
@@ -136,7 +158,7 @@ test-pkg:
 test-one:
 	@test -n "$(ONLY)" || { echo "usage: make test-one ONLY=Target/Class[/method]"; exit 1; }
 	@rm -rf $(RESULTS)
-	$(XCB) -resultBundlePath $(RESULTS) -only-testing:$(ONLY) test
+	$(XCB) -resultBundlePath $(RESULTS) -only-testing:$(ONLY) test $(BEAUTIFY)
 	@./Tools/test-summary.py $(RESULTS)
 
 ## Re-print the verdict and failures from the last app test run.
@@ -217,7 +239,9 @@ check-appstore: build
 	locked=$$(plutil -extract NeechanIsAppStoreBuild raw -o - "$$plist" 2>/dev/null || echo MISSING); \
 	id=$$(plutil -extract CFBundleIdentifier raw -o - "$$plist"); \
 	test "$$locked" = "YES" || { echo "NOT the App Store build: NeechanIsAppStoreBuild=$$locked. Run 'make gen'."; exit 1; }; \
-	case "$$id" in *.appstore) ;; *) echo "wrong bundle id: $$id"; exit 1 ;; esac; \
+	test "$$id" = "$(APPSTORE_BUNDLE_ID)" || { echo "wrong bundle id: $$id (expected $(APPSTORE_BUNDLE_ID))"; exit 1; }; \
+	name=$$(plutil -extract CFBundleDisplayName raw -o - "$$plist"); \
+	test "$$name" = "Neechan" || { echo "wrong display name: $$name (expected Neechan)"; exit 1; }; \
 	plutil -extract CFBundleIcons.CFBundleAlternateIcons json -o - "$$plist" 2>/dev/null | grep -q '"AppIcon3"' && { echo "AppIcon3 (the nude artwork) is in the App Store build. Run 'make gen'."; exit 1; } || true; \
 	test ! -e "$$app/NeechanUI_NeechanUI.bundle/app-icon-neechan.png" || { echo "the nude icon preview is in the App Store build"; exit 1; }; \
 	echo "App Store build confirmed: $$id, posting off, no AppIcon3"
@@ -230,10 +254,14 @@ check-ipa-appstore:
 	app=$(ARCHIVE)/Products/Applications/Neechan.app; \
 	plist=$$app/Info.plist; \
 	locked=$$(plutil -extract NeechanIsAppStoreBuild raw -o - "$$plist" 2>/dev/null || echo MISSING); \
+	id=$$(plutil -extract CFBundleIdentifier raw -o - "$$plist"); \
+	name=$$(plutil -extract CFBundleDisplayName raw -o - "$$plist"); \
 	test "$$locked" = "YES" || { echo "NOT the App Store build: NeechanIsAppStoreBuild=$$locked"; exit 1; }; \
+	test "$$id" = "$(APPSTORE_BUNDLE_ID)" || { echo "wrong bundle id: $$id (expected $(APPSTORE_BUNDLE_ID))"; exit 1; }; \
+	test "$$name" = "Neechan" || { echo "wrong display name: $$name (expected Neechan)"; exit 1; }; \
 	plutil -extract CFBundleIcons.CFBundleAlternateIcons json -o - "$$plist" 2>/dev/null | grep -q '"AppIcon3"' && { echo "AppIcon3 (the nude artwork) is in the App Store build. Run 'make gen'."; exit 1; } || true; \
 	test ! -e "$$app/NeechanUI_NeechanUI.bundle/app-icon-neechan.png" || { echo "the nude icon preview is in the App Store build"; exit 1; }; \
-	echo "App Store .ipa confirmed: posting off, no AppIcon3"
+	echo "App Store .ipa confirmed: $$id, posting off, no AppIcon3"
 
 ## Capture the booted simulator screen.
 screenshot:
@@ -250,6 +278,6 @@ clean:
 	rm -rf $(DERIVED) $(RESULTS) .build/DerivedData-$(APPSTORE) .build/DerivedDataArchive-*
 	@for pkg in $(PACKAGES); do rm -rf Packages/$$pkg/.build; done
 
-## Also drops the shared SwiftPM clone cache (re-cloning FFmpegKit takes minutes).
+## Also drops the shared SwiftPM clone cache.
 clean-all: clean
 	rm -rf $(SPM_CACHE)

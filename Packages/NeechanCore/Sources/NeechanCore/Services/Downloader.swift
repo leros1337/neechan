@@ -1,5 +1,6 @@
 import Foundation
 import NeechanAPI
+import os
 
 /// Fetches the bytes of a media file.
 ///
@@ -162,9 +163,28 @@ public actor Downloader {
         }
         let (data, response) = try await session.data(for: request)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            Self.logRefusal(of: request, status: http.statusCode)
             throw DownloadError.badStatus(http.statusCode)
         }
         return data
+    }
+
+    static let log = Logger(subsystem: Signposts.subsystem, category: "download")
+
+    /// One line saying what was asked for, as whom, and what came back.
+    ///
+    /// A 403 from a media host is nearly always about the request's headers
+    /// rather than the file, and the error the reader sees carries only the
+    /// number. This is the line to look at.
+    static func logRefusal(of request: URLRequest, status: Int) {
+        log.error(
+            """
+            refused with \(status, privacy: .public): \
+            \(request.url?.host() ?? "?", privacy: .public)\(request.url?.path() ?? "", privacy: .public), \
+            referer \(request.value(forHTTPHeaderField: "Referer") ?? "none", privacy: .public), \
+            agent \(request.value(forHTTPHeaderField: "User-Agent")?.prefix(40) ?? "default", privacy: .public)
+            """
+        )
     }
 }
 
@@ -245,6 +265,9 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
         if let http = downloadTask.response as? HTTPURLResponse,
            !(200..<300).contains(http.statusCode)
         {
+            if let request = downloadTask.originalRequest {
+                Downloader.logRefusal(of: request, status: http.statusCode)
+            }
             waiter.finish(.failure(Downloader.DownloadError.badStatus(http.statusCode)))
             return
         }

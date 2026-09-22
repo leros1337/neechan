@@ -44,4 +44,27 @@ public enum SiteLinks {
         }
         return URL(string: thread.absoluteString + fragment)
     }
+
+    /// The site's own report form, for a site that answers a report with a page
+    /// rather than with an API.
+    ///
+    /// Nil on 2ch, which is reported through ``ReportService`` instead — and
+    /// nil is the right answer rather than an oversight, because a caller that
+    /// gets one is being told to take the other route.
+    ///
+    /// Built on `endpoints.posting` and not `endpoints.web`: the form lives
+    /// beside the posting script, on `sys.4chan.org`, and the readable host
+    /// does not serve it.
+    public static func report(
+        board: String,
+        postNum: Int,
+        on selection: SiteSelection
+    ) -> URL? {
+        guard case .web = selection.capabilities.reporting else { return nil }
+        // Built as a string against the host, the way every other link here is,
+        // rather than through `appending(path:)` — that escapes what it is
+        // given, and the code has already been through `escapeBoardCode`.
+        let path = "/\(escapeBoardCode(board))/imgboard.php?mode=report&no=\(postNum)"
+        return URL(string: path, relativeTo: selection.endpoints.posting)?.absoluteURL
+    }
 }

@@ -57,7 +57,7 @@ public final class URLSessionTransport: HTTPTransport, Sendable {
     /// Names every request that leaves the app.
     ///
     /// The cheapest way to count what the radio is asked to do: attach with
-    /// `log stream --predicate 'subsystem == "com.lain.neechan"'` and count the
+    /// `log stream --predicate 'subsystem == "pro.neechan.app"'` and count the
     /// lines, rather than reading a trace.
     private static let log = Logger(subsystem: Signposts.subsystem, category: "network")
 

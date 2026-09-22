@@ -10,7 +10,14 @@ public enum MediaKind: Sendable, Equatable {
     case stillImage
     /// A frame sequence decoded by ImageIO: GIF, APNG, animated WebP.
     case animatedImage
-    /// VP8/VP9 in a Matroska container. Requires the FFmpeg player.
+    /// A Matroska file: `.webm` or `.mkv`. Requires the FFmpeg player.
+    ///
+    /// A `.webm` is VP8 or VP9 with Vorbis or Opus, which is what the boards
+    /// serve. A `.mkv` is the same container with anything at all in it, most
+    /// often H.264, HEVC or AV1 alongside FLAC, AC-3 or DTS. Both are read by
+    /// the same demuxer and decoded by the same engine, so they are one kind
+    /// here; what is actually inside the file decides how it is decoded, and
+    /// only the decoder is in a position to know that.
     case webmVideo
     /// H.264 or HEVC in MP4.
     case mp4Video

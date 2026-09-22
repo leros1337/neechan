@@ -14,6 +14,20 @@ public protocol MediaWarming: Sendable {
     func cancelAll() async
 }
 
+/// Fetches the rest of the clip on screen while it plays.
+///
+/// Separate from `MediaWarming` because the two want opposite things: warming
+/// gives way the moment the clip on screen needs bytes, and this is the clip on
+/// screen. Behind a protocol so a test can watch what the viewer asks for
+/// without a network.
+public protocol MediaCompleting: Sendable {
+    func complete(_ url: URL, referer: URL?, onProgress: (@Sendable (Double) -> Void)?) async
+    func cancel(_ url: URL) async
+    func cancelAll() async
+}
+
+extension MediaCompleter: MediaCompleting {}
+
 extension MediaPrefetcher: MediaWarming {
     public func warm(_ url: URL, referer: URL?) async {
         await warm(url, referer: referer, bytes: Self.defaultWarmBytes)
@@ -82,6 +96,12 @@ public final class DoomscrollViewModel {
         }
         self.services = services
         self.warmer = warmer ?? MediaPrefetcher.shared
+        // A clip that runs out of bytes wants the connection to itself, so
+        // whatever is being read ahead for a later one is dropped at once
+        // rather than at the end of the block it happened to be fetching.
+        PlaybackDemand.whenPlaybackStartsWaiting {
+            Task { await MediaPrefetcher.shared.cancelAll() }
+        }
         self.transfers = transfers ?? MediaTransferController(services: services)
         self.sessionCookies = (cookieProvider ?? Self.storedCookies)(services.settings.domain)
         self.playingID = self.items.indices.contains(startIndex)
@@ -211,7 +231,13 @@ public final class DoomscrollViewModel {
     /// The blocks a feed leaves behind are the ones nothing else prunes: only
     /// the whole-file cache and a trip to the background evict, and this is the
     /// first screen that writes blocks at speed for clips nobody finishes.
+    /// The one player the feed shows, owned here so it stops when the feed
+    /// does rather than when its view is told it has gone, which a view is
+    /// not always told.
+    public let player = MediaPlayer()
+
     public func finish() {
+        player.shutdown()
         Task { [warmer] in
             await warmer.cancelAll()
             await MediaCache.shared.evictIfNeeded()

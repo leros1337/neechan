@@ -47,7 +47,9 @@ struct FavoritesWindow: View {
                 // A `>>` means nothing outside the thread it was written in.
                 return .handled
             }
-            guard services.settings.usesInternalBrowser else { return .systemAction }
+            // `.systemAction` hands it to Safari, which is where a link goes
+            // when the reader asked for that or has not yet said they are 18.
+            guard services.settings.opensLinksInApp else { return .systemAction }
             browserLink = BrowserLink(url: target)
             return .handled
         })

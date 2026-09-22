@@ -11,12 +11,34 @@ public struct GalleryItem: Identifiable, Sendable, Hashable {
     /// The thread the file came from, so a download can be filed under it.
     public let threadKey: ThreadKey
 
-    public var id: String { attachment.path }
+    /// Which post it is in, and which file.
+    ///
+    /// The path alone is not an identity. Threads repost: the same file
+    /// appears under two posts all the time, and two items sharing an
+    /// identity is not a cosmetic problem. A list keyed on it renders both
+    /// where it means to render one, so the gallery opened two players for one
+    /// clip and played it twice over itself, and the feed could not tell which
+    /// of the two it was scrolled to.
+    public var id: String { "\(postNum)/\(attachment.path)" }
 
     public init(attachment: NeechanAPI.Attachment, postNum: Int, threadKey: ThreadKey) {
         self.attachment = attachment
         self.postNum = postNum
         self.threadKey = threadKey
+    }
+
+    /// The hosts this file's own site serves from.
+    ///
+    /// From the file's site, not the one the app is set to: a gallery opened
+    /// from history can show a thread from the other site. `mirror` matters
+    /// only on 2ch, which is the one site with more than one host.
+    ///
+    /// Every request for the file must name `web` as its referer. 4chan's
+    /// media host serves a thumbnail to anyone but refuses a full-size file
+    /// linked from another site, so naming the 2ch mirror there turned every
+    /// full image into a 403 while the thumbnails went on loading.
+    public func endpoints(mirror: DvachDomain) -> SiteEndpoints {
+        SiteEndpoints(SiteSelection(site: threadKey.site, mirror: mirror))
     }
 
     /// The files of one post, in the order the post carries them.

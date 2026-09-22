@@ -103,7 +103,7 @@ private final class Transcode {
     private var videoEncoder: UnsafeMutablePointer<AVCodecContext>?
     private var audioDecoder: UnsafeMutablePointer<AVCodecContext>?
     private var audioEncoder: UnsafeMutablePointer<AVCodecContext>?
-    private var scaler: OpaquePointer?
+    private var scaler: UnsafeMutablePointer<SwsContext>?
     private var resampler: OpaquePointer?
     private var fifo: OpaquePointer?
 
@@ -254,7 +254,7 @@ private final class Transcode {
         scaler = sws_getContext(
             decoder.pointee.width, decoder.pointee.height, decoder.pointee.pix_fmt,
             width, height, AV_PIX_FMT_NV12,
-            SWS_BILINEAR, nil, nil, nil
+            Int32(SWS_BILINEAR.rawValue), nil, nil, nil
         )
         guard scaler != nil else {
             throw WebMConverter.ConversionError.failed("Preparing the picture conversion", code: 0)

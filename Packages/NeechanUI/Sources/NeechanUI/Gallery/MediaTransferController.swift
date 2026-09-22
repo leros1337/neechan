@@ -105,7 +105,7 @@ public final class MediaTransferController {
     /// the other imageboard, and a 2ch referer on a 4chan file is wrong even
     /// where it is accepted.
     private func referer(for item: GalleryItem) -> URL? {
-        SiteEndpoints(SiteSelection(site: item.threadKey.site, mirror: services.settings.domain)).web
+        item.endpoints(mirror: services.settings.domain).web
     }
 
     /// Saves the current file, to Photos or to the folder the reader picked.
@@ -163,7 +163,7 @@ public final class MediaTransferController {
                     conflict: settings.downloadConflictAction
                 )
             } else {
-                try await PhotosSaver.save(fileAt: file, isVideo: item.isVideo)
+                try await saveToPhotos(file, of: item, isOriginal: file == downloaded)
             }
             finish()
             noteVideoSave(item, succeeded: true)
@@ -224,6 +224,40 @@ public final class MediaTransferController {
         // The WebM has served its purpose; leaving it behind fills the disk.
         try? FileManager.default.removeItem(at: file)
         return destination
+    }
+
+    /// Saves to the photo library, converting the file first if the library
+    /// will not have it as it stands.
+    ///
+    /// Photos reads a narrower set of files than this app plays. WebM it
+    /// refuses outright, which is why that is converted before it is ever
+    /// offered. MP4 it usually takes, but not always: the boards serve HEVC
+    /// tagged `hev1`, and Photos cannot read that any more than AVFoundation
+    /// can play it. Converting every MP4 on the chance would cost every reader
+    /// a re-encode they almost never need, so the file is offered as it is and
+    /// converted only if that is refused.
+    private func saveToPhotos(_ file: URL, of item: GalleryItem, isOriginal: Bool) async throws {
+        do {
+            try await PhotosSaver.save(fileAt: file, isVideo: item.isVideo)
+            return
+        } catch let error as PhotosSaver.SaveError {
+            guard case .failed = error, item.isVideo, isOriginal else { throw error }
+        }
+
+        transfer = Transfer(stage: .converting, fraction: 0)
+        let destination = file.deletingPathExtension()
+            .appendingPathExtension("converted")
+            .appendingPathExtension("mp4")
+        // Cleans up after itself: the caller tracks what it downloaded, not
+        // what this made along the way.
+        defer { try? FileManager.default.removeItem(at: destination) }
+
+        try await WebMConverter().convert(fileAt: file, to: destination) { [weak self] fraction in
+            Task { @MainActor in self?.publishConversion(fraction) }
+        }
+
+        transfer = Transfer(stage: .saving, fraction: nil)
+        try await PhotosSaver.save(fileAt: destination, isVideo: item.isVideo)
     }
 
     private var isSavingToPhotos: Bool {

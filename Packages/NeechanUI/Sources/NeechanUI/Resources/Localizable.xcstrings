@@ -1267,6 +1267,29 @@
         }
       }
     },
+    "Any post can be reported from its own menu, which reaches the moderators of the imageboard carrying it. You can also block a poster: hiding everything posted under a name keeps it out of every thread you open afterwards.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Any post can be reported from its own menu, which reaches the moderators of the imageboard carrying it. You can also block a poster: hiding everything posted under a name keeps it out of every thread you open afterwards."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На любой пост можно пожаловаться из его меню — жалоба уйдёт модераторам имиджборды, где он лежит. Ещё можно заблокировать постера: скрытое по имени не появится ни в одном треде, который вы откроете потом."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jeder Beitrag kann über sein eigenes Menü gemeldet werden; das erreicht die Moderatoren des Imageboards, auf dem er liegt. Sie können außerdem einen Poster blockieren: Was unter einem Namen ausgeblendet ist, bleibt in jedem später geöffneten Thread verborgen."
+          }
+        }
+      }
+    },
     "App icon": {
       "extractionState": "manual",
       "localizations": {
@@ -1635,25 +1658,25 @@
         }
       }
     },
-    "Board code, such as b": {
+    "Board code, such as a": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Board code, such as b"
+            "value": "Board code, such as a"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Код доски, например b"
+            "value": "Код доски, например a"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Board-Kürzel, etwa b"
+            "value": "Board-Kürzel, etwa a"
           }
         }
       }
@@ -4539,6 +4562,29 @@
         }
       }
     },
+    "Links off the imageboard open in Safari until you turn on Adult 18+ in Restrictions.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Links off the imageboard open in Safari until you turn on Adult 18+ in Restrictions."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ссылки за пределы имиджборды открываются в Safari, пока вы не включите «Для взрослых 18+» в «Ограничениях»."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Links außerhalb des Imageboards öffnen sich in Safari, bis Sie „Erwachsene 18+“ in den Beschränkungen einschalten."
+          }
+        }
+      }
+    },
     "Links off the imageboard open in a browser sheet instead of Safari.": {
       "extractionState": "manual",
       "localizations": {
@@ -5045,25 +5091,25 @@
         }
       }
     },
-    "Neechan plays WebM through FFmpeg, which is distributed under the GPL. The app is therefore GPL-3.0 as well, and its source is available.": {
+    "Neechan plays video through FFmpeg, built without any GPL component and used under the LGPL. The build script and the app's own source are available, so this app can be rebuilt against a modified FFmpeg.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Neechan plays WebM through FFmpeg, which is distributed under the GPL. The app is therefore GPL-3.0 as well, and its source is available."
+            "value": "Neechan plays video through FFmpeg, built without any GPL component and used under the LGPL. The build script and the app's own source are available, so this app can be rebuilt against a modified FFmpeg."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Neechan воспроизводит WebM через FFmpeg, распространяемый по GPL. Поэтому приложение тоже под GPL-3.0, и его исходный код открыт."
+            "value": "Neechan воспроизводит видео через FFmpeg, собранный без единого GPL-компонента и используемый по LGPL. Скрипт сборки и исходный код приложения открыты, поэтому его можно пересобрать с изменённым FFmpeg."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Neechan spielt WebM über FFmpeg ab, das unter der GPL vertrieben wird. Deshalb steht die App ebenfalls unter GPL-3.0, und ihr Quelltext ist verfügbar."
+            "value": "Neechan spielt Video über FFmpeg ab, das ohne jede GPL-Komponente gebaut und unter der LGPL verwendet wird. Das Build-Skript und der Quelltext der App sind verfügbar, sodass sie gegen ein verändertes FFmpeg neu gebaut werden kann."
           }
         }
       }
@@ -7506,6 +7552,98 @@
         }
       }
     },
+    "Report": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Report"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пожаловаться"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Melden"
+          }
+        }
+      }
+    },
+    "Report post": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Report post"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Жалоба на пост"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beitrag melden"
+          }
+        }
+      }
+    },
+    "Report sent": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Report sent"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Жалоба отправлена"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meldung gesendet"
+          }
+        }
+      }
+    },
+    "Reporting & Blocking": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reporting & Blocking"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Жалобы и скрытие"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Melden & Blockieren"
+          }
+        }
+      }
+    },
     "Reset": {
       "extractionState": "manual",
       "localizations": {
@@ -7916,6 +8054,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sichern %lld %%"
+          }
+        }
+      }
+    },
+    "Saving files: %lld of %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saving files: %lld of %lld"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сохранение файлов: %1$lld из %2$lld"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dateien werden gespeichert: %1$lld von %2$lld"
           }
         }
       }
@@ -9231,6 +9392,29 @@
         }
       }
     },
+    "The saved copy of this thread could not be read.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The saved copy of this thread could not be read."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сохранённую копию этого треда не удалось прочитать."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die gespeicherte Kopie dieses Threads konnte nicht gelesen werden."
+          }
+        }
+      }
+    },
     "The server answered with an error.": {
       "extractionState": "manual",
       "localizations": {
@@ -9664,6 +9848,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Diese Datei ist kein Bild."
+          }
+        }
+      }
+    },
+    "This goes to the moderators of the imageboard, who decide what happens to the post. Neechan does not host it and cannot remove it.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This goes to the moderators of the imageboard, who decide what happens to the post. Neechan does not host it and cannot remove it."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Жалоба уйдёт модераторам имиджборды — они решают, что будет с постом. Neechan его не хостит и удалить не может."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das geht an die Moderatoren des Imageboards, die über den Beitrag entscheiden. Neechan hostet ihn nicht und kann ihn nicht entfernen."
           }
         }
       }
@@ -10770,6 +10977,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Willkommen bei Neechan"
+          }
+        }
+      }
+    },
+    "What is wrong with this post?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What is wrong with this post?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Что не так с этим постом?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was stimmt mit diesem Beitrag nicht?"
           }
         }
       }

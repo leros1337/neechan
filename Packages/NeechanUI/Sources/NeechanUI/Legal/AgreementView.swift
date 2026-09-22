@@ -9,8 +9,8 @@ import SwiftUI
 ///
 /// Every claim here is about something the app actually does. It describes the
 /// filtering tools that exist — hiding a post or a thread, autohide rules, and
-/// hiding by poster name — and promises no reporting pipeline, because there
-/// is none to promise.
+/// hiding by poster name — and the report action, which reaches the moderators
+/// of the site carrying the post and nobody else.
 struct AgreementView: View {
     /// Nil when the agreement is only being re-read, which is what leaves out
     /// the button.
@@ -114,9 +114,9 @@ struct AgreementSection: Identifiable {
     let title: LocalizedStringKey
     let body: LocalizedStringKey
 
-    /// Deliberately without a "Reporting & Blocking" section: Neechan has no
-    /// report button and no way to block a poster, and a term promising both
-    /// would be a term the app does not keep.
+    /// Every section has to stay true of the shipped build: a term the app
+    /// does not keep is worse than one it never made. "Reporting & Blocking"
+    /// was left out for exactly that reason until the report action existed.
     ///
     /// Main-actor because `LocalizedStringKey` is not `Sendable`; the only
     /// readers are view bodies, which are already there.
@@ -139,6 +139,12 @@ struct AgreementSection: Identifiable {
             systemImage: "line.3.horizontal.decrease.circle",
             title: "Filtering What You See",
             body: "You can hide any post or thread, and autohide rules keep chosen posters, words and patterns out of your feed. Hidden posts stay hidden until you reveal them, and nothing you hide is shown to you again."
+        ),
+        AgreementSection(
+            id: "reporting",
+            systemImage: "flag",
+            title: "Reporting & Blocking",
+            body: "Any post can be reported from its own menu, which reaches the moderators of the imageboard carrying it. You can also block a poster: hiding everything posted under a name keeps it out of every thread you open afterwards."
         ),
         AgreementSection(
             id: "tolerance",

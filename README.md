@@ -1,7 +1,7 @@
 # Neechan
 
 [![Release](https://img.shields.io/github/v/release/leros1337/neechan?label=release)](../../releases/latest)
-[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **English** · [Русский](README.ru.md)
 
@@ -37,7 +37,7 @@ developer account. iOS 26 or newer, iPhone or iPad.
   posting host sits behind a script that computes a cookie in a browser, and the server
   refuses that cookie when the app replays it. The reply form is still offered rather
   than hidden, so the day that changes it is obvious; reading 4chan is unaffected.
-- **Media** — a gallery with zoom and a full-screen viewer; WebM plays through FFmpeg,
+- **Media** — a gallery with zoom and a full-screen viewer; WebM, MKV and MP4 play through FFmpeg,
   and a WebM you save is converted to H.264 MP4, because Photos will not accept one.
 - **Doomscroll** — a thread's videos as a full-screen vertical feed: one clip per
   screen, autoplaying, looping and silent, with one sound control for the whole session
@@ -72,9 +72,11 @@ make ipa            # unsigned .ipa in .build/, the same build CI publishes
 drive the app against the live sites, so they need a network and they will fail when
 2ch or 4chan is having a bad day; `make test-packages` is the offline half.
 
-First build is slow: FFmpegKit's prebuilt xcframeworks are several gigabytes. They are
-cached in `~/Library/Caches/org.swift.swiftpm-neechan` and shared between the packages
-and the app, so it only happens once.
+FFmpeg comes from [`neechan-ffmpeg`](https://github.com/leros1337/neechan-ffmpeg), a trimmed LGPL build of the
+libraries this app actually uses. It is an ordinary binary package dependency: Swift
+Package Manager fetches the xcframeworks from that repository's release, about twenty
+megabytes zipped, against the gigabyte and a bit a general-purpose FFmpeg distribution
+carries. Nothing has to be cloned or built by hand.
 
 `Neechan.xcodeproj` is generated and not committed. Edit `project.yml` instead and
 re-run `make gen`.
@@ -100,7 +102,7 @@ workflow artifact instead of publishing it.
 | `Packages/NeechanAPI` | HTTP client for both sites, per-site adapters, models, comment HTML parser, captcha, posting. Foundation only |
 | `Packages/NeechanSettings` | User preferences backed by `UserDefaults` |
 | `Packages/NeechanCore` | Domain engine (pure logic), SwiftData store, service actors |
-| `Packages/NeechanMedia` | Image and video playback, and the WebM converter. The only module allowed to import KSPlayer and FFmpeg |
+| `Packages/NeechanMedia` | Image and video playback, and the WebM converter. The only module allowed to import FFmpeg |
 | `Packages/NeechanUI` | SwiftUI screens, the Liquid Glass components, string catalog |
 | `Packages/NeechanTestSupport` | Recorded API fixtures and their loader |
 | `Tests/NeechanUITests` | XCUITests that drive the app against the live site |
@@ -112,6 +114,10 @@ with no SwiftData or networking imports. That is where most of the test suite li
 
 ## Licensing
 
-Neechan is distributed under the **GPL-3.0** (see `LICENSE`). This is not optional: the
-FFmpeg build vendored by FFmpegKit is configured with `--enable-gpl`, so anything
-linking it inherits those terms.
+Neechan is distributed under the **MIT** licence (see `LICENSE`).
+
+It links FFmpeg, used under the **LGPL-2.1-or-later**. The build is this project's own:
+trimmed to the containers and codecs an imageboard actually serves, and configured with
+neither `--enable-gpl` nor `--enable-version3`, so it carries no GPL component. The
+script that produces it lives in the `neechan-ffmpeg` repository alongside the exact
+configure line.

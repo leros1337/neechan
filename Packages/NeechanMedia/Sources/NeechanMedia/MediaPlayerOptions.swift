@@ -3,8 +3,7 @@ import Foundation
 /// How a piece of media should be played.
 ///
 /// Deliberately engine-agnostic: the app describes what it wants and
-/// `KSPlayerBridge` translates it, so nothing above this module depends on
-/// FFmpeg or KSPlayer.
+/// the player translates it, so nothing above this module depends on FFmpeg.
 public struct MediaPlayerOptions: Sendable, Equatable {
     /// What the file is, which decides which engine can open it.
     public var kind: MediaKind

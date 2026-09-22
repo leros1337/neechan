@@ -9,8 +9,6 @@ import Observation
 @MainActor
 @Observable
 public final class AppSettings {
-    public static let suiteName = "group.com.lain.neechan"
-
     @ObservationIgnored private let storedDefaults: UserDefaults
 
     /// Whether this is the build meant for the App Store.
@@ -258,11 +256,35 @@ public final class AppSettings {
         set { write(max(15, newValue), forKey: Key.watcherInterval) }
     }
 
+    /// The notification modes this build offers.
+    ///
+    /// "Replies to me" wants posts of the reader's own for a reply to arrive
+    /// *at*. A build that cannot post writes none, so the mode is left out
+    /// there -- a reader can still mark someone's post as their own, but a
+    /// setting whose whole job depends on their having done that first is a
+    /// setting that mostly cannot fire.
+    ///
+    /// The watcher itself is untouched by this: it watches favourited threads,
+    /// which is reading, and works the same in either build.
+    public var watcherNotificationChoices: [WatcherNotificationSetting] {
+        allowsPosting ? WatcherNotificationSetting.allCases : [.off, .allNewPosts]
+    }
+
     /// Which new posts are worth a notification.
+    ///
+    /// Narrowed on the way out to what this build actually offers, because the
+    /// stored value can name a mode it does not -- and the *default* is exactly
+    /// such a mode, so a fresh App Store install would otherwise start on
+    /// `.repliesOnly` and draw a picker with no matching tag.
+    ///
+    /// The fallback is `.off` rather than `.allNewPosts`: coercing towards more
+    /// notifications than the reader asked for is the wrong direction, and
+    /// `.repliesOnly` on a build that never posts is already close to silent.
     public var watcherNotifications: WatcherNotificationSetting {
         get {
-            defaults.string(forKey: Key.watcherNotifications)
+            let stored = defaults.string(forKey: Key.watcherNotifications)
                 .flatMap(WatcherNotificationSetting.init(rawValue:)) ?? .repliesOnly
+            return watcherNotificationChoices.contains(stored) ? stored : .off
         }
         set { write(newValue.rawValue, forKey: Key.watcherNotifications) }
     }
@@ -313,10 +335,11 @@ public final class AppSettings {
 
     /// How large attachment thumbnails are unless the reader says otherwise.
     ///
-    /// A little under full size: the thumbnails the site serves are bigger than
-    /// a post needs, and at full size they crowd out the text that was the
-    /// reason for opening the thread.
-    public static let defaultThumbnailScale = 0.8
+    /// Full size. It was a little under, on the reasoning that the site's
+    /// thumbnails are bigger than a post needs and crowd out the text -- but a
+    /// thumbnail shown smaller than it was served is a picture the reader has
+    /// to open to see, and scaling it down is what the setting is for.
+    public static let defaultThumbnailScale = 1.0
 
     /// Multiplies attachment thumbnails.
     public var thumbnailScale: Double {
@@ -462,6 +485,24 @@ public final class AppSettings {
     public var usesInternalBrowser: Bool {
         get { bool(Key.internalBrowser, default: true) }
         set { write(newValue, forKey: Key.internalBrowser) }
+    }
+
+    /// Whether a link off the imageboard opens inside the app.
+    ///
+    /// The preference above, with one condition on top of it: until the reader
+    /// has said they are 18, a link leaves. An in-app browser is a surface this
+    /// app answers for, and it will follow wherever a link a stranger wrote
+    /// goes; Safari is the reader's own, and the system's web restrictions
+    /// apply there.
+    ///
+    /// Not a question about which build this is. The ordinary build starts with
+    /// the age confirmed, so nothing moves there unless the reader turns it
+    /// off, and then it moves for the reason they turned it off.
+    ///
+    /// Read rather than ``usesInternalBrowser`` by everything that presents the
+    /// browser; the raw preference is for the screen that sets it.
+    public var opensLinksInApp: Bool {
+        usesInternalBrowser && allowsMatureBoards
     }
 
     // MARK: Forum

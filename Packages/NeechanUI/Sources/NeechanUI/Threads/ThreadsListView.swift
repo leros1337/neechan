@@ -20,6 +20,8 @@ public struct ThreadsListView: View {
     }
     @State private var sort: CatalogSort = .bumpOrder
     @State private var isComposingThread = false
+    @State private var reportTarget: ReportTarget?
+    @State private var hasReported = false
     @State private var galleryStart: GalleryStart?
     @State private var hiddenThreadNums: Set<Int> = []
     @State private var autohideRules: [AutohideRuleValue] = []
@@ -62,6 +64,14 @@ public struct ThreadsListView: View {
             .fullScreenCoverCompat(item: $galleryStart) { start in
                 GalleryView(items: start.items, startIndex: start.index, services: services)
             }
+            .reportPresentation(
+                board: board,
+                // A catalog row is the thread's opening post, which is filed
+                // against itself.
+                thread: nil,
+                target: $reportTarget,
+                hasReported: $hasReported
+            )
             .sheet(isPresented: $isComposingThread) {
                 ReplyFormView(board: board, thread: nil) { outcome in
                     if case .threadCreated(let num) = outcome {
@@ -448,6 +458,22 @@ public struct ThreadsListView: View {
                 Text("Add to favorites", bundle: .module)
             } icon: {
                 Image(systemName: "star")
+            }
+        }
+        if services.capabilities.reporting != .none {
+            // The opening post, which is the one a catalog row is showing. A
+            // reply is reported from inside the thread, where it can be read.
+            Section {
+                Button {
+                    reportTarget = ReportTarget(postNum: thread.num)
+                } label: {
+                    Label {
+                        Text("Report", bundle: .module)
+                    } icon: {
+                        Image(systemName: "flag")
+                    }
+                }
+                .accessibilityIdentifier("report-thread-\(thread.num)")
             }
         }
         if let url = SiteLinks.thread(
