@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+		Neechan tracks nobody and collects nothing. There is no analytics SDK,
+		no crash reporter, no account and no advertising identifier. What a
+		reader posts goes to the imageboard they chose, which is publication by
+		them rather than collection by us, and the App Store build cannot post
+		at all.
+	-->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<!--
+		The required-reason APIs this app reaches, read off the built binary
+		with `nm -u` rather than guessed from the source. Two categories, and
+		nothing else: there is no `statfs` (disk space), no
+		`mach_absolute_time` (system boot time) and no `activeInputModes`
+		(active keyboards).
+
+		FFmpeg is covered here rather than by a manifest of its own. It is
+		built `--enable-static --disable-shared`, so its code is linked into
+		this executable, and the declaration is per executable. The five
+		`Libav*.framework` bundles that ship beside it are carriers: each holds
+		a stub that exports nothing and imports nothing, so none of them
+		reaches an API worth declaring.
+	-->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<!--
+				`_fstat`, `_lstat` and `_NSFileModificationDate`. Every read is
+				of a file in this app's own container: the media cache's
+				eviction order, the block store's freshness check, the size of
+				a saved thread, a finished download and a file on its way to
+				Photos. C617.1 is that case exactly.
+			-->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+		<dict>
+			<!--
+				Preferences, in `UserDefaults.standard`. Nothing is shared with
+				another app: there is no App Group and no extension, which is
+				what CA92.1 asserts.
+			-->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

@@ -9,8 +9,6 @@ import Observation
 @MainActor
 @Observable
 public final class AppSettings {
-    public static let suiteName = "group.com.lain.neechan"
-
     @ObservationIgnored private let storedDefaults: UserDefaults
 
     /// Whether this is the build meant for the App Store.
