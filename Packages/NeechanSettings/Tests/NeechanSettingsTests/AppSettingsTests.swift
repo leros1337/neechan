@@ -840,3 +840,73 @@ struct AppStoreBuildTests {
         #expect(settings.allowsMatureBoards)
     }
 }
+
+/// Where a link off the imageboard opens.
+///
+/// Two preferences decide it, and the age gate is the one that wins: an in-app
+/// browser is a surface the app answers for, and it will follow wherever a link
+/// a stranger wrote goes. Until the reader has said they are 18, links leave.
+@MainActor
+@Suite("Links off the imageboard")
+struct ExternalLinkDestinationTests {
+    private func makeSettings(isAppStoreBuild: Bool = false) throws -> AppSettings {
+        let defaults = try #require(UserDefaults(suiteName: "neechan.tests.\(UUID().uuidString)"))
+        return AppSettings(defaults: defaults, isAppStoreBuild: isAppStoreBuild)
+    }
+
+    @Test(
+        "the in-app browser needs the preference and the age together",
+        arguments: [
+            (true, true, true),
+            (true, false, false),
+            (false, true, false),
+            (false, false, false),
+        ]
+    )
+    func bothConditionsAreRequired(
+        usesInternalBrowser: Bool, allowsMature: Bool, expected: Bool
+    ) throws {
+        let settings = try makeSettings()
+        settings.usesInternalBrowser = usesInternalBrowser
+        settings.allowsMatureBoards = allowsMature
+
+        #expect(settings.opensLinksInApp == expected)
+    }
+
+    /// The ordinary build starts with the age confirmed, so this is the one
+    /// case where nothing changed: links keep opening in the app.
+    @Test("the ordinary build opens links in the app out of the box")
+    func ordinaryBuildIsUnchanged() throws {
+        let settings = try makeSettings()
+
+        #expect(settings.usesInternalBrowser)
+        #expect(settings.allowsMatureBoards)
+        #expect(settings.opensLinksInApp)
+    }
+
+    /// The App Store build starts with the age unconfirmed, so it starts by
+    /// handing links to Safari -- while the preference itself is still on, and
+    /// still says so once the reader answers the gate.
+    @Test("the App Store build sends links to Safari until the age is confirmed")
+    func appStoreBuildLeavesUntilConfirmed() throws {
+        let settings = try makeSettings(isAppStoreBuild: true)
+
+        #expect(settings.usesInternalBrowser)
+        #expect(!settings.allowsMatureBoards)
+        #expect(!settings.opensLinksInApp)
+
+        settings.allowsMatureBoards = true
+        #expect(settings.opensLinksInApp)
+    }
+
+    /// Turning the gate off again takes the browser back with it, rather than
+    /// leaving the reader with what they had before they answered.
+    @Test("turning the age gate back off sends links out again")
+    func revokingTheAgeTakesItBack() throws {
+        let settings = try makeSettings()
+        settings.allowsMatureBoards = false
+
+        #expect(!settings.opensLinksInApp)
+        #expect(settings.usesInternalBrowser, "the reader's own preference was overwritten")
+    }
+}

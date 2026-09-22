@@ -4562,6 +4562,29 @@
         }
       }
     },
+    "Links off the imageboard open in Safari until you turn on Adult 18+ in Restrictions.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Links off the imageboard open in Safari until you turn on Adult 18+ in Restrictions."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ссылки за пределы имиджборды открываются в Safari, пока вы не включите «Для взрослых 18+» в «Ограничениях»."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Links außerhalb des Imageboards öffnen sich in Safari, bis Sie „Erwachsene 18+“ in den Beschränkungen einschalten."
+          }
+        }
+      }
+    },
     "Links off the imageboard open in a browser sheet instead of Safari.": {
       "extractionState": "manual",
       "localizations": {

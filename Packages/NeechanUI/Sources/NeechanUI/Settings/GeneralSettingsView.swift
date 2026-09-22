@@ -65,8 +65,22 @@ struct GeneralSettingsView: View {
                 Toggle(isOn: $settings.usesInternalBrowser) {
                     Text("Open links in the app", bundle: .module)
                 }
+                // Disabled rather than hidden, and the preference is left
+                // alone: the reader gets it back as they set it, once the age
+                // gate stops answering for them.
+                .disabled(!settings.allowsMatureBoards)
+                .accessibilityIdentifier("internal-browser-toggle")
             } footer: {
-                Text("Links off the imageboard open in a browser sheet instead of Safari.", bundle: .module)
+                if settings.allowsMatureBoards {
+                    Text("Links off the imageboard open in a browser sheet instead of Safari.", bundle: .module)
+                } else {
+                    // Says where the links go and how to change it, rather than
+                    // leaving a greyed-out switch with no explanation.
+                    Text(
+                        "Links off the imageboard open in Safari until you turn on Adult 18+ in Restrictions.",
+                        bundle: .module
+                    )
+                }
             }
         }
         .onChange(of: services.settings.remembersHistory) {

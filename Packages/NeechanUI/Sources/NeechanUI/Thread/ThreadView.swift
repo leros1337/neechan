@@ -723,9 +723,11 @@ public struct ThreadView: View {
             ), !services.contentPolicy.allowsOpening(target) {
                 return
             }
-            // Links off the site open in the app unless the reader asked for
-            // Safari, so a tap does not lose the thread.
-            if services.settings.usesInternalBrowser {
+            // Links off the site open in the app so a tap does not lose the
+            // thread -- unless the reader asked for Safari, or has not yet said
+            // they are 18, in which case the link leaves rather than being
+            // followed on a surface this app answers for.
+            if services.settings.opensLinksInApp {
                 browserLink = BrowserLink(url: url)
             } else {
                 openURL(url)

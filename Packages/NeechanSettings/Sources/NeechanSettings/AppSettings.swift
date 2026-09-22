@@ -462,6 +462,24 @@ public final class AppSettings {
         set { write(newValue, forKey: Key.internalBrowser) }
     }
 
+    /// Whether a link off the imageboard opens inside the app.
+    ///
+    /// The preference above, with one condition on top of it: until the reader
+    /// has said they are 18, a link leaves. An in-app browser is a surface this
+    /// app answers for, and it will follow wherever a link a stranger wrote
+    /// goes; Safari is the reader's own, and the system's web restrictions
+    /// apply there.
+    ///
+    /// Not a question about which build this is. The ordinary build starts with
+    /// the age confirmed, so nothing moves there unless the reader turns it
+    /// off, and then it moves for the reason they turned it off.
+    ///
+    /// Read rather than ``usesInternalBrowser`` by everything that presents the
+    /// browser; the raw preference is for the screen that sets it.
+    public var opensLinksInApp: Bool {
+        usesInternalBrowser && allowsMatureBoards
+    }
+
     // MARK: Forum
 
     /// Whether a board opens as the catalog rather than page by page.
