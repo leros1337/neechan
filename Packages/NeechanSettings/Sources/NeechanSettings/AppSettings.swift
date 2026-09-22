@@ -335,10 +335,11 @@ public final class AppSettings {
 
     /// How large attachment thumbnails are unless the reader says otherwise.
     ///
-    /// A little under full size: the thumbnails the site serves are bigger than
-    /// a post needs, and at full size they crowd out the text that was the
-    /// reason for opening the thread.
-    public static let defaultThumbnailScale = 0.8
+    /// Full size. It was a little under, on the reasoning that the site's
+    /// thumbnails are bigger than a post needs and crowd out the text -- but a
+    /// thumbnail shown smaller than it was served is a picture the reader has
+    /// to open to see, and scaling it down is what the setting is for.
+    public static let defaultThumbnailScale = 1.0
 
     /// Multiplies attachment thumbnails.
     public var thumbnailScale: Double {

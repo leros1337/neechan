@@ -19,7 +19,7 @@ struct AppSettingsTests {
         #expect(settings.mediaLoadPolicy == .always)
         #expect(settings.appearance == .system)
         #expect(settings.textScale == 1)
-        #expect(settings.thumbnailScale == 0.8, "thumbnails start a little under full size")
+        #expect(settings.thumbnailScale == 1.0, "thumbnails start at full size")
         #expect(settings.remembersHistory)
         #expect(settings.locksApp == false, "the app does not lock itself until asked")
         #expect(settings.catalogByDefault, "a board opens as the catalog until told otherwise")
