@@ -5,8 +5,28 @@ Notable changes per release. Earlier releases are listed under
 
 ## 2.4.4
 
-The thread's gallery grid answers a long press, and the App Store build clears
-the last things standing between it and a submission.
+Searching a thread finds in it rather than filtering it, the gallery grid
+answers a long press, and the App Store build clears the last things standing
+between it and a submission.
+
+### Search
+
+- **Searching a thread is find-in-page.** It used to narrow the thread to the
+  posts that matched, which took away the replies around each one and said
+  nothing about how many there were. The whole thread now stays, and a bar at
+  its foot says where you are -- "12 of 55" -- with arrows to the previous and
+  next hit; Return in the field steps on as well. Every hit is marked in the
+  text, the one you are on in orange and the rest in pale yellow, and its post
+  is outlined.
+- **Every hit is a stop, not every post.** A long post with the word in it
+  fifty times is fifty stops, and stepping scrolls to the hit itself rather than
+  to the top of its post. A post found only by its name, number or a file name
+  is one stop, at the post.
+- **It starts where you are.** A new search goes to the first hit at or below
+  the post you are reading, not to the top of a thread you may be hundreds of
+  posts into, and posts arriving mid-search leave you on the hit you were on.
+  A long post that matches opens out, so its hit is not behind "Show more". A
+  hidden spoiler stays hidden, and a post hidden by a rule is not a hit.
 
 ### Gallery
 

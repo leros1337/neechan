@@ -31,6 +31,9 @@ public struct ThreadView: View {
     /// to re-render the whole thread as it moved. Nothing draws from this; it is
     /// read once, on the way out.
     @State private var topPost = TopPostBox()
+    /// The scroll to a search hit in flight, so a quick second press replaces
+    /// it rather than racing it.
+    @State private var searchJump: Task<Void, Never>?
     @FocusState private var isSearchFocused: Bool
     /// Whether the thread is the screen being read, rather than one left
     /// underneath whatever was opened from it.
@@ -76,13 +79,18 @@ public struct ThreadView: View {
         .task(id: model == nil) {
             await model?.observeUpdates()
         }
-        // Narrowing the thread to a search belongs here rather than in a
-        // property observer on the query: the search field writes that binding
-        // during a view update, and recomputing observed state from inside one
-        // is undefined behaviour. Keyed on the snapshot too, so posts arriving
-        // during a search are matched against it.
-        .task(id: SearchKey(query: model?.searchQuery, generation: model?.snapshot.generation)) {
-            await model?.updateSearch()
+        // Finding a search's matches belongs here rather than in a property
+        // observer on the query: the search field writes that binding during a
+        // view update, and recomputing observed state from inside one is
+        // undefined behaviour. Keyed on the snapshot too, so posts arriving
+        // during a search are matched against it, and on what is hidden, since
+        // a hidden post is not a match.
+        .task(id: SearchKey(
+            query: model?.searchQuery,
+            generation: model?.snapshot.generation,
+            hidden: model?.effectiveHiddenPostNums
+        )) {
+            await model?.updateSearch(near: currentTopPostNum)
         }
     }
 
@@ -95,6 +103,9 @@ public struct ThreadView: View {
         let asCards = services.settings.postsViewMode == .cards
 
         ScrollView {
+          // Reaches the current search hit, which is a point inside a post
+          // rather than a post, so the scroll position cannot name it.
+          ScrollViewReader { proxy in
             // Cards float apart; a list runs together and lets the hairline
             // between two posts do the dividing the gap used to do.
             LazyVStack(spacing: asCards ? 10 : 0) {
@@ -158,7 +169,8 @@ public struct ThreadView: View {
                             postNum: post.num,
                             on: services.settings.siteSelection
                         ),
-                        style: asCards ? .card : .flat
+                        style: asCards ? .card : .flat,
+                        searchHighlight: searchHighlight(for: post.num, in: model)
                     )
                         }
                     }
@@ -181,6 +193,10 @@ public struct ThreadView: View {
             // on a phone nothing is this wide, so nothing moves there.
             .frame(maxWidth: 560)
             .frame(maxWidth: .infinity)
+            .onChange(of: model.matchJump) { _, _ in
+                jumpToCurrentMatch(model, proxy: proxy)
+            }
+          }
         }
         // Anchored to the top, which is both where a jump puts a post and how
         // the position reports which post the reader is on.
@@ -189,6 +205,11 @@ public struct ThreadView: View {
         // precise but only exists once the scroll view has settled on one.
         .onScrollTargetVisibilityChange(idType: Int.self, threshold: 0.6) { visible in
             topPost.num = visible.first
+        }
+        // Any sliver of a post counts here: a post taller than the screen is
+        // never 60% visible, and it is exactly the kind a search steps within.
+        .onScrollTargetVisibilityChange(idType: Int.self, threshold: 0.01) { visible in
+            topPost.onScreen = Set(visible)
         }
         .scrollEdgeEffectStyle(.soft, for: .top)
         // New posts land at the bottom, which is where the reader already is,
@@ -210,9 +231,30 @@ public struct ThreadView: View {
         // The field is tucked above the content, the way iOS hides search until
         // it is pulled down, so the menu offers an explicit way in.
         .searchFocused($isSearchFocused)
+        // Return in the field steps on, the way it does in every find bar.
+        .onSubmit(of: .search) { model.nextMatch() }
+        // Room under the last post for the search bar, so nothing is left
+        // stuck beneath it.
+        .contentMargins(.bottom, model.isSearching ? 64 : 0, for: .scrollContent)
         .overlay { statusOverlay(model, posts: posts) }
         .overlay(alignment: .bottom) { refreshToast(model) }
         .overlay(alignment: .bottom) { quoteStatusToast(model) }
+        // An overlay on the whole screen, last so it is on top. As a safe-area
+        // inset of the scroll view its taps fell through to the post beneath:
+        // the arrows did nothing and a picture under them opened instead.
+        .overlay(alignment: .bottom) {
+            if model.isSearching {
+                SearchMatchBar(
+                    current: model.currentMatchIndex.map { $0 + 1 },
+                    total: model.searchMatches.count,
+                    onPrevious: { model.previousMatch() },
+                    onNext: { model.nextMatch() }
+                )
+                .padding(.bottom, 8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.snappy(duration: 0.2), value: model.isSearching)
         .saveProgress(model.saveProgress) { model.cancelSave() }
         .reportPresentation(
             board: key.board,
@@ -258,7 +300,7 @@ public struct ThreadView: View {
                 .presentationDetents([.large])
                 .duoPresentationPlacement(.trailing)
         }
-        .toolbar { toolbar(model, matchCount: posts.count) }
+        .toolbar { toolbar(model, matchCount: model.searchMatches.count) }
         // Reading is a full-screen job: the tab bar under a thread only offers
         // ways out of it, and while scrolling it shrinks to a pill in the
         // corner that is easy to hit by accident. It comes back on the way out.
@@ -627,9 +669,7 @@ public struct ThreadView: View {
                 .buttonStyle(.glassProminent)
             }
         case .idle, .loading, .loaded:
-            if model.isSearching && posts.isEmpty {
-                ContentUnavailableView.search(text: model.searchQuery)
-            } else if model.snapshot.meta.isDeleted {
+            if model.snapshot.meta.isDeleted {
                 VStack {
                     Spacer()
                     Text("This thread is gone. You are reading a saved copy.", bundle: .module)
@@ -724,6 +764,44 @@ public struct ThreadView: View {
         }
     }
 
+    /// What the search found in a post, for its cell to mark.
+    private func searchHighlight(
+        for postNum: Int,
+        in model: ThreadViewModel
+    ) -> PostCellView.SearchHighlight? {
+        guard model.isMatch(postNum) else { return nil }
+        let current = model.currentMatch
+        return PostCellView.SearchHighlight(
+            query: model.searchQuery,
+            isCurrent: current?.postNum == postNum,
+            currentOccurrence: current?.postNum == postNum ? current?.occurrence : nil
+        )
+    }
+
+    /// Brings the hit the reader stepped to on screen.
+    ///
+    /// Two moves when the hit is in a post not on screen: the post first, so
+    /// the lazy stack builds it and the cell can measure where in it the hit
+    /// is, then the hit. A hit in a post already showing -- the next one down a
+    /// long post -- is only the second move, so the reader is not thrown back
+    /// to the top of the post each time.
+    private func jumpToCurrentMatch(_ model: ThreadViewModel, proxy: ScrollViewProxy) {
+        guard let match = model.currentMatch else { return }
+        let isOnScreen = topPost.onScreen.contains(match.postNum)
+        searchJump?.cancel()
+        searchJump = Task { @MainActor in
+            if !isOnScreen {
+                scrollPosition.scrollTo(id: match.postNum, anchor: .top)
+            }
+            // Long enough for the cell to lay out the hit and move its anchor.
+            try? await Task.sleep(for: .milliseconds(isOnScreen ? 60 : 150))
+            guard !Task.isCancelled else { return }
+            withAnimation(.snappy) {
+                proxy.scrollTo(PostCellView.searchAnchorID, anchor: UnitPoint(x: 0.5, y: 0.35))
+            }
+        }
+    }
+
     /// The post the thread is scrolled to.
     private var currentTopPostNum: Int? {
         scrollPosition.viewID(type: Int.self) ?? topPost.num
@@ -750,12 +828,15 @@ public struct ThreadView: View {
 @MainActor
 private final class TopPostBox {
     var num: Int?
+    /// Every post with any part on screen.
+    var onScreen: Set<Int> = []
 }
 
 /// What the in-thread search depends on.
 private struct SearchKey: Equatable {
     let query: String?
     let generation: Int?
+    let hidden: Set<Int>?
 }
 
 /// What the auto-refresh loop is keyed on.
@@ -793,5 +874,73 @@ private struct RepliesSheetTarget: Identifiable {
 
     init(_ postNum: Int) {
         self.postNum = postNum
+    }
+}
+
+/// Where a thread search has got to, and the way to the next match.
+///
+/// Floats at the foot of the thread while there is a query, the way a find bar
+/// does in a browser: the count says whether the word is there at all, and
+/// the arrows go to it without the reader hunting through the posts.
+private struct SearchMatchBar: View {
+    /// One-based, or nil when nothing matched.
+    let current: Int?
+    let total: Int
+    var onPrevious: () -> Void
+    var onNext: () -> Void
+
+    var body: some View {
+        // Glass buttons rather than plain ones on a pane of glass, the way the
+        // gallery's own bar is built. A plain button's target is its glyph --
+        // here eighteen points by ten -- and the pane behind it takes no
+        // touches at all, so a finger that missed the chevron went straight
+        // through to the post underneath and opened its picture.
+        GlassEffectContainer(spacing: 10) {
+            HStack(spacing: 10) {
+                Group {
+                    if let current, total > 0 {
+                        Text("\(current) of \(total)", bundle: .module)
+                    } else {
+                        Text("No matches", bundle: .module)
+                    }
+                }
+                .font(.footnote.monospacedDigit().weight(.medium))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .glassEffect(.regular, in: .capsule)
+                // The count is not a control, but a tap on it must not reach
+                // the post behind it either.
+                .contentShape(.capsule)
+                .onTapGesture {}
+                .accessibilityIdentifier("search-match-count")
+
+                Button(action: onPrevious) {
+                    Label {
+                        Text("Previous match", bundle: .module)
+                    } icon: {
+                        Image(systemName: "chevron.up")
+                    }
+                    .labelStyle(.iconOnly)
+                    .frame(width: 32, height: 32)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.glass)
+                .accessibilityIdentifier("search-previous")
+
+                Button(action: onNext) {
+                    Label {
+                        Text("Next match", bundle: .module)
+                    } icon: {
+                        Image(systemName: "chevron.down")
+                    }
+                    .labelStyle(.iconOnly)
+                    .frame(width: 32, height: 32)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.glass)
+                .accessibilityIdentifier("search-next")
+            }
+        }
+        .disabled(total == 0)
     }
 }
