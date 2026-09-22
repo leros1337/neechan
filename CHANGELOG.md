@@ -3,6 +3,51 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## 2.4.4
+
+The thread's gallery grid answers a long press, and the App Store build clears
+the last things standing between it and a submission.
+
+### Gallery
+
+- **A thumbnail in the gallery grid has the viewer's menu.** Long-press any
+  file in a thread's gallery and the menu offers what the full-screen viewer
+  always has: Go to post, Save, Share, and the post's link to copy, share or
+  open. It acts on the thumbnail pressed, so saving three files no longer means
+  opening each one first. Going to the post closes the grid and leaves the
+  thread on it; a save shows the same capsule, and a video the same tap, as it
+  does in the viewer. The two menus are one view now, so they cannot drift.
+
+### Translations
+
+- **Ten labels were English in every language.** Each was the second half of a
+  choice -- "Unpin board" beside "Pin board" -- and whatever seeded the catalog
+  took only the first, so a reader who asked for Russian or German saw the
+  other in English. All ten are translated; no existing translation changed.
+
+### Building
+
+- **The submitted build is signed, and only that one.** App Store Connect
+  refuses an archive with no team in it, and the team had been set in Xcode's
+  editor -- inside the generated project, where the next `make gen` would have
+  thrown it away. It lives in `project.yml` now, scoped to the `AppStore`
+  configuration. Debug and Release stay unsigned, which is what the sideloaded
+  `.ipa` is meant to be.
+- **The privacy manifest parses as XML.** A comment in it quoted two FFmpeg
+  flags written with a double hyphen, which XML forbids inside a comment.
+  Nothing on the device minded, but App Store Connect reads the manifest with a
+  strict parser. The flags are described instead of quoted.
+- **The store screenshots have a pipeline.** `Tools/screenshots.sh` captures
+  the booted simulator and frames the result: the device drawn around it, a
+  background taken from the screenshot's own colours, a caption from
+  `screenshot-titles.txt`, and the alpha channel and pixel sizes the store is
+  strict about handled rather than discovered on upload.
+
+### Documents
+
+- **A privacy policy and a support page.** App Store Connect asks for a URL to
+  each before it accepts a submission. Both are in `docs/`.
+
 ## 2.4.3
 
 Any post can be reported, a saved thread reads properly with no network, and the
