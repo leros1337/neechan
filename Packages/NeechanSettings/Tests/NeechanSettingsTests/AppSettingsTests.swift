@@ -910,3 +910,66 @@ struct ExternalLinkDestinationTests {
         #expect(settings.usesInternalBrowser, "the reader's own preference was overwritten")
     }
 }
+
+/// Which notification modes a build offers, and what happens to a stored mode
+/// it does not.
+///
+/// The watcher itself is a reading feature and is the same in both builds; only
+/// "Replies to me" is build-dependent, because it needs posts of the reader's
+/// own for a reply to arrive at.
+@MainActor
+@Suite("Watcher notification modes")
+struct WatcherNotificationChoiceTests {
+    private func makeSettings(isAppStoreBuild: Bool) throws -> AppSettings {
+        let defaults = try #require(UserDefaults(suiteName: "neechan.tests.\(UUID().uuidString)"))
+        return AppSettings(defaults: defaults, isAppStoreBuild: isAppStoreBuild)
+    }
+
+    @Test("a build that can post offers every mode")
+    func ordinaryBuildOffersAll() throws {
+        let settings = try makeSettings(isAppStoreBuild: false)
+
+        #expect(settings.watcherNotificationChoices == WatcherNotificationSetting.allCases)
+        #expect(settings.watcherNotifications == .repliesOnly, "the default moved")
+    }
+
+    @Test("a build that cannot post leaves out replies to me")
+    func appStoreBuildLeavesOutRepliesOnly() throws {
+        let settings = try makeSettings(isAppStoreBuild: true)
+
+        #expect(settings.watcherNotificationChoices == [.off, .allNewPosts])
+        #expect(!settings.watcherNotificationChoices.contains(.repliesOnly))
+    }
+
+    /// The stored default *is* the mode that build does not offer, so without
+    /// narrowing a fresh install would sit on it and the picker would have no
+    /// matching tag to draw.
+    @Test("the unoffered default reads as off rather than as itself")
+    func theDefaultIsNarrowed() throws {
+        let settings = try makeSettings(isAppStoreBuild: true)
+
+        #expect(settings.watcherNotifications == .off)
+    }
+
+    /// The same narrowing for a value that was chosen rather than defaulted —
+    /// a backup restored from the other build, say.
+    @Test("a stored mode the build does not offer reads as off")
+    func storedRepliesOnlyIsNarrowed() throws {
+        let settings = try makeSettings(isAppStoreBuild: true)
+        settings.watcherNotifications = .repliesOnly
+
+        #expect(settings.watcherNotifications == .off)
+    }
+
+    /// Narrowed towards quiet, not towards noise: coercing to `.allNewPosts`
+    /// would hand the reader more notifications than they ever asked for.
+    @Test("the modes the build does offer are untouched")
+    func offeredModesRoundTrip() throws {
+        let settings = try makeSettings(isAppStoreBuild: true)
+
+        for mode in [WatcherNotificationSetting.allNewPosts, .off] {
+            settings.watcherNotifications = mode
+            #expect(settings.watcherNotifications == mode, "\(mode) did not round-trip")
+        }
+    }
+}

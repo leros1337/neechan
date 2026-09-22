@@ -45,23 +45,29 @@ struct MediaSettingsView: View {
                 Text("Video", bundle: .module)
             }
 
-            Section {
-                Toggle(isOn: $settings.appendsUniqueHashByDefault) {
-                    Text("Make files unique", bundle: .module)
+            // Left out where posting is locked off: every switch here is
+            // about a file on its way to a post, so on a build that attaches
+            // nothing they are three settings that cannot do anything.
+            if settings.allowsPosting {
+                Section {
+                    Toggle(isOn: $settings.appendsUniqueHashByDefault) {
+                        Text("Make files unique", bundle: .module)
+                    }
+                    Toggle(isOn: $settings.stripsMetadataByDefault) {
+                        Text("Remove metadata", bundle: .module)
+                    }
+                    Toggle(isOn: $settings.removesFileNamesByDefault) {
+                        Text("Random file names", bundle: .module)
+                    }
+                } header: {
+                    Text("Uploads", bundle: .module)
+                } footer: {
+                    Text(
+                        "Applied to everything you attach. Photos lose their location and camera data; video keeps its own tags, which need the file to be rebuilt to remove.",
+                        bundle: .module
+                    )
                 }
-                Toggle(isOn: $settings.stripsMetadataByDefault) {
-                    Text("Remove metadata", bundle: .module)
-                }
-                Toggle(isOn: $settings.removesFileNamesByDefault) {
-                    Text("Random file names", bundle: .module)
-                }
-            } header: {
-                Text("Uploads", bundle: .module)
-            } footer: {
-                Text(
-                    "Applied to everything you attach. Photos lose their location and camera data; video keeps its own tags, which need the file to be rebuilt to remove.",
-                    bundle: .module
-                )
+                .accessibilityIdentifier("uploads-section")
             }
 
             Section {

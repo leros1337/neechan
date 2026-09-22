@@ -256,11 +256,35 @@ public final class AppSettings {
         set { write(max(15, newValue), forKey: Key.watcherInterval) }
     }
 
+    /// The notification modes this build offers.
+    ///
+    /// "Replies to me" wants posts of the reader's own for a reply to arrive
+    /// *at*. A build that cannot post writes none, so the mode is left out
+    /// there -- a reader can still mark someone's post as their own, but a
+    /// setting whose whole job depends on their having done that first is a
+    /// setting that mostly cannot fire.
+    ///
+    /// The watcher itself is untouched by this: it watches favourited threads,
+    /// which is reading, and works the same in either build.
+    public var watcherNotificationChoices: [WatcherNotificationSetting] {
+        allowsPosting ? WatcherNotificationSetting.allCases : [.off, .allNewPosts]
+    }
+
     /// Which new posts are worth a notification.
+    ///
+    /// Narrowed on the way out to what this build actually offers, because the
+    /// stored value can name a mode it does not -- and the *default* is exactly
+    /// such a mode, so a fresh App Store install would otherwise start on
+    /// `.repliesOnly` and draw a picker with no matching tag.
+    ///
+    /// The fallback is `.off` rather than `.allNewPosts`: coercing towards more
+    /// notifications than the reader asked for is the wrong direction, and
+    /// `.repliesOnly` on a build that never posts is already close to silent.
     public var watcherNotifications: WatcherNotificationSetting {
         get {
-            defaults.string(forKey: Key.watcherNotifications)
+            let stored = defaults.string(forKey: Key.watcherNotifications)
                 .flatMap(WatcherNotificationSetting.init(rawValue:)) ?? .repliesOnly
+            return watcherNotificationChoices.contains(stored) ? stored : .off
         }
         set { write(newValue.rawValue, forKey: Key.watcherNotifications) }
     }

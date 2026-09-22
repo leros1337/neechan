@@ -172,6 +172,32 @@ final class AppStoreBuildUITests: LiveUITestCase {
         attach(app, name: "appstore-statistics")
     }
 
+    /// Every switch in Uploads is about a file on its way to a post, so on a
+    /// build that attaches nothing the whole section is settings that cannot
+    /// act. The rest of Media is about reading and stays.
+    func testMediaOffersNoUploadSettings() throws {
+        let app = launchApp()
+        try XCTSkipUnless(try openRestrictions(app), "not the App Store build")
+
+        goBack(app)
+        openSettingsRow(app, "Media")
+
+        // Waited on first, so the absence below is an absence and not a screen
+        // that had yet to draw. "Convert WebM to MP4" is the section after the
+        // one that should be gone.
+        XCTAssertTrue(
+            app.switches["convert-webm"].waitForExistence(timeout: 10),
+            "the Media screen did not open"
+        )
+        XCTAssertFalse(
+            app.staticTexts["Uploads"].exists,
+            "the App Store build offers upload settings it cannot apply"
+        )
+        XCTAssertFalse(app.switches["Remove metadata"].exists)
+
+        attach(app, name: "appstore-media")
+    }
+
     /// Back out of a settings screen to the list it was pushed from.
     private func goBack(_ app: XCUIApplication) {
         let back = app.navigationBars.buttons.element(boundBy: 0)
