@@ -3,6 +3,71 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## Unreleased
+
+Any post can be reported, and the App Store build stops offering what it cannot
+give.
+
+### Reporting
+
+- **A post can be reported from its own menu.** Long-press a post, or a thread
+  in the catalog, and the menu now offers Report. On 2ch the report goes
+  straight to the moderators through the site's own endpoint -- a comment, no
+  captcha. On 4chan working correctly via opening web page and solving captcha.
+- **The agreement says so.** The first-launch terms gained a Reporting &
+  Blocking section, which had been left out for as long as there was nothing to
+  promise.
+
+### Settings
+
+- **The passcode screen is gone from the App Store build.** A passcode is
+  bought on the site and spent on posting -- it skips the captcha and raises the
+  file limit -- and that build cannot post, so the screen pointed at a purchase
+  it had nothing to do with. Cookies, which is where a passcode already granted
+  is cleared, is untouched.
+- **The Default board field suggests `a`, not `b`.** The example named a board
+  the App Store build does not list, and one the age gate turns away on 2ch.
+
+### Fitting in
+
+- **The system prompts speak German.** The app claims English, Russian and
+  German, but only carried `InfoPlist.strings` for the first two, so a German
+  reader was asked for Face ID -- and for permission to write to their photo
+  library -- in English. A missing translation of these is invisible: iOS falls
+  back to the development language without saying anything, which is why it went
+  unnoticed. A test now reads the languages the app declares and fails if any of
+  them is missing a prompt, or is still carrying the English sentence.
+
+### Building
+
+- **The app has its shipping identity.** The submitted build is
+  `pro.neechan.app`, named **Neechan**; the unrestricted build sideloaded from
+  Releases is `pro.neechan.app-dev`, named **Neechan X**, so the two sit on a
+  device together instead of replacing one another. These are no longer
+  placeholders to be swapped by hand at submission time -- there is nothing left
+  to remember, and `make check-appstore` and `make ipa-appstore` both fail if
+  the identifier or the name under the icon drifts from what ships. The
+  identifier is permanent once the app is published.
+- **Everything else the app names itself by moved with it.** The os_log
+  subsystem, the watcher's background-task identifier and the reachability
+  queue label were all still `com.lain.neechan`, from before the app had a
+  name. They are now under `pro.neechan.app`. If you follow the logs, the
+  predicate is `subsystem == "pro.neechan.app"`. The user-agent logger had its
+  own copy of the subsystem string rather than a reference to the shared one,
+  which is how the two would eventually have disagreed; it now reads the shared
+  one. A test holds the background-task identifier and the `Info.plist` entry
+  that permits it together, because the scheduler raises rather than returns
+  when they disagree -- a drift there is a crash on launch, and the two halves
+  are not even edited in the same file.
+
+### Privacy
+
+- **The app carries a privacy manifest.** `PrivacyInfo.xcprivacy` declares the
+  two required-reason API categories the binary actually reaches -- file
+  timestamps, for the media cache and saved threads, and user defaults, for
+  preferences -- and records that the app tracks nobody and collects nothing.
+  Without it App Store Connect refuses the upload outright.
+
 ## 2.4.2
 
 A long press on a video offers what a long press on a picture always has.
