@@ -1658,25 +1658,25 @@
         }
       }
     },
-    "Board code, such as b": {
+    "Board code, such as a": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Board code, such as b"
+            "value": "Board code, such as a"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Код доски, например b"
+            "value": "Код доски, например a"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Board-Kürzel, etwa b"
+            "value": "Board-Kürzel, etwa a"
           }
         }
       }

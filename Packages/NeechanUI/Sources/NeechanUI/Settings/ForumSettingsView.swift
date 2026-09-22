@@ -53,7 +53,7 @@ struct ForumSettingsView: View {
 
             Section {
                 TextField(text: $defaultBoard) {
-                    Text("Board code, such as b", bundle: .module)
+                    Text("Board code, such as a", bundle: .module)
                 }
                 .noAutocapitalization()
                 .autocorrectionDisabled()
