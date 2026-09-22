@@ -236,7 +236,7 @@ public actor DvachClient {
             }
             // Logged with the start of the body, because this is the failure
             // that tells the reader least and needs diagnosing most: attach
-            // with `log stream --predicate 'subsystem == "com.lain.neechan"'`
+            // with `log stream --predicate 'subsystem == "pro.neechan.app"'`
             // and the answer that could not be read is there.
             Self.log.error(
                 """

@@ -8,7 +8,7 @@ import os
 /// these stay in release builds: an interval that nobody is listening to costs a
 /// predictable branch.
 public enum Signposts {
-    public static let subsystem = "com.lain.neechan"
+    public static let subsystem = "pro.neechan.app"
 
     /// One pass of the favourites watcher.
     public static let watcher = OSSignposter(subsystem: subsystem, category: "watcher")

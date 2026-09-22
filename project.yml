@@ -1,6 +1,6 @@
 name: Neechan
 options:
-  bundleIdPrefix: com.lain
+  bundleIdPrefix: pro.neechan
   deploymentTarget:
     iOS: "26.0"
   createIntermediateGroups: true
@@ -88,7 +88,7 @@ targets:
         UIBackgroundModes:
           - fetch
         BGTaskSchedulerPermittedIdentifiers:
-          - com.lain.neechan.watcher
+          - pro.neechan.app.watcher
         NSFaceIDUsageDescription: >-
           Neechan uses Face ID to unlock the app.
         NSPhotoLibraryAddUsageDescription: >-
@@ -111,9 +111,13 @@ targets:
           - UIInterfaceOrientationLandscapeRight
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.lain.neechan
+        # The unrestricted build, which is the one sideloaded from Releases.
+        # `-dev` rather than a bare `pro.neechan.app` so the two can sit on a
+        # device together: the identifier is what iOS keys an installed app on,
+        # and sharing one would make each install replace the other.
+        PRODUCT_BUNDLE_IDENTIFIER: pro.neechan.app-dev
         PRODUCT_NAME: Neechan
-        NEECHAN_DISPLAY_NAME: Neechan
+        NEECHAN_DISPLAY_NAME: Neechan X
         # The ordinary build is the default, so a configuration added later
         # behaves like the ordinary build until it says otherwise.
         NEECHAN_APP_STORE_BUILD: NO
@@ -132,11 +136,14 @@ targets:
         # lock cannot come apart, so a build that can post is never the one
         # wearing the App Store identifier.
         #
-        # Both of these are for testing beside the ordinary build. Change them
-        # back to `com.lain.neechan` and `Neechan` before submitting.
+        # These are the shipping values, not placeholders to be swapped at
+        # submission time -- there is nothing to remember to change, and
+        # `make check-appstore` fails if either one drifts. `pro.neechan.app` is
+        # permanent once the app is published: App Store Connect will not take
+        # it back.
         AppStore:
-          PRODUCT_BUNDLE_IDENTIFIER: com.lain.neechan.appstore
-          NEECHAN_DISPLAY_NAME: Neechan AS
+          PRODUCT_BUNDLE_IDENTIFIER: pro.neechan.app
+          NEECHAN_DISPLAY_NAME: Neechan
           NEECHAN_APP_STORE_BUILD: YES
           # One name short of the list above: `AppIcon3` is the bare-breasted
           # artwork, and leaving it unnamed here is what keeps it out of the
@@ -185,7 +192,7 @@ targets:
       - package: NeechanTestSupport
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.lain.neechan.tests
+        PRODUCT_BUNDLE_IDENTIFIER: pro.neechan.app.tests
         GENERATE_INFOPLIST_FILE: YES
 
   NeechanUITests:
@@ -197,7 +204,7 @@ targets:
       - target: Neechan
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.lain.neechan.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: pro.neechan.app.uitests
         GENERATE_INFOPLIST_FILE: YES
 
 schemes:

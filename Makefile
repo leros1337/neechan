@@ -65,11 +65,17 @@ XCB          = xcodebuild -scheme '$(SCHEME)' -destination '$(DESTINATION)' \
 PACKAGES    := NeechanTestSupport NeechanAPI NeechanSettings NeechanCore NeechanMedia NeechanUI
 # The configuration that starts cautious and cannot post.
 APPSTORE    := AppStore
+# What the submitted build must call itself. Permanent once published, so both
+# checks below read it from here rather than spelling it out twice.
+APPSTORE_BUNDLE_ID := pro.neechan.app
 # Recursively expanded and derived from the configuration: the App Store build
 # installs beside the ordinary one under its own identifier, so `simctl launch`
 # has to be told which of the two was just put there. Keeping this tied to the
 # configuration is what stops the two drifting apart.
-BUNDLE_ID    = com.lain.neechan$(if $(filter $(APPSTORE),$(CONFIGURATION)),.appstore,)
+#
+# The bare identifier is the App Store one, because that is the one that ships
+# and the one that is permanent; the sideloaded build wears the suffix.
+BUNDLE_ID    = pro.neechan.app$(if $(filter $(APPSTORE),$(CONFIGURATION)),,-dev)
 # The configuration an archive is cut from. `ipa` stays on Release, which is
 # what the release workflow builds and names.
 ARCHIVE_CONFIG ?= Release
@@ -233,7 +239,9 @@ check-appstore: build
 	locked=$$(plutil -extract NeechanIsAppStoreBuild raw -o - "$$plist" 2>/dev/null || echo MISSING); \
 	id=$$(plutil -extract CFBundleIdentifier raw -o - "$$plist"); \
 	test "$$locked" = "YES" || { echo "NOT the App Store build: NeechanIsAppStoreBuild=$$locked. Run 'make gen'."; exit 1; }; \
-	case "$$id" in *.appstore) ;; *) echo "wrong bundle id: $$id"; exit 1 ;; esac; \
+	test "$$id" = "$(APPSTORE_BUNDLE_ID)" || { echo "wrong bundle id: $$id (expected $(APPSTORE_BUNDLE_ID))"; exit 1; }; \
+	name=$$(plutil -extract CFBundleDisplayName raw -o - "$$plist"); \
+	test "$$name" = "Neechan" || { echo "wrong display name: $$name (expected Neechan)"; exit 1; }; \
 	plutil -extract CFBundleIcons.CFBundleAlternateIcons json -o - "$$plist" 2>/dev/null | grep -q '"AppIcon3"' && { echo "AppIcon3 (the nude artwork) is in the App Store build. Run 'make gen'."; exit 1; } || true; \
 	test ! -e "$$app/NeechanUI_NeechanUI.bundle/app-icon-neechan.png" || { echo "the nude icon preview is in the App Store build"; exit 1; }; \
 	echo "App Store build confirmed: $$id, posting off, no AppIcon3"
@@ -246,10 +254,14 @@ check-ipa-appstore:
 	app=$(ARCHIVE)/Products/Applications/Neechan.app; \
 	plist=$$app/Info.plist; \
 	locked=$$(plutil -extract NeechanIsAppStoreBuild raw -o - "$$plist" 2>/dev/null || echo MISSING); \
+	id=$$(plutil -extract CFBundleIdentifier raw -o - "$$plist"); \
+	name=$$(plutil -extract CFBundleDisplayName raw -o - "$$plist"); \
 	test "$$locked" = "YES" || { echo "NOT the App Store build: NeechanIsAppStoreBuild=$$locked"; exit 1; }; \
+	test "$$id" = "$(APPSTORE_BUNDLE_ID)" || { echo "wrong bundle id: $$id (expected $(APPSTORE_BUNDLE_ID))"; exit 1; }; \
+	test "$$name" = "Neechan" || { echo "wrong display name: $$name (expected Neechan)"; exit 1; }; \
 	plutil -extract CFBundleIcons.CFBundleAlternateIcons json -o - "$$plist" 2>/dev/null | grep -q '"AppIcon3"' && { echo "AppIcon3 (the nude artwork) is in the App Store build. Run 'make gen'."; exit 1; } || true; \
 	test ! -e "$$app/NeechanUI_NeechanUI.bundle/app-icon-neechan.png" || { echo "the nude icon preview is in the App Store build"; exit 1; }; \
-	echo "App Store .ipa confirmed: posting off, no AppIcon3"
+	echo "App Store .ipa confirmed: $$id, posting off, no AppIcon3"
 
 ## Capture the booted simulator screen.
 screenshot:

@@ -35,7 +35,7 @@ public final class NetworkReachability {
     public private(set) var isConnected = true
 
     @ObservationIgnored private let monitor = NWPathMonitor()
-    @ObservationIgnored private let queue = DispatchQueue(label: "com.lain.neechan.reachability")
+    @ObservationIgnored private let queue = DispatchQueue(label: "pro.neechan.app.reachability")
     @ObservationIgnored private var hasStarted = false
 
     public init() {}
