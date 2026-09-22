@@ -5,8 +5,8 @@ Notable changes per release. Earlier releases are listed under
 
 ## Unreleased
 
-Any post can be reported, and the App Store build stops offering what it cannot
-give.
+Any post can be reported, a saved thread reads properly with no network, and the
+App Store build stops offering what it cannot give.
 
 ### Reporting
 
@@ -17,6 +17,26 @@ give.
 - **The agreement says so.** The first-launch terms gained a Reporting &
   Blocking section, which had been left out for as long as there was nothing to
   promise.
+
+### Offline
+
+- **A 4chan thread can be saved for offline reading.** The menu item was
+  missing on 4chan, and deliberately: the archiver kept the server's own bytes
+  and read every saved file back as 2ch's shape, so a saved 4chan thread would
+  have been a file nothing could open. It now reads each one the way the site
+  that wrote it writes threads -- which the saved row had recorded all along,
+  since the schema gained a site column. Threads saved before this are
+  unaffected and need no migration.
+- **Saving says what it is doing.** Keeping a thread with all its files can run
+  to hundreds of megabytes, and it used to happen in complete silence: the
+  archiver counted its progress and the caller threw every value away. A
+  capsule at the foot of the thread now counts the files as they land, and can
+  be cancelled -- the thread's text is written before any file is fetched, so
+  stopping halfway leaves a thread that still reads, with some pictures
+  missing.
+- **A saved thread that cannot be read says so.** An unreadable copy reported
+  itself as "no longer saved on this device", which is a different thing and
+  sent you looking in the wrong place.
 
 ### Boards
 
@@ -65,6 +85,10 @@ give.
 
 ### Fitting in
 
+- **Thumbnails start at full size.** They opened at 80%, on the reasoning that
+  the site's thumbnails are bigger than a post needs -- but a thumbnail shown
+  smaller than it was served is a picture you have to open to see. Scaling them
+  down is still a slider away.
 - **The system prompts speak German.** The app claims English, Russian and
   German, but only carried `InfoPlist.strings` for the first two, so a German
   reader was asked for Face ID -- and for permission to write to their photo
