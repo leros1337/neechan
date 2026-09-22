@@ -1,0 +1,10 @@
+# Captions drawn above the device by Tools/screenshots.sh.
+#
+# One line per screenshot name, `name|text`. The name is what you passed to
+# `shot`, so one line covers that screenshot on every device and every size.
+# Blank lines and lines starting with # are ignored; long text wraps on its own.
+
+boards|Add your favorites
+threads|Modern catalog options
+thread-inside|Native Reading
+settings|Private. Your data only yours

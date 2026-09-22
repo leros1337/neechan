@@ -30,6 +30,10 @@ Packages/*/.build/
 *.swp
 *~
 
+# App Store screenshots (Tools/screenshots.sh). Large, regenerable, and a store
+# listing's artwork is not source.
+Screenshots/
+
 # Secrets
 .env
 .env.*
