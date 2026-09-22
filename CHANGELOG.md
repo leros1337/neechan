@@ -18,6 +18,17 @@ give.
   Blocking section, which had been left out for as long as there was nothing to
   promise.
 
+### Restrictions
+
+- **Links leave the app until you say you are 18.** A link off the imageboard
+  opened in a browser sheet inside the app. That sheet is a surface the app
+  answers for, and it will follow wherever a link a stranger wrote goes -- so
+  until the age gate is answered, links now go to Safari instead, where the
+  system's own web restrictions apply. Afterwards the existing preference
+  decides, as before. The switch in General is disabled while the gate is shut
+  rather than quietly doing nothing, and says where links go and how to change
+  it. Nothing moves in the ordinary build, which starts with the gate open.
+
 ### Settings
 
 - **The passcode screen is gone from the App Store build.** A passcode is
@@ -25,6 +36,9 @@ give.
   file limit -- and that build cannot post, so the screen pointed at a purchase
   it had nothing to do with. Cookies, which is where a passcode already granted
   is cleared, is untouched.
+- **The App Store build stops counting posts it cannot send.** Statistics
+  listed "Posts sent" beside the reading figures, where it could only ever read
+  zero. Time in the app and threads opened still mean something and stay.
 - **The Default board field suggests `a`, not `b`.** The example named a board
   the App Store build does not list, and one the age gate turns away on 2ch.
 
