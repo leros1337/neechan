@@ -222,7 +222,7 @@ public struct ThreadView: View {
         )
         .internalBrowser(link: $browserLink)
         .sheet(isPresented: $isShowingGalleryGrid) {
-            GalleryGridView(items: model.snapshot.galleryItems) { postNum in
+            GalleryGridView(items: model.snapshot.galleryItems, services: services) { postNum in
                 isShowingGalleryGrid = false
                 scrollToPost(postNum)
             }

@@ -122,42 +122,8 @@ struct GalleryPage: View {
     }
 
     /// What a long press offers.
-    @ViewBuilder
     private var menu: some View {
-        if let onGoToPost {
-            Button(action: onGoToPost) {
-                Label {
-                    Text("Go to post", bundle: .module)
-                } icon: {
-                    Image(systemName: "text.bubble")
-                }
-            }
-            // The number is in the identifier rather than on screen: the reader
-            // is looking at the file and knows which post they opened it from.
-            .accessibilityIdentifier("go-to-post-\(item.postNum)")
-        }
-
-        Button(action: onSave) {
-            Label {
-                Text("Save", bundle: .module)
-            } icon: {
-                Image(systemName: "square.and.arrow.down")
-            }
-        }
-
-        Button(action: onShare) {
-            Label {
-                Text("Share", bundle: .module)
-            } icon: {
-                Image(systemName: "square.and.arrow.up")
-            }
-        }
-
-        if let postURL {
-            Section {
-                LinkActionsMenu(url: postURL, title: "\u{2116}\(item.postNum)")
-            }
-        }
+        GalleryItemMenu(item: item, onGoToPost: onGoToPost, onSave: onSave, onShare: onShare)
     }
 
     /// The card the menu lifts: small on purpose.
@@ -181,16 +147,6 @@ struct GalleryPage: View {
             .foregroundStyle(.secondary)
             .frame(width: 200, height: 140)
         }
-    }
-
-    /// The post this file was attached to, on the site.
-    private var postURL: URL? {
-        SiteLinks.post(
-            board: item.threadKey.board,
-            threadNum: item.threadKey.threadNum,
-            postNum: item.postNum,
-            on: services.settings.siteSelection
-        )
     }
 
     @ViewBuilder
