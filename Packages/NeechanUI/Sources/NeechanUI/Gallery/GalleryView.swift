@@ -24,6 +24,13 @@ public struct GalleryView: View {
     /// The gallery cannot scroll the thread itself: it is presented over it,
     /// so it hands the number back to whoever opened it and closes.
     private let onGoToPost: ((Int) -> Void)?
+    /// Handed down to the pages explicitly rather than left to be inherited.
+    ///
+    /// The gallery is presented as a cover, and an iPad build running on a Mac
+    /// builds a cover's pages before the presenter's environment reaches them:
+    /// a page's `@Environment(AppServices.self)` found nothing and trapped the
+    /// moment the gallery opened.
+    private let services: AppServices
 
     public init(
         items: [GalleryItem],
@@ -35,9 +42,14 @@ public struct GalleryView: View {
             items: items, startIndex: startIndex, services: services
         ))
         self.onGoToPost = onGoToPost
+        self.services = services
     }
 
     public var body: some View {
+        content.environment(services)
+    }
+
+    private var content: some View {
         ZStack {
             // Behind the arrangement rather than inside it, so that a folded
             // display with the chrome hidden is black on both planes instead

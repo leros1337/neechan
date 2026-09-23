@@ -15,7 +15,6 @@ import SwiftUI
 /// - one player is the only way to keep the audio session, the decoder and the
 ///   engine's process-wide settings straight (see `DoomscrollViewModel`).
 struct DoomscrollView: View {
-    @Environment(AppServices.self) private var services
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
@@ -28,6 +27,9 @@ struct DoomscrollView: View {
 
     /// Goes to the post the clip came from, closing the feed on the way.
     var onGoToPost: ((Int) -> Void)?
+    /// Handed down to the pages explicitly rather than left to be inherited:
+    /// see `GalleryView.services`, which is presented the same way.
+    private let services: AppServices
 
     init(items: [GalleryItem], startIndex: Int = 0, services: AppServices, onGoToPost: ((Int) -> Void)? = nil) {
         _model = State(
@@ -36,9 +38,14 @@ struct DoomscrollView: View {
             )
         )
         self.onGoToPost = onGoToPost
+        self.services = services
     }
 
     var body: some View {
+        content.environment(services)
+    }
+
+    private var content: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 

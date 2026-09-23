@@ -3,6 +3,20 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## Unreleased
+
+The viewer opens on a Mac.
+
+### Gallery
+
+- **Opening the viewer on a Mac no longer closes the app.** The iPad build
+  running on an Apple silicon Mac quit the moment a file was opened, from a
+  thread, the catalog, a quote or the gallery grid, and so did the video feed.
+  A Mac builds the viewer's pages before they have the app's settings and
+  services to hand, and a page that looked for them found nothing. The viewer
+  and the feed now hand their pages what they need themselves. Nothing changes
+  on an iPhone or iPad, where this never happened.
+
 ## 2.4.4
 
 Searching a thread finds in it rather than filtering it, the gallery grid
