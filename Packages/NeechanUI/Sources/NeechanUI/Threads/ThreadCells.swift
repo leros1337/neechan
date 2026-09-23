@@ -42,6 +42,19 @@ struct ThreadCardView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // The rest of the card opens the thread too. The two buttons above are
+        // only as tall as their text, so a one-line subject beside the
+        // thumbnail left most of the card dead, along with its padding and the
+        // gap above the footer. Behind the content, so the thumbnail and the
+        // buttons still take their own taps; hidden from VoiceOver, which
+        // already has those buttons.
+        .background {
+            Button(action: onOpenThread) {
+                Color.clear.contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHidden(true)
+        }
         .background(.background.secondary, in: .rect(cornerRadius: 18))
     }
 }

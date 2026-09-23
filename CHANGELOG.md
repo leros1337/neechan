@@ -5,7 +5,14 @@ Notable changes per release. Earlier releases are listed under
 
 ## Unreleased
 
-The viewer opens on a Mac.
+The viewer opens on a Mac, and a thread card opens wherever it is tapped.
+
+### Catalog
+
+- **The whole card opens the thread.** Only the subject, the text and the
+  footer used to: a short post beside its thumbnail left most of the card
+  dead, and so did its edges and the gap above the counts. Anywhere on the
+  card now opens the thread, except the thumbnail, which still opens the file.
 
 ### Gallery
 
