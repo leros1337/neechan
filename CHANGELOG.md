@@ -14,6 +14,13 @@ The viewer opens on a Mac, and a thread card opens wherever it is tapped.
   dead, and so did its edges and the gap above the counts. Anywhere on the
   card now opens the thread, except the thumbnail, which still opens the file.
 
+### Boards
+
+- **The App Store build no longer lists /fd/, /pa/ or /cm/.** 2ch's Фэндомы
+  and Живопись and 4chan's Cute/Male are out of its directory. None of them is
+  gated, so a code typed by hand still opens them; the other builds list them
+  as before.
+
 ### Gallery
 
 - **Opening the viewer on a Mac no longer closes the app.** The iPad build

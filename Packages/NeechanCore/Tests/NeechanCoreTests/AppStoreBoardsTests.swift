@@ -49,13 +49,24 @@ struct AppStoreBoardsTests {
     /// that adding either has to be deliberate.
     @Test("the Творчество section is listed, without the two it leaves out")
     func creativitySectionIsListed() {
-        for code in ["de", "di", "diy", "mus", "p", "pa", "wrk"] {
+        for code in ["de", "di", "diy", "mus", "p", "wrk"] {
             #expect(AppStoreBoards.contains(code, on: .dvach), "/\(code)/ is not listed")
         }
 
         #expect(!AppStoreBoards.contains("wp", on: .dvach), "/wp/ was listed")
         #expect(!AppStoreBoards.contains("izd", on: .dvach), "/izd/ was listed, and it is gated")
         #expect(MatureBoards.contains("izd", on: .dvach), "/izd/ stopped being gated")
+    }
+
+    /// Boards taken back out of the App Store set after it shipped: /fd/
+    /// Фэндомы and /pa/ Живопись on 2ch, /cm/ Cute/Male on 4chan. None of them
+    /// is gated, so they still open when typed; they are only not listed.
+    @Test("the boards taken out stay out")
+    func removedBoardsAreNotListed() {
+        for code in ["fd", "pa"] {
+            #expect(!AppStoreBoards.contains(code, on: .dvach), "/\(code)/ was listed")
+        }
+        #expect(!AppStoreBoards.contains("cm", on: .fourchan), "/cm/ was listed")
     }
 
     /// The codes genuinely collide between the two sites — `/m/` is Mecha on

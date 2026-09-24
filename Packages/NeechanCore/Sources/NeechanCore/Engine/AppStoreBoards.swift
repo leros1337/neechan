@@ -57,7 +57,6 @@ public enum AppStoreBoards {
         "w",    // Anime/Wallpapers
         "m",    // Mecha
         "cgl",  // Cosplay & EGL
-        "cm",   // Cute/Male
         "jp",   // Otaku Culture
         "vt",   // Virtual YouTubers
         // Comics.
@@ -81,13 +80,15 @@ public enum AppStoreBoards {
     /// adult-gated wholesale by ``MatureBoards``, and that is where /aa/ Аниме
     /// арт, /td/ Трёхмерная графика and /izd/ Графомания live, as does /to/
     /// Touhou. Naming any of them here would list a board that then refused to
-    /// open. The art boards 2ch runs itself — /pa/ Живопись, /de/ Дизайн — are
-    /// not gated, and are below.
+    /// open. The art board 2ch runs itself, /de/ Дизайн, is not gated, and is
+    /// below.
+    ///
+    /// /fd/ Фэндомы and /pa/ Живопись are not gated either, but are left out of
+    /// the set on purpose.
     private static let dvach: Set<String> = [
         // Японская культура
         "a",    // Аниме
         "ma",   // Манга
-        "fd",   // Фэндомы
         "vn",   // Визуальные новеллы
 
         // Творчество, less /wp/ Обои: a wallpaper board is an image dump with
@@ -98,7 +99,6 @@ public enum AppStoreBoards {
         "diy",  // Хобби
         "mus",  // Музыканты
         "p",    // Фотография
-        "pa",   // Живопись
         "wrk",  // Работа и карьера
     ]
 }
