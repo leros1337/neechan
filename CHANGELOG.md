@@ -3,9 +3,10 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
-## Unreleased
+## 2.4.5
 
-The viewer opens on a Mac, and a thread card opens wherever it is tapped.
+The viewer opens on a Mac, a thread card opens wherever it is tapped, and the
+App Store build lists three fewer boards.
 
 ### Catalog
 
