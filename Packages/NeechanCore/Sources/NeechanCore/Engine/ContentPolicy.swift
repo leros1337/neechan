@@ -21,8 +21,9 @@ public struct ContentPolicy: Sendable, Hashable {
 
     /// Whether the board directory lists every board the site has.
     ///
-    /// False only in the App Store build, whose directory carries anime, manga
-    /// and comics and nothing else. Independent of ``allowsMatureBoards``: that
+    /// False in the restricted builds — the App Store one and the sideloaded
+    /// release — whose directory carries anime, manga and comics and nothing
+    /// else. Independent of ``allowsMatureBoards``: that
     /// switch unlocks *reaching* a board, not what the list shows.
     public var listsEveryBoard: Bool
 

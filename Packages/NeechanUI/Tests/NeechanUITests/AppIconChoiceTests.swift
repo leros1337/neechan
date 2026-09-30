@@ -52,15 +52,25 @@ struct AppIconChoiceTests {
         #expect(AppIconChoice.allCases == [.original, .peace, .neechan])
     }
 
-    /// The App Store build's catalogue does not carry `AppIcon3` at all, so
+    /// A restricted build's catalogue does not carry `AppIcon3` at all, so
     /// offering it would be a row that cannot be chosen.
-    @Test("the App Store build does not offer the nude artwork")
-    func appStoreDropsNeechan() {
-        #expect(AppIconChoice.available(isAppStoreBuild: true) == [.original, .peace])
+    @Test("a restricted build does not offer the nude artwork")
+    func restrictedDropsNeechan() {
+        #expect(AppIconChoice.available(isRestrictedBuild: true) == [.original, .peace])
     }
 
-    @Test("every other build offers all three")
-    func ordinaryBuildOffersEverything() {
-        #expect(AppIconChoice.available(isAppStoreBuild: false) == AppIconChoice.allCases)
+    @Test("the unrestricted build offers all three")
+    func unrestrictedBuildOffersEverything() {
+        #expect(AppIconChoice.available(isRestrictedBuild: false) == AppIconChoice.allCases)
+    }
+
+    /// A reader who wore the nude icon before an update to a build without it.
+    /// The picker should mark the icon the home screen falls back to, not
+    /// mark nothing at all.
+    @Test("an icon the build no longer carries reads as the original")
+    func aDroppedIconReadsAsOriginal() {
+        #expect(AppIconChoice.named("AppIcon3", isRestrictedBuild: true) == .original)
+        #expect(AppIconChoice.named("AppIcon3", isRestrictedBuild: false) == .neechan)
+        #expect(AppIconChoice.named("AppIcon2", isRestrictedBuild: true) == .peace)
     }
 }

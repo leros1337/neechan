@@ -234,3 +234,58 @@ struct ModelContainerBox {
     let container: ModelContainer
     init(_ container: ModelContainer) { self.container = container }
 }
+
+/// Which builds narrow the directory, asked of the services the app runs on.
+///
+/// The directory follows the *restricted* flag, not the App Store one: the
+/// sideloaded release lists what the App Store build lists, and still posts.
+@MainActor
+@Suite("Which build narrows the directory")
+struct DirectoryByBuildTests {
+    private func services(
+        isAppStoreBuild: Bool,
+        isRestrictedBuild: Bool,
+        transport: StubTransport
+    ) throws -> AppServices {
+        let defaults = try #require(UserDefaults(suiteName: "neechan.tests.\(UUID().uuidString)"))
+        let settings = AppSettings(
+            defaults: defaults,
+            isAppStoreBuild: isAppStoreBuild,
+            isRestrictedBuild: isRestrictedBuild
+        )
+        settings.imageboard = .dvach
+        return try AppServices.inMemory(settings: settings, transport: transport)
+    }
+
+    private func directory() async throws -> StubTransport {
+        let transport = StubTransport()
+        await transport.stub(pathSuffix: "/boards", data: try FixtureLoader.data(.boards))
+        return transport
+    }
+
+    @Test("the restricted build that can post lists what the App Store build lists")
+    func theRestrictedBuildIsNarrowed() async throws {
+        let services = try services(
+            isAppStoreBuild: false, isRestrictedBuild: true, transport: try await directory()
+        )
+
+        #expect(!services.contentPolicy.listsEveryBoard)
+        #expect(services.settings.allowsPosting)
+        // The repositories read the policy through their own holder, which is
+        // seeded separately from the property above.
+        let boards = try await services.boards.boards()
+        #expect(!boards.isEmpty)
+        #expect(boards.allSatisfy { AppStoreBoards.contains($0, on: .dvach) })
+        #expect(!boards.contains { $0.id == "b" })
+    }
+
+    @Test("the unrestricted build lists every board")
+    func theUnrestrictedBuildListsEverything() async throws {
+        let services = try services(
+            isAppStoreBuild: false, isRestrictedBuild: false, transport: try await directory()
+        )
+
+        #expect(services.contentPolicy.listsEveryBoard)
+        #expect(try await services.boards.boards().contains { $0.id == "b" })
+    }
+}

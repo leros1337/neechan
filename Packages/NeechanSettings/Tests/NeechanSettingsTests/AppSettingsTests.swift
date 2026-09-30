@@ -841,6 +841,128 @@ struct AppStoreBuildTests {
     }
 }
 
+/// The sideloaded release: the App Store build's restrictions, and posting.
+///
+/// Restricted is its own flag rather than a reading of the App Store one,
+/// because the two builds now share every restriction and differ only in
+/// whether they can post.
+@MainActor
+@Suite("The restricted build that can post")
+struct RestrictedBuildTests {
+    private func freshDefaults() throws -> UserDefaults {
+        try #require(UserDefaults(suiteName: "neechan.tests.\(UUID().uuidString)"))
+    }
+
+    /// One launch of the sideloaded release.
+    private func restrictedSettings(_ defaults: UserDefaults) -> AppSettings {
+        AppSettings(defaults: defaults, isAppStoreBuild: false, isRestrictedBuild: true)
+    }
+
+    // MARK: Reading the flag out of the bundle
+
+    @Test(
+        "the plist value is read the way Xcode writes it",
+        arguments: [("YES", true), ("1", true), ("NO", false), ("", false)]
+    )
+    func readsTheFlag(value: String, expected: Bool) {
+        #expect(BuildVariant.isRestricted(in: [BuildVariant.restrictedKey: value]) == expected)
+    }
+
+    /// The App Store build can never be the unrestricted one, whatever its
+    /// plist says about the newer key or fails to say.
+    @Test("the App Store build is restricted without saying so")
+    func theAppStoreBuildIsAlwaysRestricted() throws {
+        #expect(BuildVariant.isRestricted(in: [BuildVariant.key: "YES"]))
+        #expect(BuildVariant.isRestricted(in: [BuildVariant.key: "YES", BuildVariant.restrictedKey: "NO"]))
+        #expect(
+            AppSettings(defaults: try freshDefaults(), isAppStoreBuild: true, isRestrictedBuild: false)
+                .isRestricted
+        )
+    }
+
+    @Test("a missing key is the unrestricted build")
+    func aMissingKeyIsUnrestricted() {
+        #expect(!BuildVariant.isRestricted(in: [:]))
+        #expect(!BuildVariant.isRestricted(in: nil))
+        #expect(!BuildVariant.isRestricted)
+    }
+
+    // MARK: What it does
+
+    @Test("it can post")
+    func postingIsOn() throws {
+        let settings = restrictedSettings(try freshDefaults())
+
+        #expect(settings.isRestricted)
+        #expect(!settings.isAppStore)
+        #expect(settings.allowsPosting)
+    }
+
+    @Test("a fresh install starts with boards for adults hidden")
+    func matureStartsOff() throws {
+        #expect(!restrictedSettings(try freshDefaults()).allowsMatureBoards)
+    }
+
+    /// The migration keys off the usage counters, and a fresh install has them
+    /// by its second launch. Without a record that the question was settled,
+    /// that launch would take it for an old install and open the gate.
+    @Test("a fresh install stays hidden once it has been used")
+    func aFreshInstallIsNotMigratedLater() throws {
+        let defaults = try freshDefaults()
+        let first = restrictedSettings(defaults)
+        first.recordThreadOpened()
+        first.addTimeInApp(seconds: 60)
+
+        #expect(!restrictedSettings(defaults).allowsMatureBoards)
+    }
+
+    /// The build used to start with the gate open. A reader who never touched
+    /// it has been reading adult boards all along, and an update should not
+    /// shut them out of their own favourites.
+    @Test("an install that was already in use keeps boards for adults")
+    func anExistingInstallKeepsTheGateOpen() throws {
+        let defaults = try freshDefaults()
+        let before = AppSettings(defaults: defaults, isAppStoreBuild: false, isRestrictedBuild: false)
+        before.recordThreadOpened()
+
+        let after = restrictedSettings(defaults)
+        #expect(after.allowsMatureBoards)
+        // Stored, not merely defaulted, so it survives every later launch.
+        #expect(restrictedSettings(defaults).allowsMatureBoards)
+    }
+
+    @Test("a reader who shut the gate themselves keeps it shut")
+    func anExplicitChoiceIsLeftAlone() throws {
+        let defaults = try freshDefaults()
+        let before = AppSettings(defaults: defaults, isAppStoreBuild: false, isRestrictedBuild: false)
+        before.recordThreadOpened()
+        before.allowsMatureBoards = false
+
+        #expect(!restrictedSettings(defaults).allowsMatureBoards)
+    }
+
+    /// The App Store build always started shut. Opening it for its readers
+    /// because they had used the app would be the migration inventing an
+    /// answer nobody gave.
+    @Test("the App Store build is never migrated")
+    func theAppStoreBuildIsNotMigrated() throws {
+        let defaults = try freshDefaults()
+        let first = AppSettings(defaults: defaults, isAppStoreBuild: true)
+        first.recordThreadOpened()
+
+        #expect(!AppSettings(defaults: defaults, isAppStoreBuild: true).allowsMatureBoards)
+    }
+
+    @Test("the unrestricted build is unchanged")
+    func theUnrestrictedBuildIsUnchanged() throws {
+        let settings = AppSettings(defaults: try freshDefaults(), isAppStoreBuild: false, isRestrictedBuild: false)
+
+        #expect(!settings.isRestricted)
+        #expect(settings.allowsMatureBoards)
+        #expect(settings.allowsPosting)
+    }
+}
+
 /// Where a link off the imageboard opens.
 ///
 /// Two preferences decide it, and the age gate is the one that wins: an in-app

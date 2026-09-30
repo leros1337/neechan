@@ -12,7 +12,7 @@ import UIKit
 /// which is how the system says "the original".
 ///
 /// The order of the cases is the order of the picker, and `neechan` is last on
-/// purpose: it is the one the App Store build leaves out, and the catalogue
+/// purpose: it is the one the restricted builds leave out, and the catalogue
 /// leaves out the *trailing* `ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES`
 /// entry, so the two stay in step without a hole in the middle of the list.
 enum AppIconChoice: String, CaseIterable, Identifiable, Sendable {
@@ -60,19 +60,27 @@ enum AppIconChoice: String, CaseIterable, Identifiable, Sendable {
 
     /// The icons this build offers.
     ///
-    /// The Neechan artwork is bare-breasted, so the App Store build neither
-    /// lists it nor carries it: `project.yml` drops `AppIcon3` from that
-    /// configuration's catalogue, and asking for an icon the bundle does not
+    /// The Neechan artwork is bare-breasted, so the restricted builds neither
+    /// list it nor carry it: `project.yml` drops `AppIcon3` from those
+    /// configurations' catalogues, and asking for an icon the bundle does not
     /// hold would simply fail. The flag is a parameter so a test can ask for
     /// either build — in a test bundle `Bundle.main` is the runner, which
     /// carries no such key.
-    static func available(isAppStoreBuild: Bool = BuildVariant.isAppStore) -> [AppIconChoice] {
-        isAppStoreBuild ? allCases.filter { $0 != .neechan } : allCases
+    static func available(isRestrictedBuild: Bool = BuildVariant.isRestricted) -> [AppIconChoice] {
+        isRestrictedBuild ? allCases.filter { $0 != .neechan } : allCases
     }
 
     /// Reads a stored name back, falling back to the shipped icon.
-    static func named(_ alternateName: String?) -> AppIconChoice {
-        allCases.first { $0.alternateName == alternateName } ?? .original
+    ///
+    /// Among the icons this build offers: a reader who wore one the build no
+    /// longer carries is looking at the shipped icon, which the system falls
+    /// back to, and the picker should say so rather than mark nothing.
+    static func named(
+        _ alternateName: String?,
+        isRestrictedBuild: Bool = BuildVariant.isRestricted
+    ) -> AppIconChoice {
+        available(isRestrictedBuild: isRestrictedBuild)
+            .first { $0.alternateName == alternateName } ?? .original
     }
 }
 

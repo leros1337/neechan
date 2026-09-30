@@ -63,7 +63,7 @@ XCB          = xcodebuild -scheme '$(SCHEME)' -destination '$(DESTINATION)' \
                -clonedSourcePackagesDirPath $(SPM_CACHE) \
                -skipMacroValidation ONLY_ACTIVE_ARCH=YES
 PACKAGES    := NeechanTestSupport NeechanAPI NeechanSettings NeechanCore NeechanMedia NeechanUI
-# The configuration that starts cautious and cannot post.
+# The configuration that cannot post. (Release starts as cautious, and posts.)
 APPSTORE    := AppStore
 # What the submitted build must call itself. Permanent once published, so both
 # checks below read it from here rather than spelling it out twice.
@@ -89,7 +89,7 @@ VERSION     := $(shell awk '/MARKETING_VERSION:/ { gsub(/["[:space:]]/, "", $$2)
 # `.build/Neechan-$(VERSION).ipa` literally and fails the job if it is absent.
 IPA          = .build/Neechan$(if $(filter-out Release,$(ARCHIVE_CONFIG)),-appstore,)-$(VERSION).ipa
 
-.PHONY: all gen build ipa appstore ipa-appstore check-appstore check-ipa-appstore test test-packages test-pkg test-app test-one test-report sim ipad duo screenshot fixtures clean clean-all
+.PHONY: all gen build ipa appstore ipa-appstore check-appstore check-ipa-appstore check-ipa-release test test-packages test-pkg test-app test-one test-report sim ipad duo screenshot fixtures clean clean-all
 
 all: gen test
 
@@ -118,6 +118,7 @@ ipa: gen
 		CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= \
 		MARKETING_VERSION=$(VERSION) \
 		archive
+	@$(if $(filter Release,$(ARCHIVE_CONFIG)),$(MAKE) --no-print-directory check-ipa-release,:)
 	@rm -rf .build/Payload $(IPA)
 	@mkdir -p .build/Payload
 	@cp -R $(ARCHIVE)/Products/Applications/Neechan.app .build/Payload/
@@ -262,6 +263,22 @@ check-ipa-appstore:
 	plutil -extract CFBundleIcons.CFBundleAlternateIcons json -o - "$$plist" 2>/dev/null | grep -q '"AppIcon3"' && { echo "AppIcon3 (the nude artwork) is in the App Store build. Run 'make gen'."; exit 1; } || true; \
 	test ! -e "$$app/NeechanUI_NeechanUI.bundle/app-icon-neechan.png" || { echo "the nude icon preview is in the App Store build"; exit 1; }; \
 	echo "App Store .ipa confirmed: $$id, posting off, no AppIcon3"
+
+## Checks the Release archive `ipa` just cut, before it is zipped: the build the
+## release workflow publishes, which carries every restriction but the posting
+## lock. A missing key reads as unrestricted, so a stale Info.plist would ship
+## the full directory and the nude icon without a word; this makes it a failure.
+check-ipa-release:
+	@set -e; \
+	app=$(ARCHIVE)/Products/Applications/Neechan.app; \
+	plist=$$app/Info.plist; \
+	restricted=$$(plutil -extract NeechanIsRestrictedBuild raw -o - "$$plist" 2>/dev/null || echo MISSING); \
+	locked=$$(plutil -extract NeechanIsAppStoreBuild raw -o - "$$plist" 2>/dev/null || echo MISSING); \
+	test "$$restricted" = "YES" || { echo "NOT restricted: NeechanIsRestrictedBuild=$$restricted. Run 'make gen'."; exit 1; }; \
+	test "$$locked" = "NO" || { echo "the release cannot post: NeechanIsAppStoreBuild=$$locked"; exit 1; }; \
+	plutil -extract CFBundleIcons.CFBundleAlternateIcons json -o - "$$plist" 2>/dev/null | grep -q '"AppIcon3"' && { echo "AppIcon3 (the nude artwork) is in the release. Run 'make gen'."; exit 1; } || true; \
+	test ! -e "$$app/NeechanUI_NeechanUI.bundle/app-icon-neechan.png" || { echo "the nude icon preview is in the release"; exit 1; }; \
+	echo "Release archive confirmed: restricted, posting on, no AppIcon3"
 
 ## Capture the booted simulator screen.
 screenshot:

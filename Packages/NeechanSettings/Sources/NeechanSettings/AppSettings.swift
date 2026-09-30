@@ -13,9 +13,15 @@ public final class AppSettings {
 
     /// Whether this is the build meant for the App Store.
     ///
-    /// It changes two things and only two: boards for adults start hidden
-    /// rather than shown, and posting is off and cannot be turned on.
+    /// It changes one thing here that no other build shares: posting is off
+    /// and cannot be turned on. Everything else it does, it does as one of the
+    /// restricted builds.
     @ObservationIgnored private let isAppStoreBuild: Bool
+
+    /// Whether this build carries the restrictions: boards for adults start
+    /// hidden rather than shown. The directory, the terms and the icons key off
+    /// the same answer elsewhere, through ``isRestricted``.
+    @ObservationIgnored private let isRestrictedBuild: Bool
 
     /// Bumped by every write.
     ///
@@ -61,15 +67,23 @@ public final class AppSettings {
     /// every post on screen.
     private var statisticsRevision = 0
 
-    /// - Parameter isAppStoreBuild: read from the bundle by default, and
-    ///   injectable only so a test can ask what that build does without being
-    ///   that build.
+    /// - Parameters:
+    ///   - isAppStoreBuild: read from the bundle by default, and injectable
+    ///     only so a test can ask what that build does without being that
+    ///     build.
+    ///   - isRestrictedBuild: the same, for the restrictions. The App Store
+    ///     build is restricted whatever this says.
     public init(
         defaults: UserDefaults = .standard,
-        isAppStoreBuild: Bool = BuildVariant.isAppStore
+        isAppStoreBuild: Bool = BuildVariant.isAppStore,
+        isRestrictedBuild: Bool = BuildVariant.isRestricted
     ) {
         self.storedDefaults = defaults
         self.isAppStoreBuild = isAppStoreBuild
+        self.isRestrictedBuild = isRestrictedBuild || isAppStoreBuild
+        if self.isRestrictedBuild, !isAppStoreBuild {
+            Self.migrateAdultDefault(defaults)
+        }
         self.storedImageboard = Self.readImageboard(defaults)
         self.storedDomain = Self.readDomain(defaults)
         self.storedTextScale = Self.clampScale(
@@ -384,11 +398,11 @@ public final class AppSettings {
     /// list, favourites, history, saved threads and every open route all
     /// re-evaluate at once, and a stored property gives observation without
     /// that blanket invalidation.
-    /// The App Store build starts with this off. It is still a preference
+    /// The restricted builds start with this off. It is still a preference
     /// there: a reader who turns it on gets the same 21+ prompt and it stays
     /// on. Only where it begins is different.
     public var allowsMatureBoards: Bool {
-        get { bool(Key.allowsMature, default: !isAppStoreBuild) }
+        get { bool(Key.allowsMature, default: !isRestrictedBuild) }
         set { write(newValue, forKey: Key.allowsMature) }
     }
 
@@ -412,6 +426,14 @@ public final class AppSettings {
     /// `Bundle.main` is the runner, which carries no such key, and the flag is
     /// injected into `init` for exactly this reason.
     public var isAppStore: Bool { isAppStoreBuild }
+
+    /// Whether this build carries the App Store build's restrictions: the
+    /// curated directory, the terms at first launch, no nude icon, and boards
+    /// for adults hidden until the reader says otherwise. True of the App Store
+    /// build and of the sideloaded release; only Debug is without them.
+    ///
+    /// Injected into `init` alongside ``isAppStore``, for the same reason.
+    public var isRestricted: Bool { isRestrictedBuild }
 
     /// Whether the reader has accepted the terms.
     ///
@@ -443,13 +465,40 @@ public final class AppSettings {
 
         if defaults.object(forKey: LegacyKey.safeForWork) != nil {
             defaults.set(!defaults.bool(forKey: LegacyKey.safeForWork), forKey: Key.nsfwMode)
-        } else if defaults.object(forKey: Key.threadsOpened) != nil
-            || defaults.object(forKey: Key.secondsInApp) != nil {
+        } else if hasBeenUsed(defaults) {
             defaults.set(true, forKey: Key.nsfwMode)
         }
         // Anything else is a fresh install, and the new default is right for it.
 
         defaults.removeObject(forKey: LegacyKey.safeForWork)
+    }
+
+    /// Keeps the gate open for a reader of the sideloaded release who had it
+    /// open before it was restricted.
+    ///
+    /// That build used to start with boards for adults shown, and a reader who
+    /// never touched the switch has been reading them all along; starting
+    /// restricted must not shut them out of their own favourites. Only a fresh
+    /// install gets the new default.
+    ///
+    /// Asked once and then recorded as settled, whatever the answer. The usage
+    /// counters that tell an old install from a new one exist on a fresh
+    /// install too from its second launch, and without the record that launch
+    /// would take it for an old one and open the gate.
+    private static func migrateAdultDefault(_ defaults: UserDefaults) {
+        guard defaults.object(forKey: Key.adultDefaultSettled) == nil else { return }
+        if defaults.object(forKey: Key.allowsMature) == nil, hasBeenUsed(defaults) {
+            defaults.set(true, forKey: Key.allowsMature)
+        }
+        defaults.set(true, forKey: Key.adultDefaultSettled)
+    }
+
+    /// Whether this install has been used before, as opposed to being opened
+    /// for the first time. The usage counters are written from the first
+    /// thread opened and the first trip to the background.
+    private static func hasBeenUsed(_ defaults: UserDefaults) -> Bool {
+        defaults.object(forKey: Key.threadsOpened) != nil
+            || defaults.object(forKey: Key.secondsInApp) != nil
     }
 
     // MARK: General
@@ -800,6 +849,8 @@ public final class AppSettings {
         static let collapseLines = "interface.collapseLines"
         static let nsfwMode = "restrictions.nsfwMode"
         static let allowsMature = "restrictions.allowsMature"
+        /// Set once the sideloaded release has decided where the gate starts.
+        static let adultDefaultSettled = "restrictions.adultDefaultSettled"
         static let remembersHistory = "general.remembersHistory"
         static let internalBrowser = "general.internalBrowser"
         static let appLock = "general.appLock"

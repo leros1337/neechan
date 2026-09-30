@@ -84,6 +84,12 @@ targets:
         # cannot see a third configuration either. Expansion inside a plist is
         # textual, so this arrives as the string "YES" or "NO".
         NeechanIsAppStoreBuild: $(NEECHAN_APP_STORE_BUILD)
+        # The same route for the restrictions the App Store build and the
+        # sideloaded release share: the curated directory, the terms, no nude
+        # icon, boards for adults hidden at first. Read by
+        # `BuildVariant.isRestricted`, which treats the App Store build as
+        # restricted whatever this says.
+        NeechanIsRestrictedBuild: $(NEECHAN_RESTRICTED_BUILD)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
         # `fetch` alone: the app registers a `BGAppRefreshTask` for the
@@ -115,16 +121,21 @@ targets:
           - UIInterfaceOrientationLandscapeRight
     settings:
       base:
-        # The unrestricted build, which is the one sideloaded from Releases.
-        # `-dev` rather than a bare `pro.neechan.app` so the two can sit on a
-        # device together: the identifier is what iOS keys an installed app on,
-        # and sharing one would make each install replace the other.
+        # The build that can post: Debug, and the Release sideloaded from
+        # Releases. `-dev` rather than a bare `pro.neechan.app` so the two can
+        # sit on a device together: the identifier is what iOS keys an
+        # installed app on, and sharing one would make each install replace the
+        # other.
         PRODUCT_BUNDLE_IDENTIFIER: pro.neechan.app-dev
         PRODUCT_NAME: Neechan
         NEECHAN_DISPLAY_NAME: Neechan X
         # The ordinary build is the default, so a configuration added later
         # behaves like the ordinary build until it says otherwise.
         NEECHAN_APP_STORE_BUILD: NO
+        # Unrestricted by default, which is what Debug is: the UI tests reach
+        # their boards through the full directory. Release and AppStore turn it
+        # on below.
+        NEECHAN_RESTRICTED_BUILD: NO
         INFOPLIST_KEY_CFBundleDisplayName: $(NEECHAN_DISPLAY_NAME)
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # The icons the reader can switch to. Naming them here is what puts
@@ -136,6 +147,12 @@ targets:
         ENABLE_PREVIEWS: YES
         SWIFT_EMIT_LOC_STRINGS: YES
       configs:
+        # The sideloaded release: every restriction the App Store build has,
+        # and posting. `make ipa` refuses an archive that comes out otherwise.
+        Release:
+          NEECHAN_RESTRICTED_BUILD: YES
+          # Without `AppIcon3`, for the reason given under AppStore below.
+          ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: AppIcon2
         # Tied to one configuration on purpose: the identifier and the posting
         # lock cannot come apart, so a build that can post is never the one
         # wearing the App Store identifier.
@@ -149,6 +166,9 @@ targets:
           PRODUCT_BUNDLE_IDENTIFIER: pro.neechan.app
           NEECHAN_DISPLAY_NAME: Neechan
           NEECHAN_APP_STORE_BUILD: YES
+          # Implied by the line above as far as the app is concerned; stated so
+          # the build script below, which reads only this, strips the preview.
+          NEECHAN_RESTRICTED_BUILD: YES
           # Signed, unlike every other configuration: App Store Connect
           # refuses an archive with no team in it, and the team has to be
           # here rather than set in Xcode's Signing editor, because the
@@ -172,10 +192,10 @@ targets:
       # Dropping `AppIcon3` above keeps that artwork off the home screen and
       # out of `Assets.car`, but this 180px copy lives in NeechanUI's resource
       # bundle and SwiftPM has no per-configuration resources -- so the only
-      # place left to remove it is the copy inside the built app. The App Store
+      # place left to remove it is the copy inside the built app. A restricted
       # build never draws it, because `AppIconChoice.available` leaves that
       # icon out; this is about what ships, not what is shown.
-      - name: Strip the nude icon preview from the App Store build
+      - name: Strip the nude icon preview from the restricted builds
         basedOnDependencyAnalysis: false
         # Declared so `ENABLE_USER_SCRIPT_SANDBOXING` lets the phase delete it:
         # the sandbox grants a script write access to its own outputs and
@@ -184,7 +204,7 @@ targets:
         outputFiles:
           - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/NeechanUI_NeechanUI.bundle/app-icon-neechan.png
         script: |
-          if [ "$CONFIGURATION" != "AppStore" ]; then exit 0; fi
+          if [ "$NEECHAN_RESTRICTED_BUILD" != "YES" ]; then exit 0; fi
           preview="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/NeechanUI_NeechanUI.bundle/app-icon-neechan.png"
           rm -f "$preview"
           if [ -e "$preview" ]; then

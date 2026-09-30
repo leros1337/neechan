@@ -73,7 +73,7 @@ public final class AppServices {
         let policyHolder = ContentPolicyHolder(
             ContentPolicy(
                 allowsMatureBoards: settings.allowsMatureBoards,
-                listsEveryBoard: !settings.isAppStore
+                listsEveryBoard: !settings.isRestricted
             )
         )
         self.policyHolder = policyHolder
@@ -447,7 +447,7 @@ public final class AppServices {
         ContentPolicy(
             allowsMatureBoards: settings.allowsMatureBoards,
             // Fixed by the build, not by the reader, so nothing ever moves it.
-            listsEveryBoard: !settings.isAppStore
+            listsEveryBoard: !settings.isRestricted
         )
     }
 

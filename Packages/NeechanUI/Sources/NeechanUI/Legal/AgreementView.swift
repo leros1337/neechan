@@ -1,7 +1,7 @@
 import NeechanSettings
 import SwiftUI
 
-/// What the reader agrees to before the App Store build shows them anything.
+/// What the reader agrees to before a restricted build shows them anything.
 ///
 /// Shown once, with no way past but the button: an agreement the reader can
 /// dismiss is not one they made. Afterwards it stays readable from About,

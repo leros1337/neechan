@@ -163,7 +163,7 @@ public struct AdaptiveRootView: View {
     /// but the device's language is already known.
     @ViewBuilder
     private var shell: some View {
-        if services.settings.isAppStore, !services.settings.hasAgreedToTerms {
+        if services.settings.isRestricted, !services.settings.hasAgreedToTerms {
             AgreementView { services.settings.hasAgreedToTerms = true }
         } else if sizeClass == .compact {
             RootTabView()

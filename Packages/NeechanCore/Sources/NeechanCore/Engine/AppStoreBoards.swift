@@ -1,7 +1,8 @@
 import Foundation
 import NeechanAPI
 
-/// The boards the App Store build lists: anime, manga and comics, the art
+/// The boards the restricted builds list — the App Store one and the
+/// sideloaded release: anime, manga and comics, the art
 /// boards around them, and 2ch's own Творчество section — design, painting,
 /// photography, music and the other boards about making something.
 ///
