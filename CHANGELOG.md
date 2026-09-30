@@ -3,6 +3,76 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## 2.4.6
+
+A link to another board opens there instead of in Safari, a quote from another
+thread answers both a tap and a long press, and Neechan X takes on the App
+Store build's restrictions while keeping posting.
+
+### Links
+
+- **A link to a thread on another board opens the thread.** Reading /mobi/, a
+  link to `2ch.org/b/res/336991612.html` opened Safari: only a link carrying a
+  post number was recognised as pointing into a thread. A board or a thread on
+  the site you are reading -- any mirror, with or without a post -- now opens
+  in the app, on top of the thread you were in, so Back returns to it. A link
+  to the thread you are already in scrolls to it instead. Links to other
+  sites, and to 2ch's own files, open as before.
+
+### Quotes
+
+- **A file in a quote from another thread opens.** Tapping its thumbnail did
+  nothing: the viewer looked for the file among the files of the thread
+  underneath, where a post from elsewhere has none. It now opens on the quoted
+  post's own files, and Go to post from there opens the thread that post is in.
+- **A quote answers a long press.** The popup had no menu at all. It now offers
+  Copy text, Copy post number, Go to post and the post's link to copy, share or
+  open, plus Reply and Show replies for a post from the thread you are in. Go
+  to post scrolls this thread, or opens the post's own thread when it lives
+  elsewhere. Hide, Report and "This is my post" are left out: they act on the
+  thread underneath, and for a post from elsewhere they would land on the
+  wrong one.
+- **A quote from another board shows that board's post.** A post number is
+  unique only within a board, so a /b/ post numbered like one in the thread you
+  were reading opened as the local post instead.
+- **On 4chan, a quote into another thread opens.** 4chan has no way to fetch
+  one post, so the app fetches the thread it is in and picks the post out --
+  but the thread's number was never passed along, and every such quote said
+  the post was gone.
+
+### Neechan X
+
+- **The release restricts what the App Store build restricts, and still
+  posts.** Neechan X from Releases now lists the curated boards only, asks for
+  the terms once at first launch, leaves out the Neechan icon, and starts with
+  Adult 18+ off. Any other board still opens, from a link or by its code, once
+  Adult 18+ is on. Until then, links off the imageboard go to Safari, as they
+  do in the App Store build. Posting, the passcode screen and the upload
+  settings are unchanged.
+- **An install already in use keeps Adult 18+ on.** The release used to start
+  with it on, so a reader who never touched it has been reading those boards
+  all along, and an update should not shut them out of their own favourites.
+  Only a fresh install starts with it off.
+- **If you were using the Neechan icon, choose another** in Settings ->
+  Appearance: this build no longer carries it.
+
+### Building
+
+- **Restricted is a flag of its own.** `NEECHAN_RESTRICTED_BUILD` is on for
+  Release and AppStore and off for Debug, which stays unrestricted so the UI
+  tests can reach every board. The App Store flag now means only the posting
+  lock, and the App Store build counts as restricted whatever the new flag
+  says. `make ipa` refuses a Release archive that comes out unrestricted,
+  unable to post, or carrying the Neechan icon -- a missing key reads as
+  unrestricted, so a stale `Info.plist` would otherwise ship that without a
+  word.
+- **The scheme is `Neechan X (Test Flight)`.** It was `Neechan`; `Neechan (App
+  Store)` is unchanged, and the `make` targets use the new name. Run
+  `make gen` to pick it up.
+- **Every configuration is signed with the team**, not only AppStore. The
+  `.ipa` on Releases is still unsigned: `make ipa` turns signing off for
+  itself.
+
 ## 2.4.5
 
 The viewer opens on a Mac, a thread card opens wherever it is tapped, and the
