@@ -5,6 +5,7 @@
 # Blank lines and lines starting with # are ignored; long text wraps on its own.
 
 boards|Add your favorites
+boards-2|Add your favorites
 threads|Modern catalog options
 thread-inside|Native Reading
 settings|Private. Your data only yours
