@@ -40,13 +40,14 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     DEAD_CODE_STRIPPING: YES
     CODE_SIGN_STYLE: Automatic
-    # Unsigned by default, and no certificate lives in this repository. The
-    # sideloaded .ipa is unsigned on purpose -- see README -- and a simulator
-    # build needs nothing. The App Store configuration turns signing back on
-    # for itself, because a submitted build is the one thing that cannot be
-    # unsigned.
-    CODE_SIGNING_ALLOWED: NO
-    CODE_SIGNING_REQUIRED: NO
+    # Signed with the team in every configuration, so Neechan X can be
+    # archived for TestFlight as well as the App Store build for review. No
+    # certificate lives in this repository: Xcode mints one under automatic
+    # signing. The .ipa on Releases stays unsigned on purpose -- see README --
+    # because `make ipa` turns signing off for itself.
+    DEVELOPMENT_TEAM: U4F88CG8X5
+    CODE_SIGNING_ALLOWED: YES
+    CODE_SIGNING_REQUIRED: YES
 
 packages:
   NeechanAPI:
@@ -169,10 +170,12 @@ targets:
           # Implied by the line above as far as the app is concerned; stated so
           # the build script below, which reads only this, strips the preview.
           NEECHAN_RESTRICTED_BUILD: YES
-          # Signed, unlike every other configuration: App Store Connect
-          # refuses an archive with no team in it, and the team has to be
-          # here rather than set in Xcode's Signing editor, because the
-          # project is generated and `make gen` would throw that away.
+          # Signed, as every configuration is -- repeated here so the one build
+          # that cannot ship unsigned does not depend on the base staying as it
+          # is. App Store Connect refuses an archive with no team in it, and
+          # the team has to be here rather than set in Xcode's Signing editor,
+          # because the project is generated and `make gen` would throw that
+          # away.
           #
           # A team identifier is not a secret -- it ships inside every app
           # Apple distributes -- and it is not a certificate, which is what
