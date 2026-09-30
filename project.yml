@@ -244,7 +244,9 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
 
 schemes:
-  Neechan:
+  # Neechan X, the build that can post: Debug to run and test, Release to
+  # archive for TestFlight and for the .ipa on Releases.
+  Neechan X (Test Flight):
     build:
       targets:
         Neechan: all

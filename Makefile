@@ -11,7 +11,7 @@ SHELL := /bin/bash
 
 # Recursively expanded: the App Store configuration has a scheme of its own,
 # because its test action leaves out the unit bundle that needs testability.
-SCHEME       = $(if $(filter $(APPSTORE),$(CONFIGURATION)),Neechan (App Store),Neechan)
+SCHEME       = $(if $(filter $(APPSTORE),$(CONFIGURATION)),Neechan (App Store),Neechan X (Test Flight))
 SIMULATOR   := iPhone 17 Pro
 # The baseline iPad, not a Pro: it is the narrowest of them, so a layout that
 # only just fits shows its seams here first.
