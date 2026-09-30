@@ -10,6 +10,7 @@ public struct ThreadView: View {
     private let isOfflineSource: Bool
 
     @Environment(AppServices.self) private var services
+    @Environment(Router.self) private var router
     @Environment(\.openURL) private var openURL
     @State private var model: ThreadViewModel?
     @State private var scrollPosition = ScrollPosition()
@@ -346,7 +347,10 @@ public struct ThreadView: View {
                 services: services,
                 onGoToPost: { postNum in
                     galleryStart = nil
-                    scrollToPost(postNum)
+                    // A file opened from a quote can belong to another thread,
+                    // and its post is then there rather than here.
+                    let thread = start.items.first { $0.postNum == postNum }?.threadKey ?? key
+                    goToPost(postNum, in: thread, model: model)
                 }
             )
         }
@@ -715,7 +719,17 @@ public struct ThreadView: View {
                     onDismissAll: {
                         withAnimation(.snappy(duration: 0.2)) { model.dismissAllQuotes() }
                     },
-                    onOpenAttachment: { attachment in openGallery(at: attachment, in: model) }
+                    onOpenAttachment: { attachment in
+                        galleryStart = model.galleryStart(at: attachment, in: quoted)
+                    },
+                    onGoToPost: { goToPost(quoted.post.num, in: quoted.threadKey, model: model) },
+                    onReply: quoteReplyAction(for: quoted, model: model),
+                    postURL: SiteLinks.post(
+                        board: quoted.threadKey.board,
+                        threadNum: quoted.threadKey.threadNum,
+                        postNum: quoted.post.num,
+                        on: services.settings.siteSelection
+                    )
                 )
                 .padding(.horizontal, 12)
                 .padding(.bottom, 12)
@@ -752,6 +766,12 @@ public struct ThreadView: View {
             ), !services.contentPolicy.allowsOpening(target) {
                 return
             }
+            // A board or a thread on this site opens here, on top of this
+            // thread, rather than in a browser that loses it.
+            if let route = router.route(forLink: url) {
+                follow(route, model: model)
+                return
+            }
             // Links off the site open in the app so a tap does not lose the
             // thread -- unless the reader asked for Safari, or has not yet said
             // they are 18, in which case the link leaves rather than being
@@ -761,6 +781,47 @@ public struct ThreadView: View {
             } else {
                 openURL(url)
             }
+        }
+    }
+
+    /// Opens a board or a thread a link led to.
+    ///
+    /// The quotes are put away first, so Back returns to the thread as it was
+    /// rather than to a popup left open over it. A link to this very thread
+    /// scrolls instead of stacking a second copy of it.
+    private func follow(_ route: AppRoute, model: ThreadViewModel) {
+        model.dismissAllQuotes()
+        if case .thread(let target, let postNum) = route, target == key {
+            scrollToPost(postNum ?? key.threadNum)
+            return
+        }
+        router.push(route)
+    }
+
+    /// Takes the reader to a post: here when it is in this thread, in its own
+    /// thread when it came from elsewhere.
+    private func goToPost(_ postNum: Int, in thread: ThreadKey, model: ThreadViewModel) {
+        withAnimation(.snappy(duration: 0.2)) { model.dismissAllQuotes() }
+        if thread == key {
+            scrollToPost(postNum)
+        } else {
+            router.push(.thread(thread, scrollTo: postNum))
+        }
+    }
+
+    /// Replying from a quote, or nil where the menu should leave it out.
+    ///
+    /// Only for a post in this thread: the form answers this thread, and a
+    /// `>>` to a post on another board would point at nothing here. A method
+    /// for the same reason as `reportAction(for:)`.
+    private func quoteReplyAction(
+        for quoted: ThreadViewModel.QuotedPost,
+        model: ThreadViewModel
+    ) -> (() -> Void)? {
+        guard services.allowsPosting, !quoted.isRemote else { return nil }
+        return {
+            model.dismissAllQuotes()
+            replyTarget = ReplyTarget(quoting: quoted.post.num)
         }
     }
 

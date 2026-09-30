@@ -569,6 +569,150 @@ struct ThreadViewModelTests {
         #expect(model.quotePopups.isEmpty)
     }
 
+    // MARK: Quotes from another board
+
+    /// A post number is unique only within a board. A `/b/` post numbered like
+    /// one of this thread's used to be shown as that local post, as though the
+    /// link had pointed here.
+    @Test("a post on another board is fetched even when its number is one of ours")
+    func anotherBoardIsNotThisThread() async throws {
+        let transport = try await stubbedTransport()
+        await transport.stub(
+            pathSuffix: "/api/mobile/v2/post/b/\(key.threadNum)",
+            data: try FixtureLoader.data(.postSingle)
+        )
+        let model = try makeModel(transport)
+        await model.load()
+        try #require(model.snapshot.post(num: key.threadNum) != nil)
+
+        await model.showQuote(board: "b", threadNum: nil, postNum: key.threadNum)
+
+        let quoted = try #require(model.quotePopups.first)
+        #expect(quoted.isRemote)
+        #expect(quoted.threadKey.board == "b")
+        #expect(
+            await transport.recordedRequests().contains {
+                $0.url?.path().hasSuffix("/post/b/\(key.threadNum)") == true
+            },
+            "the post on the other board was never asked for"
+        )
+    }
+
+    /// 4chan has no single-post endpoint: the post is picked out of its thread,
+    /// so the request cannot be built without the thread's number. It used to
+    /// be left out, and every quote into another 4chan thread said the post
+    /// was gone.
+    @Test("on 4chan a post in another thread is fetched through that thread")
+    func fourchanQuoteFetchesItsThread() async throws {
+        let transport = StubTransport()
+        await transport.stub(pathSuffix: "/boards.json", data: try FixtureLoader.data(.fourchanBoards))
+        await transport.stub(
+            pathSuffix: "/po/thread/629454.json", data: try FixtureLoader.data(.fourchanThread)
+        )
+        let settings = AppSettings(
+            defaults: UserDefaults(suiteName: "ThreadViewModelTests.\(UUID().uuidString)")!
+        )
+        settings.imageboard = .fourchan
+        let services = try AppServices.inMemory(settings: settings, transport: transport)
+        let model = ThreadViewModel(
+            key: ThreadKey(site: .fourchan, board: "po", threadNum: 1), services: services
+        )
+
+        await model.showQuote(board: "po", threadNum: 629454, postNum: 629455)
+
+        #expect(model.quoteStatus == nil)
+        let quoted = try #require(model.quotePopups.first)
+        #expect(quoted.post.num == 629455)
+        #expect(quoted.isRemote)
+    }
+
+    @Test("a quote from this thread is filed under this thread")
+    func localQuoteKnowsItsThread() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+        let target = try #require(model.snapshot.posts.first?.num)
+
+        await model.showQuote(board: "po", threadNum: key.threadNum, postNum: target)
+
+        #expect(model.quotePopups.first?.threadKey == key)
+    }
+
+    /// The thread is what "go to post" opens and what the gallery files a
+    /// download under, so it has to be the one the post lives in.
+    @Test("a quote from elsewhere is filed under the thread the link named")
+    func remoteQuoteKnowsItsThread() async throws {
+        let transport = try await stubbedTransport()
+        await transport.stub(
+            pathSuffix: "/api/mobile/v2/post/b/999", data: try FixtureLoader.data(.postSingle)
+        )
+        let model = try makeModel(transport)
+        await model.load()
+
+        await model.showQuote(board: "b", threadNum: 42, postNum: 999)
+
+        #expect(
+            model.quotePopups.first?.threadKey
+                == ThreadKey(site: .dvach, board: "b", threadNum: 42)
+        )
+    }
+
+    @Test("with no thread in the link, the post's own thread is used")
+    func remoteQuoteFallsBackToThePostsThread() async throws {
+        let transport = try await stubbedTransport()
+        await transport.stub(
+            pathSuffix: "/api/mobile/v2/post/b/999", data: try FixtureLoader.data(.postSingle)
+        )
+        let model = try makeModel(transport)
+        await model.load()
+
+        await model.showQuote(board: "b", threadNum: nil, postNum: 999)
+
+        let quoted = try #require(model.quotePopups.first)
+        #expect(quoted.threadKey == ThreadKey(site: .dvach, board: "b", threadNum: quoted.post.threadNum))
+    }
+
+    /// The popup's thumbnail used to look its file up in this thread's gallery,
+    /// where a post from elsewhere has none, so the tap did nothing.
+    @Test("a file in a quote from elsewhere opens among that post's own files")
+    func remoteQuoteOpensItsOwnFiles() async throws {
+        let transport = try await stubbedTransport()
+        await transport.stub(
+            pathSuffix: "/api/mobile/v2/post/b/999", data: try FixtureLoader.data(.postSingle)
+        )
+        let model = try makeModel(transport)
+        await model.load()
+        await model.showQuote(board: "b", threadNum: 42, postNum: 999)
+        let quoted = try #require(model.quotePopups.first)
+        let files = quoted.post.files
+        try #require(files.count > 1, "the fixture post needs more than one file")
+
+        let start = try #require(model.galleryStart(at: files[1], in: quoted))
+
+        #expect(start.items.map(\.attachment.path) == files.map(\.path))
+        #expect(start.index == 1)
+        #expect(start.items.allSatisfy {
+            $0.threadKey == ThreadKey(site: .dvach, board: "b", threadNum: 42)
+                && $0.postNum == quoted.post.num
+        })
+    }
+
+    @Test("a file in a quote from this thread opens with the whole thread behind it")
+    func localQuoteOpensTheThreadsGallery() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+        let post = try #require(
+            model.snapshot.posts.first { !$0.files.isEmpty },
+            "the fixture thread has no post with a file"
+        )
+        await model.showQuote(board: "po", threadNum: key.threadNum, postNum: post.num)
+        let quoted = try #require(model.quotePopups.first)
+
+        let start = try #require(model.galleryStart(at: post.files[0], in: quoted))
+
+        #expect(start.items == model.snapshot.galleryItems)
+        #expect(start.items[start.index].postNum == post.num)
+    }
+
     // MARK: Replies
 
     @Test("replies to a post are listed from the index")

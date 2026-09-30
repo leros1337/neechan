@@ -31,6 +31,14 @@ struct QuotePopupView: View {
     var onDismissAll: () -> Void
     /// A file in the quoted post was tapped.
     var onOpenAttachment: (NeechanAPI.Attachment) -> Void = { _ in }
+    /// Takes the reader to the post in its own thread, whichever that is.
+    var onGoToPost: () -> Void = {}
+    /// Opens the reply form quoting the post. Nil for a post from elsewhere,
+    /// which this thread's form cannot answer, and where the site takes no
+    /// posts from this app.
+    var onReply: (() -> Void)? = nil
+    /// The post's own address on the site, for copying and sharing.
+    var postURL: URL?
 
     @Environment(\.neechanTheme) private var theme
     @State private var revealSpoilers = false
@@ -74,11 +82,69 @@ struct QuotePopupView: View {
         // on them. Padding and the gaps between rows belong to no view, so a
         // drag begun there reached nothing at all.
         .contentShape(.rect(cornerRadius: 20))
+        // The same long-press menu the post has in the thread, less what acts
+        // on this thread's board and numbers: hiding, reporting and claiming a
+        // post would all land on the wrong one for a post from elsewhere.
+        .contextMenuPreviewShape(.rect(cornerRadius: 20))
+        .contextMenu { menu }
         // A plain gesture, not a simultaneous one: a long quote scrolls inside
         // the card, and a child scroll view keeps the drags that start in it.
         // Dragging anywhere else, the header included, puts the card away.
         .gesture(swipeAway)
         .accessibilityIdentifier("quote-popup")
+    }
+
+    @ViewBuilder
+    private var menu: some View {
+        if let onReply {
+            Button(action: onReply) {
+                Label {
+                    Text("Reply to this post", bundle: .module)
+                } icon: {
+                    Image(systemName: "arrowshape.turn.up.left")
+                }
+            }
+        }
+        Button {
+            copyToPasteboard(quoted.content.plainText)
+        } label: {
+            Label {
+                Text("Copy text", bundle: .module)
+            } icon: {
+                Image(systemName: "doc.on.doc")
+            }
+        }
+        Button {
+            copyToPasteboard("\(quoted.post.num)")
+        } label: {
+            Label {
+                Text("Copy post number", bundle: .module)
+            } icon: {
+                Image(systemName: "number")
+            }
+        }
+        Button(action: onGoToPost) {
+            Label {
+                Text("Go to post", bundle: .module)
+            } icon: {
+                Image(systemName: "text.bubble")
+            }
+        }
+        // Gated the way the pill is, and for the same reason.
+        if !quoted.isRemote, replyCount > 0 {
+            Button(action: onOpenReplies) {
+                Label {
+                    Text("Show replies", bundle: .module)
+                } icon: {
+                    Image(systemName: "bubble.left.and.bubble.right")
+                }
+            }
+        }
+        if let postURL {
+            Section {
+                LinkActionsMenu(url: postURL, title: "№\(quoted.post.num)")
+            }
+        }
     }
 
     /// Dragging the card down closes it.

@@ -138,6 +138,14 @@ public final class ThreadViewModel {
         public let content: PostContent
         /// True when the post is not in this thread and was fetched on demand.
         public let isRemote: Bool
+        /// The thread the post lives in: where "go to post" leads, and what its
+        /// files are filed under.
+        public let threadKey: ThreadKey
+
+        /// The post's own files, for a post the thread's gallery does not hold.
+        var galleryItems: [GalleryItem] {
+            post.files.map { GalleryItem(attachment: $0, postNum: post.num, threadKey: threadKey) }
+        }
     }
 
     private let repository: ThreadRepository
@@ -710,10 +718,18 @@ public final class ThreadViewModel {
         // Checked before the fetch, and after the local look-up below would be
         // too late: this is the one way into another board that never builds a
         // route, so `Router` cannot refuse it.
-        if let local = snapshot.post(num: postNum) {
+        //
+        // Only on this board: a number is unique within a board, and a `/b/`
+        // post numbered like one of this thread's is somebody else's post.
+        if board == key.board, let local = snapshot.post(num: postNum) {
             withAnimation(.snappy(duration: 0.2)) {
                 quotePopups.append(
-                    QuotedPost(post: local, content: snapshot.content(of: postNum), isRemote: false)
+                    QuotedPost(
+                        post: local,
+                        content: snapshot.content(of: postNum),
+                        isRemote: false,
+                        threadKey: key
+                    )
                 )
             }
             return
@@ -728,7 +744,11 @@ public final class ThreadViewModel {
         // on screen feels like nothing happened.
         quoteStatus = .loading(postNum: postNum)
 
-        guard let response = try? await services.client.post(board: board, num: postNum),
+        // The thread as well: 4chan has no single-post endpoint and picks the
+        // post out of its thread, so without it there is no request to send.
+        guard let response = try? await services.client.post(
+                  board: board, num: postNum, inThread: threadNum
+              ),
               let post = response.post
         else {
             quoteStatus = .missing(postNum: postNum)
@@ -736,14 +756,38 @@ public final class ThreadViewModel {
         }
         quoteStatus = nil
 
+        let remoteThread = threadNum ?? post.threadNum
         let content = CommentHTMLParser().parse(
             post.comment,
-            inThread: threadNum ?? post.threadNum,
+            inThread: remoteThread,
             onBoard: board
         )
         withAnimation(.snappy(duration: 0.2)) {
-            quotePopups.append(QuotedPost(post: post, content: content, isRemote: true))
+            quotePopups.append(
+                QuotedPost(
+                    post: post,
+                    content: content,
+                    isRemote: true,
+                    threadKey: ThreadKey(site: key.site, board: board, threadNum: remoteThread)
+                )
+            )
         }
+    }
+
+    /// Where the viewer opens for a file tapped in a quote.
+    ///
+    /// A post from this thread opens with the whole thread behind it, the way
+    /// a file in the thread does. One from elsewhere has nothing in this
+    /// thread's gallery to be found by, so it opens among its own files.
+    func galleryStart(at attachment: NeechanAPI.Attachment, in quoted: QuotedPost) -> GalleryStart? {
+        let items = quoted.isRemote ? quoted.galleryItems : snapshot.galleryItems
+        // The post as well as the path: threads repost, and the same file under
+        // an earlier post would open the viewer on the wrong one.
+        guard let index = items.firstIndex(where: {
+            $0.postNum == quoted.post.num && $0.attachment.path == attachment.path
+        }) ?? items.firstIndex(where: { $0.attachment.path == attachment.path })
+        else { return nil }
+        return GalleryStart(items: items, index: index)
     }
 
     public func dismissTopQuote() {

@@ -195,6 +195,24 @@ public final class Router {
         }
     }
 
+    /// The screen a link inside a post leads to, or nil for the browser.
+    ///
+    /// Only boards and threads on the imageboard being read: the client can
+    /// fetch nothing else, so a link to the other site, or to a file or page on
+    /// this one, is left to go out as it always did. Read the way the go-to
+    /// field reads what is typed into it, which already knows every mirror.
+    public func route(forLink url: URL) -> AppRoute? {
+        guard let target = NavigationQueryParser.parse(url.absoluteString, site: site),
+              target.site == site
+        else { return nil }
+        switch target {
+        case .board(let board): return .board(board.code)
+        case .thread(let key): return .thread(key)
+        case .threadAtPost(let key, let postNum): return .thread(key, scrollTo: postNum)
+        case .post: return nil
+        }
+    }
+
     // MARK: Restrictions
 
     /// Whether the reader's restrictions let this screen be opened.

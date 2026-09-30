@@ -62,6 +62,16 @@ extension View {
         #endif
     }
 
+    /// The shape a long-press menu lifts, where the menu lifts anything.
+    @ViewBuilder
+    func contextMenuPreviewShape(_ shape: some Shape) -> some View {
+        #if os(iOS)
+        contentShape(.contextMenuPreview, shape)
+        #else
+        self
+        #endif
+    }
+
     /// The grouped list appearance used across the app's settings-like screens.
     @ViewBuilder
     func groupedListStyle() -> some View {

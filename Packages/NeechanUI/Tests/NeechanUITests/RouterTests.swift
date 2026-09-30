@@ -1,3 +1,4 @@
+import Foundation
 import NeechanAPI
 import NeechanCore
 import Testing
@@ -275,5 +276,84 @@ struct RouterRestrictionTests {
 
         router.policy = .unrestricted
         #expect(router.boardsPath.isEmpty)
+    }
+}
+
+/// Where a link inside a post leads, when it names a place in the app.
+///
+/// A thread on another board used to be written off as an ordinary web link
+/// and handed to Safari, which lost the thread the reader was in.
+@MainActor
+@Suite("Links inside posts")
+struct RouterLinkTests {
+    private func router(site: Imageboard = .dvach) -> Router {
+        let router = Router()
+        router.site = site
+        return router
+    }
+
+    private func link(_ string: String) throws -> URL {
+        try #require(URL(string: string))
+    }
+
+    @Test("a thread on another board opens that thread")
+    func threadOnAnotherBoard() throws {
+        let route = router().route(forLink: try link("https://2ch.org/b/res/336991612.html"))
+
+        #expect(route == .thread(ThreadKey(site: .dvach, board: "b", threadNum: 336991612)))
+    }
+
+    @Test("a link to a post opens its thread at that post")
+    func postInAnotherThread() throws {
+        let route = router().route(
+            forLink: try link("https://2ch.org/b/res/336978666.html#336981465")
+        )
+
+        #expect(route == .thread(
+            ThreadKey(site: .dvach, board: "b", threadNum: 336978666), scrollTo: 336981465
+        ))
+    }
+
+    /// Readers paste whichever mirror they use, not the one set in the app.
+    @Test(
+        "every mirror of the site is the site",
+        arguments: ["https://2ch.hk/b/res/1.html", "https://2ch.life/b/res/1.html"]
+    )
+    func mirrors(address: String) throws {
+        #expect(
+            router().route(forLink: try link(address))
+                == .thread(ThreadKey(site: .dvach, board: "b", threadNum: 1))
+        )
+    }
+
+    @Test(
+        "a link to a board opens the board",
+        arguments: ["https://2ch.org/b/", "https://2ch.org/b/catalog.html", "/b/"]
+    )
+    func board(address: String) throws {
+        #expect(router().route(forLink: try link(address)) == .board("b"))
+    }
+
+    /// The site writes some of its own links without a host.
+    @Test("a link with no host is read as the site's own")
+    func pathOnly() throws {
+        #expect(
+            router().route(forLink: try link("/b/res/1.html"))
+                == .thread(ThreadKey(site: .dvach, board: "b", threadNum: 1))
+        )
+    }
+
+    /// The client fetches only the selected imageboard, so a thread on the
+    /// other one is for the browser.
+    @Test(
+        "anything the app cannot open is left to the browser",
+        arguments: [
+            "https://example.com/b/res/1.html",
+            "https://boards.4chan.org/g/thread/1",
+            "https://2ch.org/b/src/1/2.jpg",
+        ]
+    )
+    func notOurs(address: String) throws {
+        #expect(router().route(forLink: try link(address)) == nil)
     }
 }
