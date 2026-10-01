@@ -16,6 +16,8 @@ Unofficial and unaffiliated with either site.
 
 ## Install
 
+At the moment Neechan is only available through [TestFlight](https://testflight.apple.com/join/H1dRbSJG).
+
 Download the `.ipa` from [Releases](../../releases).
 
 The build is **unsigned**: there is no signing certificate in this repository and there
