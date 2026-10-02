@@ -14,6 +14,11 @@ struct DoomscrollPage: View {
     /// True when this is the clip the player is on and nothing is moving.
     let isShowingVideo: Bool
     var onTap: () -> Void
+    /// The long-press menu's actions: the same menu, in the same order, as a
+    /// long press in the viewer.
+    var onGoToPost: (() -> Void)?
+    var onSave: () -> Void = {}
+    var onShare: () -> Void = {}
 
     var body: some View {
         ZStack {
@@ -31,6 +36,14 @@ struct DoomscrollPage: View {
         // player, whose own gesture recognisers would otherwise eat them.
         .contentShape(.rect)
         .onTapGesture(perform: onTap)
+        // Safe to hang on the page: it draws no player. The press animation
+        // hosts a copy of whatever the menu is attached to, and in the viewer
+        // a copy of a page with a player in it was a second player.
+        .contextMenu {
+            GalleryItemMenu(item: item, onGoToPost: onGoToPost, onSave: onSave, onShare: onShare)
+        } preview: {
+            GalleryItemMenuCard(item: item)
+        }
         .accessibilityIdentifier("doomscroll-page-\(item.postNum)")
     }
 

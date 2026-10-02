@@ -5,8 +5,9 @@ Notable changes per release. Earlier releases are listed under
 
 ## Unreleased
 
-Sound in an older WebM no longer crackles, and seeking keeps the sound and
-lands where it was sent.
+Sound in an older WebM no longer crackles, seeking keeps the sound and lands
+where it was sent, and a file's long-press menu works over a playing video,
+links to the file itself, and comes to the video feed.
 
 ### Media
 
@@ -42,6 +43,30 @@ lands where it was sent.
 - **A seek no longer loses its first picture now and then.** The decoder
   could take the new position's keyframe for the old position's, throw it
   away, and then decode nothing until the next keyframe.
+
+### Gallery
+
+- **The long-press menu works over a playing video.** It opened, but nothing
+  in it answered a tap until the video was paused. While a clip played the
+  whole viewer was redrawn every time the playhead moved, about ten times a
+  second, and the menu was rebuilt under the finger with it. Now only the
+  scrubber redraws as the clip plays.
+- **Copy link copies the file.** It copied the post's address, and so did
+  Share link and Open in browser. All three now use the file's own address,
+  the one the viewer plays, so a copied link opens the video or picture
+  itself. "Go to post" in the same menu still leads to the post.
+- **The video feed has the long-press menu.** Press and hold a clip for the
+  same menu as in the viewer: Go to post, Save, Share, and the file's link to
+  copy, share or open. A tap still turns the sound on and off.
+
+### Links
+
+- **Open in browser opens Safari.** It did nothing on a 2ch address. A
+  thread follows its own links inside the app, and every menu shown over it
+  passed "Open in browser" to that instead: a post's address opened the post
+  in the thread underneath, out of sight behind the viewer, or as a quote in
+  the thread itself. The menus on posts, quotes, threads, the thread toolbar
+  and the viewer now hand the address straight to Safari.
 
 ## 2.4.6
 

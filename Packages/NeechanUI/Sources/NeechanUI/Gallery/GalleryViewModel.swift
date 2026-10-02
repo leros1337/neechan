@@ -281,7 +281,7 @@ public final class GalleryViewModel {
 
     /// Full-size URL for an item, resolved against its site's media host.
     public func url(for item: GalleryItem) -> URL? {
-        item.endpoints(mirror: services.settings.domain).url(forPath: item.attachment.path)
+        item.fileURL(mirror: services.settings.domain)
     }
 
     /// The page the item's site expects its files to be linked from.

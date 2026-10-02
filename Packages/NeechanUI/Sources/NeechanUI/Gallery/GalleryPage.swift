@@ -25,7 +25,10 @@ struct GalleryPage: View {
     /// Playback is reported upward so the gallery can host one control stack
     /// rather than each page drawing its own bar.
     @Binding var playbackState: PlaybackState
-    @Binding var playbackProgress: PlaybackProgress
+    /// A callback, not a binding: see `MediaPlayerView`. A binding made for it
+    /// redrew the whole gallery whenever the playhead moved, and the long-press
+    /// menu over a playing video took no taps.
+    var onProgress: (PlaybackProgress) -> Void
     @Binding var playbackControl: PlaybackControl
 
     @Environment(AppServices.self) private var services
@@ -138,14 +141,7 @@ struct GalleryPage: View {
         default:
             // A clip has no still to show, and one being fetched has nothing
             // yet, so the file says what it is instead.
-            VStack(spacing: 8) {
-                Image(systemName: item.isVideo ? "film" : "photo")
-                    .font(.largeTitle)
-                Text(verbatim: "\u{2116}\(item.postNum)")
-                    .font(.caption.monospacedDigit())
-            }
-            .foregroundStyle(.secondary)
-            .frame(width: 200, height: 140)
+            GalleryItemMenuCard(item: item)
         }
     }
 
@@ -197,7 +193,7 @@ struct GalleryPage: View {
                     options: playerOptions,
                     onSingleTap: onSingleTap,
                     state: $playbackState,
-                    progress: $playbackProgress,
+                    onProgress: onProgress,
                     control: $playbackControl
                 )
             } else {
@@ -303,7 +299,7 @@ private struct VideoPage: View {
     var onSingleTap: () -> Void
 
     @Binding var state: PlaybackState
-    @Binding var progress: PlaybackProgress
+    var onProgress: (PlaybackProgress) -> Void
     @Binding var control: PlaybackControl
 
     var body: some View {
@@ -313,7 +309,7 @@ private struct VideoPage: View {
                 url: url,
                 options: options,
                 state: $state,
-                progress: $progress,
+                onProgress: onProgress,
                 control: $control,
                 screen: "viewer"
             )

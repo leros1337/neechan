@@ -107,7 +107,9 @@ struct DoomscrollView: View {
                 url: url,
                 options: model.playerOptions(for: item),
                 state: Binding(get: { model.playbackState }, set: { model.playbackStateChanged($0) }),
-                progress: $model.playbackProgress,
+                // Not a binding, which would redraw the whole feed, and the
+                // long-press menu over it, every time the playhead moved.
+                onProgress: { [model] in model.playbackProgress = $0 },
                 control: $model.playbackControl,
                 screen: "feed"
             )
@@ -126,7 +128,18 @@ struct DoomscrollView: View {
                     DoomscrollPage(
                         item: item,
                         isShowingVideo: item.id == model.playingID && model.isSettled,
-                        onTap: { model.toggleMute() }
+                        onTap: { model.toggleMute() },
+                        // What the bottom bar's buttons do. Pressing is only
+                        // possible on the clip the feed has settled on, which
+                        // is the one they act on.
+                        onGoToPost: onGoToPost.map { goToPost in
+                            {
+                                dismiss()
+                                goToPost(item.postNum)
+                            }
+                        },
+                        onSave: { model.saveCurrentItem() },
+                        onShare: { share() }
                     )
                     .containerRelativeFrame(.vertical)
                     .id(item.id)

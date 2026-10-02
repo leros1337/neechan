@@ -3,6 +3,8 @@ import NeechanCore
 import SwiftUI
 #if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
 #endif
 
 /// Copy, share and open-in-browser for a 2ch address.
@@ -13,8 +15,6 @@ struct LinkActionsMenu: View {
     let url: URL
     /// Shown as the share sheet's title.
     let title: String
-
-    @Environment(\.openURL) private var openURL
 
     var body: some View {
         Button {
@@ -36,7 +36,7 @@ struct LinkActionsMenu: View {
         }
 
         Button {
-            openURL(url)
+            openInSafari(url)
         } label: {
             Label {
                 Text("Open in browser", bundle: .module)
@@ -45,6 +45,20 @@ struct LinkActionsMenu: View {
             }
         }
     }
+}
+
+/// Hands an address to the system browser.
+///
+/// Not the environment's `openURL`. A thread installs its own handler there,
+/// which turns a 2ch address into navigation inside the app, and every screen
+/// presented from the thread inherits it: "Open in browser" on a post opened
+/// the post in the thread behind the viewer, where nobody could see it.
+func openInSafari(_ url: URL) {
+    #if canImport(UIKit)
+    UIApplication.shared.open(url)
+    #elseif canImport(AppKit)
+    NSWorkspace.shared.open(url)
+    #endif
 }
 
 /// Puts text on the clipboard, where there is one.

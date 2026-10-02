@@ -121,7 +121,7 @@ public final class DoomscrollViewModel {
     }
 
     public func url(for item: GalleryItem) -> URL? {
-        SiteEndpoints(services.settings.siteSelection).url(forPath: item.attachment.path)
+        item.fileURL(mirror: services.settings.domain)
     }
 
     /// What the media host expects as the page the file was linked from.

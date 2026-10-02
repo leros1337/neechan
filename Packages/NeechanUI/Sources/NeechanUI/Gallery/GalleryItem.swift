@@ -41,6 +41,12 @@ public struct GalleryItem: Identifiable, Sendable, Hashable {
         SiteEndpoints(SiteSelection(site: threadKey.site, mirror: mirror))
     }
 
+    /// The file itself, on the host that serves it: what the viewer plays and
+    /// what the long-press menu copies, shares and opens.
+    public func fileURL(mirror: DvachDomain) -> URL? {
+        endpoints(mirror: mirror).url(forPath: attachment.path)
+    }
+
     /// The files of one post, in the order the post carries them.
     ///
     /// The site comes from the caller: a `Post` carries its board but not the

@@ -12,7 +12,14 @@ public struct MediaPlayerView: View {
     private let origin: String
 
     @Binding private var state: PlaybackState
-    @Binding private var progress: PlaybackProgress
+    /// Told where playback has got to, about ten times a second.
+    ///
+    /// A callback rather than a binding, because this view only ever writes
+    /// it. SwiftUI reads a binding's value the moment the binding is made, so
+    /// a screen that built one for this in its body redrew in full every time
+    /// the playhead moved. The long-press menu over a playing video was rebuilt
+    /// under the reader's finger ten times a second, and took no taps at all.
+    private let onProgress: (PlaybackProgress) -> Void
     @Binding private var control: PlaybackControl
 
     /// A player lent by the caller, which then owns its lifetime.
@@ -42,13 +49,13 @@ public struct MediaPlayerView: View {
         url: URL,
         options: MediaPlayerOptions,
         state: Binding<PlaybackState>,
-        progress: Binding<PlaybackProgress>,
+        onProgress: @escaping (PlaybackProgress) -> Void,
         control: Binding<PlaybackControl>,
         screen: String = #fileID,
         line: Int = #line
     ) {
         self.init(
-            player: nil, url: url, options: options, state: state, progress: progress,
+            player: nil, url: url, options: options, state: state, onProgress: onProgress,
             control: control, screen: screen, line: line
         )
     }
@@ -65,7 +72,7 @@ public struct MediaPlayerView: View {
         url: URL,
         options: MediaPlayerOptions,
         state: Binding<PlaybackState>,
-        progress: Binding<PlaybackProgress>,
+        onProgress: @escaping (PlaybackProgress) -> Void,
         control: Binding<PlaybackControl>,
         screen: String = #fileID,
         line: Int = #line
@@ -75,7 +82,7 @@ public struct MediaPlayerView: View {
         self.url = url
         self.options = options
         _state = state
-        _progress = progress
+        self.onProgress = onProgress
         _control = control
     }
 
@@ -86,7 +93,7 @@ public struct MediaPlayerView: View {
                     state = newState
                     rotationDegrees = player.rotationDegrees
                 }
-                player.onProgress = { progress = $0 }
+                player.onProgress = onProgress
                 player.describe(as: origin)
                 player.load(url: url, options: options)
             }

@@ -149,7 +149,9 @@ public struct GalleryView: View {
                 isZoomedIn = zoomed
             },
             playbackState: $model.playbackState,
-            playbackProgress: $model.playbackProgress,
+            // Written, never read, here: only the scrubber reads it, so only
+            // the scrubber redraws as the clip plays.
+            onProgress: { [model] in model.playbackProgress = $0 },
             playbackControl: $model.playbackControl
         )
     }

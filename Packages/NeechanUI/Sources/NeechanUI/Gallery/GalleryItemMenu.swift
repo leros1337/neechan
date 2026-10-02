@@ -44,20 +44,39 @@ struct GalleryItemMenu: View {
             }
         }
 
-        if let postURL {
+        // The file's own address, not the post's: a link copied from a video
+        // is wanted for the video. The post is "Go to post" away.
+        if let fileURL = item.fileURL(mirror: services.settings.domain) {
             Section {
-                LinkActionsMenu(url: postURL, title: "\u{2116}\(item.postNum)")
+                LinkActionsMenu(url: fileURL, title: shareTitle)
             }
         }
     }
 
-    /// The post this file was attached to, on the site.
-    private var postURL: URL? {
-        SiteLinks.post(
-            board: item.threadKey.board,
-            threadNum: item.threadKey.threadNum,
-            postNum: item.postNum,
-            on: services.settings.siteSelection
-        )
+    /// The file's name as it was posted, or the post's number when it has none.
+    private var shareTitle: String {
+        let name = item.attachment.displayName
+        return name.isEmpty ? "\u{2116}\(item.postNum)" : name
+    }
+}
+
+/// The card a long press lifts when there is no picture to show: what the file
+/// is, and which post it came from.
+///
+/// Small on purpose. Left to itself the menu lifts a copy of the view it hangs
+/// on, which over a file is the whole screen, and rendering that took a second
+/// or two and drew over the menu while it did.
+struct GalleryItemMenuCard: View {
+    let item: GalleryItem
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: item.isVideo ? "film" : "photo")
+                .font(.largeTitle)
+            Text(verbatim: "\u{2116}\(item.postNum)")
+                .font(.caption.monospacedDigit())
+        }
+        .foregroundStyle(.secondary)
+        .frame(width: 200, height: 140)
     }
 }
