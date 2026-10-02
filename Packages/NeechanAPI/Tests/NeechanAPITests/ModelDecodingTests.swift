@@ -288,6 +288,32 @@ struct EscapedFieldsTests {
         #expect(decoded.tripcode == "!\"x\"")
     }
 
+    /// 2ch marks its staff with a code in the trip and the site shows a label
+    /// in its place. The post this was found on, /b/res/328868282, read
+    /// `!!%adm%!!` in the app and `## Abu ##` on the site.
+    @Test("an administrator's code reads as the site shows it")
+    func adminTrip() throws {
+        let decoded = try post(##"{"num":328868282,"name":"","trip":"!!%adm%!!"}"##)
+        #expect(decoded.staffRole == .admin)
+        #expect(decoded.displayTripcode == "## Abu ##")
+        // Kept as it came, for anything that matches on it.
+        #expect(decoded.tripcode == "!!%adm%!!")
+    }
+
+    @Test("a moderator's code reads as the site shows it")
+    func moderatorTrip() throws {
+        let decoded = try post(##"{"num":1,"name":"","trip":"!!%mod%!!"}"##)
+        #expect(decoded.staffRole == .moderator)
+        #expect(decoded.displayTripcode == "## Mod ##")
+    }
+
+    @Test("an ordinary trip is shown as it is")
+    func ordinaryTrip() throws {
+        let decoded = try post(##"{"num":1,"name":"Аноним","trip":"!Abc123"}"##)
+        #expect(decoded.staffRole == nil)
+        #expect(decoded.displayTripcode == "!Abc123")
+    }
+
     @Test("the comment is left alone, because the parser needs its markup")
     func commentKeepsItsMarkup() throws {
         let decoded = try post(##"{"num":1,"comment":"<span>&gt; q</span>"}"##)

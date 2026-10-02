@@ -6,8 +6,9 @@ Notable changes per release. Earlier releases are listed under
 ## Unreleased
 
 Sound in an older WebM no longer crackles, seeking keeps the sound and lands
-where it was sent, and a file's long-press menu works over a playing video,
-links to the file itself, and comes to the video feed.
+where it was sent, a file's long-press menu works over a playing video, links
+to the file itself, and comes to the video feed, and posts by 2ch's staff are
+signed the way the site signs them.
 
 ### Media
 
@@ -67,6 +68,16 @@ links to the file itself, and comes to the video feed.
   in the thread underneath, out of sight behind the viewer, or as a quote in
   the thread itself. The menus on posts, quotes, threads, the thread toolbar
   and the viewer now hand the address straight to Safari.
+
+### Threads
+
+- **Posts by 2ch's staff are signed as on the site.** The administrator's
+  posts read `!!%adm%!!`, as in the pinned /b/ thread about the monkey
+  feature, where the site says `## Abu ##`. 2ch marks its staff with a code
+  in the trip rather than a trip of their own, and the app showed the code.
+  It now shows `## Abu ##` for the administrator and `## Mod ##` for a
+  moderator, in the site's own purple and blue, so a post from staff stands
+  out from an ordinary trip.
 
 ## 2.4.6
 

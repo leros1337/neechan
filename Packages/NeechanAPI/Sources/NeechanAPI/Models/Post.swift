@@ -81,6 +81,37 @@ public struct Post: Sendable, Hashable, Identifiable, Decodable {
     /// The thread this post lives in: its own number when it is the original post.
     public var threadNum: Int { isOriginalPost ? num : parent }
 
+    /// Who on the site's staff wrote this, if anyone did.
+    ///
+    /// 2ch marks its staff with a code in the trip rather than a trip of their
+    /// own, and the site puts a label in its place: the same two cases its own
+    /// script handles when it draws a post.
+    public var staffRole: StaffRole? {
+        switch tripcode {
+        case "!!%adm%!!": .admin
+        case "!!%mod%!!": .moderator
+        default: nil
+        }
+    }
+
+    /// The trip as the site shows it.
+    ///
+    /// A staff code is a code, not something to read: shown as it came, the
+    /// administrator's posts were signed `!!%adm%!!` where the site says
+    /// `## Abu ##`.
+    public var displayTripcode: String {
+        switch staffRole {
+        case .admin: "## Abu ##"
+        case .moderator: "## Mod ##"
+        case nil: tripcode
+        }
+    }
+
+    public enum StaffRole: Sendable, Hashable {
+        case admin
+        case moderator
+    }
+
     /// Builds a post directly, for a site whose JSON is not 2ch's.
     ///
     /// The defaults mirror what `init(from:)` falls back to. `likes` and

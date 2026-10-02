@@ -478,7 +478,7 @@ struct PostHeaderView: View {
 
             Text(displayName)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(post.tripcode.isEmpty ? Color.secondary : Color.accentColor)
+                .foregroundStyle(nameColor)
                 .lineLimit(1)
 
             // Boards with poster IDs give each poster a generated nickname in
@@ -537,8 +537,19 @@ struct PostHeaderView: View {
 
     private var displayName: String {
         let name = post.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trip = post.tripcode.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trip = post.displayTripcode.trimmingCharacters(in: .whitespacesAndNewlines)
         return [name, trip].filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    /// The name's colour: the site's own for its staff, so a post from them
+    /// stands out the way it does there, the accent for any other trip.
+    private var nameColor: Color {
+        switch post.staffRole {
+        // `.post__adm` and `.post__mod` in 2ch's stylesheet.
+        case .admin: Color(.sRGB, red: 0x80 / 255, green: 0, blue: 0x80 / 255)
+        case .moderator: Color(.sRGB, red: 0x22 / 255, green: 0x66 / 255, blue: 0xAA / 255)
+        case nil: post.tripcode.isEmpty ? Color.secondary : Color.accentColor
+        }
     }
 }
 
