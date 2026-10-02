@@ -43,7 +43,7 @@ extension View {
             if case .failure = result {
                 onResult(
                     AlertMessage(
-                        text: String(localized: "The backup was not saved.", bundle: .module, locale: AppLocale.current)
+                        text: String(localized: "The backup was not saved.", bundle: .module.forAppLanguage(), locale: AppLocale.current)
                     )
                 )
             }

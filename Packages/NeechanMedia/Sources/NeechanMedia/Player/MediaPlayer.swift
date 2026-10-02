@@ -368,7 +368,7 @@ public final class MediaPlayer {
         // What the reader is shown is the same sentence whatever went wrong.
         // The detail goes to the diagnostics, which is where it is useful.
         state = machine.handle(.failed(
-            String(localized: "Playback failed.", bundle: .module, locale: AppLocale.current)
+            String(localized: "Playback failed.", bundle: .module.forAppLanguage(), locale: AppLocale.current)
         ))
         lastFailure = message
         MediaLog.player.error("failed: \(message, privacy: .public)")

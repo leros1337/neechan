@@ -160,11 +160,17 @@ public struct PostTextRenderer: Sendable {
     /// 2ch marks a reference to the opening post the same way, but does it
     /// server-side by shipping " (OP)" inside the anchor; this is the app's own
     /// half of the same idea.
-    private static let ownReferenceMark = String(
-        localized: "(Y)",
-        bundle: .module,
-        comment: "Follows a >>N reference that points at a post the reader wrote"
-    )
+    ///
+    /// Read each time rather than kept, so it changes when the reader changes
+    /// the app's language instead of keeping whichever was first asked for.
+    private static var ownReferenceMark: String {
+        String(
+            localized: "(Y)",
+            bundle: .module.forAppLanguage(),
+            locale: AppLocale.current,
+            comment: "Follows a >>N reference that points at a post the reader wrote"
+        )
+    }
 
     private func run(_ text: String, style: PostStyle, context: Context) -> AttributedString {
         var run = AttributedString(text)

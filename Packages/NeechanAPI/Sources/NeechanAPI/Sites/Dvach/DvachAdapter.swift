@@ -175,7 +175,7 @@ extension DvachAdapter {
                 code: .unknown(reply.statusCode),
                 message: String(
                     localized: "The site answered with something unexpected.",
-                    bundle: .module,
+                    bundle: .module.forAppLanguage(),
                     locale: AppLocale.current
                 )
             )
@@ -189,7 +189,7 @@ extension DvachAdapter {
             code: .unknown(reply.statusCode),
             message: String(
                 localized: "The site did not say whether the post was made.",
-                bundle: .module,
+                bundle: .module.forAppLanguage(),
                 locale: AppLocale.current
             )
         )

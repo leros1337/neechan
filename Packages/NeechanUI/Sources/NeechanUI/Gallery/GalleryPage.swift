@@ -238,7 +238,7 @@ struct GalleryPage: View {
 
     private func load() async {
         guard let url else {
-            loadState = .failed(String(localized: "This file has no address.", bundle: .module, locale: AppLocale.current))
+            loadState = .failed(String(localized: "This file has no address.", bundle: .module.forAppLanguage(), locale: AppLocale.current))
             return
         }
         loadState = .loading
@@ -279,7 +279,7 @@ struct GalleryPage: View {
             loadState = .failed(
                 String(
                     localized: "This file is not an image.",
-                    bundle: .module,
+                    bundle: .module.forAppLanguage(),
                     locale: AppLocale.current
                 )
             )

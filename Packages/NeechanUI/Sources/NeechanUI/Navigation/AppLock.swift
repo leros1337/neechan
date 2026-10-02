@@ -97,7 +97,7 @@ public final class AppLock {
         attempt = Task { [weak self, authenticator] in
             let reason = String(
                 localized: "Unlock Neechan",
-                bundle: .module,
+                bundle: .module.forAppLanguage(),
                 locale: AppLocale.current
             )
             let outcome = await authenticator.authenticate(reason: reason)

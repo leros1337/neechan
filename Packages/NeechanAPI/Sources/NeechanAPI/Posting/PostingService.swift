@@ -36,7 +36,7 @@ public actor PostingService {
                 code: .unknown(0),
                 message: String(
                     localized: "The post could not be sent.",
-                    bundle: .module,
+                    bundle: .module.forAppLanguage(),
                     locale: AppLocale.current
                 )
             )
@@ -49,7 +49,7 @@ public actor PostingService {
                 code: .unknown(reply.statusCode),
                 message: String(
                     localized: "The site wants to check your browser before accepting a post.",
-                    bundle: .module,
+                    bundle: .module.forAppLanguage(),
                     locale: AppLocale.current
                 )
             )

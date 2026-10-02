@@ -100,7 +100,8 @@ extension SearchService.SearchError {
         case .queryTooShort(let minimum):
             String(
                 localized: "Type at least \(minimum) characters.",
-                bundle: .neechanUI
+                bundle: .neechanUI.forAppLanguage(),
+                locale: AppLocale.current
             )
         case .failed(let message):
             message

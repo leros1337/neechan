@@ -13,29 +13,29 @@ extension DvachError {
         switch self {
         case .api(let error):
             error.message.isEmpty
-                ? String(localized: "The server rejected the request.", bundle: .neechanUI, locale: AppLocale.current)
+                ? String(localized: "The server rejected the request.", bundle: .neechanUI.forAppLanguage(), locale: AppLocale.current)
                 : error.message
         case .http(let status, _):
             switch status {
             case 404:
-                String(localized: "Not found. It may have been deleted.", bundle: .neechanUI, locale: AppLocale.current)
+                String(localized: "Not found. It may have been deleted.", bundle: .neechanUI.forAppLanguage(), locale: AppLocale.current)
             case 429:
-                String(localized: "Too many requests. Try again in a moment.", bundle: .neechanUI, locale: AppLocale.current)
+                String(localized: "Too many requests. Try again in a moment.", bundle: .neechanUI.forAppLanguage(), locale: AppLocale.current)
             case 500...599:
-                String(localized: "The site is having trouble. Try again later.", bundle: .neechanUI, locale: AppLocale.current)
+                String(localized: "The site is having trouble. Try again later.", bundle: .neechanUI.forAppLanguage(), locale: AppLocale.current)
             default:
-                String(localized: "The server answered with an error.", bundle: .neechanUI, locale: AppLocale.current)
+                String(localized: "The server answered with an error.", bundle: .neechanUI.forAppLanguage(), locale: AppLocale.current)
             }
         case .decoding:
-            String(localized: "The site sent something this app could not read.", bundle: .neechanUI, locale: AppLocale.current)
+            String(localized: "The site sent something this app could not read.", bundle: .neechanUI.forAppLanguage(), locale: AppLocale.current)
         case .cloudflareChallenge:
-            String(localized: "The site wants to check your browser.", bundle: .neechanUI, locale: AppLocale.current)
+            String(localized: "The site wants to check your browser.", bundle: .neechanUI.forAppLanguage(), locale: AppLocale.current)
         case .transport:
-            String(localized: "No connection.", bundle: .neechanUI, locale: AppLocale.current)
+            String(localized: "No connection.", bundle: .neechanUI.forAppLanguage(), locale: AppLocale.current)
         case .unsupported:
             String(
                 localized: "This imageboard does not offer that.",
-                bundle: .neechanUI,
+                bundle: .neechanUI.forAppLanguage(),
                 locale: AppLocale.current
             )
         }
@@ -61,13 +61,13 @@ extension Error {
     public var readableSaveMessage: String {
         if self is CancellationError {
             return String(
-                localized: "The download was cancelled.", bundle: .neechanUI, locale: AppLocale.current
+                localized: "The download was cancelled.", bundle: .neechanUI.forAppLanguage(), locale: AppLocale.current
             )
         }
         if let error = self as? FileDownloadSaver.SaveError, error == .destinationUnavailable {
             return String(
                 localized: "The folder you chose is no longer available. Pick it again in Settings.",
-                bundle: .neechanUI,
+                bundle: .neechanUI.forAppLanguage(),
                 locale: AppLocale.current
             )
         }

@@ -61,7 +61,7 @@ public struct PasscodeAuth: Sendable {
                 response.error
                     ?? DvachAPIError(
                         code: .passcodeMissing,
-                        message: String(localized: "The passcode was not accepted.", bundle: .module, locale: AppLocale.current)
+                        message: String(localized: "The passcode was not accepted.", bundle: .module.forAppLanguage(), locale: AppLocale.current)
                     )
             )
         }

@@ -82,7 +82,7 @@ struct PasscodeLoginView: View {
         do {
             let response = try await services.client.passcodeLogin(passcode: passcode)
             guard let granted = response.passcode else {
-                state = .failed(String(localized: "The site did not accept that passcode.", bundle: .module, locale: AppLocale.current))
+                state = .failed(String(localized: "The site did not accept that passcode.", bundle: .module.forAppLanguage(), locale: AppLocale.current))
                 return
             }
             passcode = ""

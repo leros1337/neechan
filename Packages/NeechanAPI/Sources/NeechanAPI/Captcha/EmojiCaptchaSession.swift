@@ -76,7 +76,7 @@ public actor EmojiCaptchaSession {
         default:
             throw CaptchaError.rejected(
                 response.error?.message
-                    ?? String(localized: "The captcha could not be loaded.", bundle: .module, locale: AppLocale.current)
+                    ?? String(localized: "The captcha could not be loaded.", bundle: .module.forAppLanguage(), locale: AppLocale.current)
             )
         }
 

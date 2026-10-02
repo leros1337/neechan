@@ -75,7 +75,7 @@ public struct BoardsListView: View {
             }
 
             ForEach(filteredCategories) { category in
-                Section(category.name.isEmpty ? String(localized: "Other", bundle: .module, locale: AppLocale.current) : category.name) {
+                Section(category.name.isEmpty ? String(localized: "Other", bundle: .module.forAppLanguage(), locale: AppLocale.current) : category.name) {
                     ForEach(category.boards) { board in
                         // A board for adults is listed but not opened. The tap
                         // has to go somewhere: `Router.push` refuses silently,

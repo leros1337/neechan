@@ -223,7 +223,7 @@ struct MediaSettingsView: View {
                 services.settings.downloadFolderBookmark = try FileDownloadSaver.bookmark(for: url)
             } catch {
                 folderMessage = AlertMessage(
-                    text: String(localized: "That folder could not be used.", bundle: .module, locale: AppLocale.current)
+                    text: String(localized: "That folder could not be used.", bundle: .module.forAppLanguage(), locale: AppLocale.current)
                 )
             }
         }

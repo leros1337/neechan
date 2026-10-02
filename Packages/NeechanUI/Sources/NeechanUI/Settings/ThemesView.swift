@@ -107,7 +107,7 @@ struct ThemesView: View {
             await reload()
         } catch {
             message = AlertMessage(
-                text: String(localized: "That file is not a theme.", bundle: .module, locale: AppLocale.current)
+                text: String(localized: "That file is not a theme.", bundle: .module.forAppLanguage(), locale: AppLocale.current)
             )
         }
     }

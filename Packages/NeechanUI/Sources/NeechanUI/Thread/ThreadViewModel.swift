@@ -189,13 +189,13 @@ public final class ThreadViewModel {
             response = try await services.savedThreads.load(key)
         } catch {
             loadState = .failed(
-                String(localized: "The saved copy of this thread could not be read.", bundle: .neechanUI, locale: AppLocale.current)
+                String(localized: "The saved copy of this thread could not be read.", bundle: .neechanUI.forAppLanguage(), locale: AppLocale.current)
             )
             return
         }
         guard let response else {
             loadState = .failed(
-                String(localized: "This thread is no longer saved on this device.", bundle: .neechanUI, locale: AppLocale.current)
+                String(localized: "This thread is no longer saved on this device.", bundle: .neechanUI.forAppLanguage(), locale: AppLocale.current)
             )
             return
         }

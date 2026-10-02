@@ -8,8 +8,9 @@ Notable changes per release. Earlier releases are listed under
 Sound in an older WebM no longer crackles and seeking keeps it, a file's
 long-press menu works over a playing video, links to the file itself and comes
 to the video feed, posts by 2ch's staff are signed the way the site signs them,
-searching on a Mac no longer closes the app, a backup carries everything, and
-replies can be followed down from the replies window.
+searching on a Mac no longer closes the app, a backup carries everything,
+replies can be followed down from the replies window, and messages are in the
+language chosen in the app.
 
 ### Media
 
@@ -123,6 +124,15 @@ replies can be followed down from the replies window.
   adds what is missing. Threads saved for reading offline and unsent drafts
   are still not part of it. A backup made before this still imports, and one
   made now still opens in an older version, which takes the parts it knows.
+
+### Translations
+
+- **Messages are in the language chosen in the app.** With the app set to
+  one language and the phone to another, every message the app puts
+  together itself came out in the phone's: errors, alerts, the backup's
+  report, the "(You)" after a quote of your own post, and the notification
+  for new posts in a watched thread. The language picker only reached the
+  text drawn on screen. Those messages now follow it too.
 
 ## 2.4.6
 

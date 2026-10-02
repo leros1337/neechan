@@ -99,7 +99,7 @@ struct AboutView: View {
             isExporting = true
         } catch {
             message = AlertMessage(
-                text: String(localized: "The backup could not be built.", bundle: .module, locale: AppLocale.current)
+                text: String(localized: "The backup could not be built.", bundle: .module.forAppLanguage(), locale: AppLocale.current)
             )
         }
     }
@@ -123,18 +123,18 @@ struct AboutView: View {
                 text: restored.restoredSettings
                     ? String(
                         localized: "Added \(summary.total) items and restored the settings.",
-                        bundle: .module,
+                        bundle: .module.forAppLanguage(),
                         locale: AppLocale.current
                     )
                     : String(
                         localized: "Added \(summary.total) items.",
-                        bundle: .module,
+                        bundle: .module.forAppLanguage(),
                         locale: AppLocale.current
                     )
             )
         } catch {
             message = AlertMessage(
-                text: String(localized: "That file is not a Neechan backup.", bundle: .module, locale: AppLocale.current)
+                text: String(localized: "That file is not a Neechan backup.", bundle: .module.forAppLanguage(), locale: AppLocale.current)
             )
         }
     }

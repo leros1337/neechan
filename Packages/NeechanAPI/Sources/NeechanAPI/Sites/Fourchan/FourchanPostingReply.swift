@@ -16,7 +16,7 @@ enum FourchanPostingReply {
                 code: .unknown(0),
                 message: String(
                     localized: "The site did not say whether the post went through.",
-                    bundle: .module,
+                    bundle: .module.forAppLanguage(),
                     locale: AppLocale.current
                 )
             )

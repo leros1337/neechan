@@ -1,5 +1,6 @@
 #if canImport(UserNotifications)
 import Foundation
+import NeechanAPI
 import NeechanSettings
 import UserNotifications
 
@@ -57,7 +58,8 @@ public actor NotificationScheduler {
             content.title = titles[result.key] ?? "/\(result.key.board)/\(result.key.threadNum)"
             content.body = String(
                 localized: "\(result.newPostCount) new posts",
-                bundle: .module
+                bundle: .module.forAppLanguage(),
+                locale: AppLocale.current
             )
             content.sound = .default
             content.threadIdentifier = Self.threadCategory

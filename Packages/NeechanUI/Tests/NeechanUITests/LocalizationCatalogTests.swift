@@ -166,15 +166,47 @@ struct LocalizedCallSiteTests {
 
     /// A string built in code follows the device's language unless told which
     /// one to use, so the in-app language switch would pass it by.
-    @Test("every String(localized:) names the chosen locale")
+    ///
+    /// Both halves are needed. The locale only formats what is interpolated;
+    /// the translation is chosen by the bundle, which has to be asked for the
+    /// app's language. With the locale alone every one of these came out in the
+    /// device's language — "Моя тема" on a Russian phone set to English.
+    @Test("every String(localized:) asks for the app's language")
     func localizedStringsFollowTheChosenLanguage() throws {
         var offenders: [String] = []
         for source in try sources() where !source.path.hasSuffix("AppLocale.swift") {
-            for call in matches(#"String\(localized:.*?\)"#, in: source.text)
-            where !call.contains("locale:") || !call.contains("bundle:") {
+            for call in calls(to: #"String\(\s*localized:"#, in: source.text)
+            where !call.contains("locale: AppLocale.current") || !call.contains(".forAppLanguage()") {
                 offenders.append("\(source.path.split(separator: "/").last ?? ""): \(call.prefix(60))")
             }
         }
         #expect(offenders.isEmpty, "not following the app's language: \(offenders.joined(separator: " | "))")
+    }
+
+    /// Every call that opens with `pattern`, up to its own closing parenthesis.
+    ///
+    /// Counted rather than matched, so an interpolation's parentheses or a call
+    /// split over several lines do not end it early. A regular expression
+    /// stopped at the first `)` it met, and a call starting on its own line was
+    /// never seen at all.
+    private func calls(to pattern: String, in text: String) -> [String] {
+        guard let expression = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let range = NSRange(text.startIndex..., in: text)
+        return expression.matches(in: text, range: range).compactMap { match in
+            guard let start = Range(match.range, in: text)?.lowerBound else { return nil }
+            var depth = 0
+            var index = start
+            while index < text.endIndex {
+                switch text[index] {
+                case "(": depth += 1
+                case ")":
+                    depth -= 1
+                    if depth == 0 { return String(text[start...index]) }
+                default: break
+                }
+                index = text.index(after: index)
+            }
+            return String(text[start...])
+        }
     }
 }
