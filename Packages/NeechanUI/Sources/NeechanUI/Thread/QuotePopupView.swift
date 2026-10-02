@@ -320,8 +320,18 @@ struct RepliesSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(AppServices.self) private var services
-    /// Post numbers pushed on top of the root list.
-    @State private var path: [Int] = []
+    /// Screens pushed on top of the root list.
+    @State private var path: [Screen] = []
+
+    /// What can be pushed inside the window.
+    private enum Screen: Hashable {
+        /// A quoted post, followed by its own replies.
+        case post(Int)
+        /// The replies to a post, reached from the "N replies" on its card.
+        case replies(to: Int)
+    }
+
+    private var tree: ReplyTree { ReplyTree(snapshot: snapshot, hidden: hiddenPostNums) }
     @State private var revealedSpoilers: Set<Int> = []
     /// A file tapped in one of the cards, shown in the viewer over this window.
     ///
@@ -333,13 +343,11 @@ struct RepliesSheet: View {
         NavigationStack(path: $path) {
             repliesList(to: rootPostNum)
                 .navigationTitle(
-                    Text("\(replies(to: rootPostNum).count) replies", bundle: .module)
+                    Text("\(tree.replies(to: rootPostNum).count) replies", bundle: .module)
                 )
                 .inlineNavigationTitle()
-                .navigationDestination(for: Int.self) { postNum in
-                    quotedPost(postNum)
-                        .navigationTitle(Text(verbatim: "\u{2116}\(postNum)"))
-                        .inlineNavigationTitle()
+                .navigationDestination(for: Screen.self) { screen in
+                    destination(screen)
                         // A pushed screen gets its own toolbar, so the way out
                         // has to be repeated or it disappears once you go deeper.
                         .toolbar { doneButton }
@@ -355,7 +363,7 @@ struct RepliesSheet: View {
                     // Within this window: the post is pushed the way a quote
                     // is, so Back returns to the list it came from.
                     galleryStart = nil
-                    if snapshot.post(num: postNum) != nil { path.append(postNum) }
+                    if snapshot.post(num: postNum) != nil { path.append(.post(postNum)) }
                 }
             )
         }
@@ -380,11 +388,25 @@ struct RepliesSheet: View {
 
     // MARK: Screens
 
+    @ViewBuilder
+    private func destination(_ screen: Screen) -> some View {
+        switch screen {
+        case .post(let postNum):
+            quotedPost(postNum)
+                .navigationTitle(Text(verbatim: "\u{2116}\(postNum)"))
+                .inlineNavigationTitle()
+        case .replies(let postNum):
+            repliesList(to: postNum)
+                .navigationTitle(Text("\(tree.replies(to: postNum).count) replies", bundle: .module))
+                .inlineNavigationTitle()
+        }
+    }
+
     /// The replies to one post.
     private func repliesList(to postNum: Int) -> some View {
         ScrollView {
             LazyVStack(spacing: 12) {
-                ForEach(replies(to: postNum)) { post in
+                ForEach(tree.replies(to: postNum)) { post in
                     card(for: post)
                 }
             }
@@ -398,9 +420,11 @@ struct RepliesSheet: View {
         if let post = snapshot.post(num: postNum) {
             ScrollView {
                 LazyVStack(spacing: 12) {
-                    card(for: post)
+                    // Its replies are listed straight below it, so a button
+                    // opening the same list again would only be in the way.
+                    card(for: post, showsReplies: false)
 
-                    let nested = replies(to: postNum)
+                    let nested = tree.replies(to: postNum)
                     if !nested.isEmpty {
                         Text("\(nested.count) replies", bundle: .module)
                             .font(.caption.weight(.semibold))
@@ -424,13 +448,17 @@ struct RepliesSheet: View {
         }
     }
 
-    private func card(for post: Post) -> some View {
+    /// A post as a card, with the same "N replies" it carries in the thread.
+    ///
+    /// The button used to be left off every card here, so a reply that was
+    /// answered in turn gave no sign of it and no way on: following a
+    /// conversation stopped at the first level unless there was a quote to
+    /// tap. It pushes that post's replies, so Back returns to this list.
+    private func card(for post: Post, showsReplies: Bool = true) -> some View {
         PostCellView(
             post: post,
             content: snapshot.content(of: post.num),
-            // Replies are reached by tapping a quote, not by another count
-            // inside a window that is already about replies.
-            backlinks: [],
+            backlinks: showsReplies ? tree.replyNums(to: post.num) : [],
             isOwn: snapshot.isOwn(post.num),
             repliesToOwn: false,
             ownPostNums: snapshot.ownPostNums,
@@ -439,7 +467,7 @@ struct RepliesSheet: View {
             isNew: false,
             revealSpoilers: revealedSpoilers.contains(post.num),
             indexInThread: snapshot.indexInThread(of: post),
-            onOpenReplies: {},
+            onOpenReplies: { path.append(.replies(to: post.num)) },
             onOpenAttachment: { attachment in openGallery(at: attachment) },
             onToggleOwn: { onToggleOwn(post.num, !snapshot.isOwn(post.num)) }
         )
@@ -451,12 +479,6 @@ struct RepliesSheet: View {
         let items = snapshot.galleryItems
         guard let index = items.firstIndex(where: { $0.attachment.path == attachment.path }) else { return }
         galleryStart = GalleryStart(items: items, index: index)
-    }
-
-    private func replies(to postNum: Int) -> [Post] {
-        snapshot.index.backlinks(to: postNum)
-            .filter { !hiddenPostNums.contains($0) }
-            .compactMap { snapshot.post(num: $0) }
     }
 
     // MARK: Actions
@@ -473,7 +495,7 @@ struct RepliesSheet: View {
         case .post(_, _, let postNum):
             if snapshot.post(num: postNum) != nil {
                 // Push, so Back returns to the list this came from.
-                path.append(postNum)
+                path.append(.post(postNum))
             } else {
                 // Another thread is the thread view's job, not this window's.
                 dismiss()

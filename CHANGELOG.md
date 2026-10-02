@@ -8,7 +8,8 @@ Notable changes per release. Earlier releases are listed under
 Sound in an older WebM no longer crackles and seeking keeps it, a file's
 long-press menu works over a playing video, links to the file itself and comes
 to the video feed, posts by 2ch's staff are signed the way the site signs them,
-searching on a Mac no longer closes the app, and a backup carries everything.
+searching on a Mac no longer closes the app, a backup carries everything, and
+replies can be followed down from the replies window.
 
 ### Media
 
@@ -78,6 +79,14 @@ searching on a Mac no longer closes the app, and a backup carries everything.
   It now shows `## Abu ##` for the administrator and `## Mod ##` for a
   moderator, in the site's own purple and blue, so a post from staff stands
   out from an ordinary trip.
+- **Replies can be followed down from the replies window.** A reply listed
+  there that had replies of its own gave no sign of it: the "N replies" a
+  post carries in the thread was left off every card in the window, so
+  following a conversation stopped at the first level unless there was a
+  quote to tap. Each card now carries its own, and pressing it opens that
+  post's replies in the same window, with Back returning to the list before.
+  A quoted post, whose replies are already listed beneath it, leaves its own
+  off.
 
 ### Search
 
