@@ -8,7 +8,7 @@ Notable changes per release. Earlier releases are listed under
 Sound in an older WebM no longer crackles and seeking keeps it, a file's
 long-press menu works over a playing video, links to the file itself and comes
 to the video feed, posts by 2ch's staff are signed the way the site signs them,
-and searching on a Mac no longer closes the app.
+searching on a Mac no longer closes the app, and a backup carries everything.
 
 ### Media
 
@@ -91,6 +91,29 @@ and searching on a Mac no longer closes the app.
   board search and searching in a thread -- now uses a field drawn by the app
   instead, above the content, with a clear button, Esc to clear and Return to
   search. Nothing changes on an iPhone or iPad.
+
+### Backup
+
+- **A backup carries your settings.** Every one of them was left out: the
+  export wrote an empty list of settings and the import never looked for
+  one, so a backup restored on a new phone brought the favourites back and
+  reset everything else. A backup now holds all of them, the deletion
+  password for your posts and the Adult 18+ setting included, and importing
+  it takes them: the device ends up set the way the other one was, theme,
+  imageboard and icon too. A folder chosen for downloads stays behind, since
+  it only means something on the device that chose it, and so do the app
+  lock and the terms, which are asked on each device.
+- **And your statistics.** The time in the app, posts sent and threads opened
+  come with it, taking the larger count on each side, so importing the same
+  file twice does not count anything twice.
+- **And the rest of what you built up.** Your own posts are still marked as
+  yours, hidden posts stay hidden, a watched thread opens where you left it
+  with its unread count, your themes come along, and favourites keep their
+  order and their thumbnails. A backup used to hold only favourites, pinned
+  boards, history, the hiding rules and hidden threads. Importing still only
+  adds what is missing. Threads saved for reading offline and unsent drafts
+  are still not part of it. A backup made before this still imports, and one
+  made now still opens in an older version, which takes the parts it knows.
 
 ## 2.4.6
 

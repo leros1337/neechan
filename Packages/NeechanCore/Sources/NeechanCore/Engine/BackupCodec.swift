@@ -1,5 +1,6 @@
 import Foundation
 import NeechanAPI
+import NeechanSettings
 
 /// Everything worth carrying to another device, as one document.
 ///
@@ -7,6 +8,11 @@ import NeechanAPI
 /// cached posts, so it stays small and stays readable if the schema moves on.
 public struct NeechanBackup: Codable, Sendable, Equatable {
     /// Bumped when the shape changes in a way older builds cannot read.
+    ///
+    /// Not bumped for a part added alongside the others: every one of those is
+    /// optional, an older build skips what it does not know, and a newer one
+    /// finds nothing missing in an older file. The settings, statistics, own
+    /// posts, hidden posts, watch state and themes all came that way.
     ///
     /// Version 2 added the imageboard to every entry. The fields are optional
     /// rather than defaulted because `Codable`'s generated decoder throws
@@ -29,6 +35,11 @@ public struct NeechanBackup: Codable, Sendable, Equatable {
         public var isWatched: Bool
         /// Absent in a file written before there were two imageboards.
         public var site: String?
+        /// Where the reader put it in the list. Absent in an older file.
+        public var sortOrder: Int?
+        /// The opening post's thumbnail, so the list is not blank until the
+        /// thread is next opened. Absent in an older file.
+        public var opThumbnailPath: String?
 
         public var key: ThreadKey {
             ThreadKey(site: NeechanBackup.resolveSite(site), board: board, threadNum: threadNum)
@@ -88,6 +99,85 @@ public struct NeechanBackup: Codable, Sendable, Equatable {
         }
     }
 
+    /// A post the reader made, so it is still marked as theirs.
+    public struct OwnPostEntry: Codable, Sendable, Equatable {
+        public var board: String
+        public var threadNum: Int
+        public var postNum: Int
+        public var createdAt: Date
+        public var site: String?
+
+        public var key: ThreadKey {
+            ThreadKey(site: NeechanBackup.resolveSite(site), board: board, threadNum: threadNum)
+        }
+    }
+
+    /// A post hidden in one thread: by number, with its replies, by name, or
+    /// by likeness to some text.
+    public struct HiddenPostRuleEntry: Codable, Sendable, Equatable {
+        public var board: String
+        public var threadNum: Int
+        /// `post`, `repliesTree`, `name` or `similar`, as the store keeps it.
+        public var kind: String
+        public var postNum: Int?
+        public var name: String?
+        public var similarText: String?
+        public var createdAt: Date
+        public var site: String?
+
+        public var key: ThreadKey {
+            ThreadKey(site: NeechanBackup.resolveSite(site), board: board, threadNum: threadNum)
+        }
+
+        public var rule: LocalHideRule? {
+            switch kind {
+            case "post": postNum.map { .post(num: $0) }
+            case "repliesTree": postNum.map { .repliesTree(num: $0) }
+            case "name": name.map { .name($0) }
+            case "similar": similarText.map { .similar(to: $0) }
+            default: nil
+            }
+        }
+    }
+
+    /// Where the reader is in a watched thread, and what the watcher last saw.
+    public struct WatchedThreadEntry: Codable, Sendable, Equatable {
+        public var board: String
+        public var threadNum: Int
+        public var site: String?
+        public var lastReadPostNum: Int
+        public var lastKnownMaxNum: Int
+        public var lastKnownPostsCount: Int
+        public var unreadCount: Int
+        public var readPostsCount: Int
+        public var isThreadDeleted: Bool
+        public var isClosed: Bool
+        public var isArchived: Bool
+        public var lastPolledAt: Date
+        public var scrollAnchorPostNum: Int?
+        public var scrollAnchorOffset: Double
+
+        public var key: ThreadKey {
+            ThreadKey(site: NeechanBackup.resolveSite(site), board: board, threadNum: threadNum)
+        }
+    }
+
+    /// A theme the reader made or imported. The payload is the theme's own
+    /// file, kept as it was.
+    public struct ThemeEntry: Codable, Sendable, Equatable {
+        public var themeID: String
+        public var name: String
+        public var createdAt: Date
+        public var payload: Data
+    }
+
+    /// The usage counters on the About screen.
+    public struct StatisticsEntry: Codable, Sendable, Equatable {
+        public var secondsInApp: Double
+        public var postsSent: Int
+        public var threadsOpened: Int
+    }
+
     public var version: Int
     public var exportedAt: Date
     public var favorites: [FavoriteEntry]
@@ -99,7 +189,33 @@ public struct NeechanBackup: Codable, Sendable, Equatable {
     public var autohideRules: [AutohideEntry]
     public var hiddenThreads: [HiddenThreadEntry]
     /// Preferences, as a flat dictionary of strings.
+    ///
+    /// Never filled in, and kept only so an older file still decodes:
+    /// `preferences` is what carries them.
     public var settings: [String: String]
+    /// Every preference that was set, by its defaults key, as its own type.
+    public var preferences: [String: PreferenceValue]?
+    /// The preferences left at their defaults, which an import resets.
+    public var unsetPreferences: [String]?
+    public var statistics: StatisticsEntry?
+    public var ownPosts: [OwnPostEntry]?
+    public var hiddenPostRules: [HiddenPostRuleEntry]?
+    public var watchedThreads: [WatchedThreadEntry]?
+    public var themes: [ThemeEntry]?
+
+    /// The preferences, in the shape `AppSettings` takes them.
+    public var preferencesBackup: PreferencesBackup? {
+        preferences.map { PreferencesBackup(values: $0, unset: unsetPreferences ?? []) }
+    }
+
+    /// The usage counters, in the shape `AppSettings` takes them.
+    public var usageStatistics: UsageStatistics? {
+        statistics.map {
+            UsageStatistics(
+                secondsInApp: $0.secondsInApp, postsSent: $0.postsSent, threadsOpened: $0.threadsOpened
+            )
+        }
+    }
 
     public init(
         version: Int = NeechanBackup.currentVersion,
@@ -110,7 +226,13 @@ public struct NeechanBackup: Codable, Sendable, Equatable {
         history: [HistoryEntryRecord] = [],
         autohideRules: [AutohideEntry] = [],
         hiddenThreads: [HiddenThreadEntry] = [],
-        settings: [String: String] = [:]
+        settings: [String: String] = [:],
+        preferences: PreferencesBackup? = nil,
+        statistics: UsageStatistics? = nil,
+        ownPosts: [OwnPostEntry]? = nil,
+        hiddenPostRules: [HiddenPostRuleEntry]? = nil,
+        watchedThreads: [WatchedThreadEntry]? = nil,
+        themes: [ThemeEntry]? = nil
     ) {
         self.version = version
         self.exportedAt = exportedAt
@@ -121,6 +243,17 @@ public struct NeechanBackup: Codable, Sendable, Equatable {
         self.autohideRules = autohideRules
         self.hiddenThreads = hiddenThreads
         self.settings = settings
+        self.preferences = preferences?.values
+        self.unsetPreferences = preferences?.unset
+        self.statistics = statistics.map {
+            StatisticsEntry(
+                secondsInApp: $0.secondsInApp, postsSent: $0.postsSent, threadsOpened: $0.threadsOpened
+            )
+        }
+        self.ownPosts = ownPosts
+        self.hiddenPostRules = hiddenPostRules
+        self.watchedThreads = watchedThreads
+        self.themes = themes
     }
 }
 

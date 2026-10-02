@@ -852,25 +852,25 @@
         }
       }
     },
-    "A backup holds your favorites, history and rules. Importing adds what is missing and leaves the rest alone." : {
+    "A backup holds your settings, statistics, favorites, history, hidden posts and themes. Importing takes its settings and adds whatever else is missing." : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ein Backup enthält Favoriten, Verlauf und Regeln. Beim Import wird ergänzt, was fehlt; alles andere bleibt unangetastet."
+            "value" : "Ein Backup enthält Einstellungen, Statistik, Favoriten, Verlauf, ausgeblendete Beiträge und Designs. Beim Import werden seine Einstellungen übernommen und alles andere ergänzt, was fehlt."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A backup holds your favorites, history and rules. Importing adds what is missing and leaves the rest alone."
+            "value" : "A backup holds your settings, statistics, favorites, history, hidden posts and themes. Importing takes its settings and adds whatever else is missing."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Копия хранит избранное, историю и правила. Импорт добавляет недостающее и не трогает остальное."
+            "value" : "Копия хранит настройки, статистику, избранное, историю, скрытые посты и темы. Импорт берёт её настройки и добавляет всё остальное, чего не хватает."
           }
         }
       }
@@ -1123,6 +1123,77 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "Добавлено %lld элементов."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Added %lld items and restored the settings." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Eintrag hinzugefügt, Einstellungen wiederhergestellt."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Einträge hinzugefügt, Einstellungen wiederhergestellt."
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Added %lld item and restored the settings."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Added %lld items and restored the settings."
+                }
+              }
+            }
+          }
+        },
+        "ru" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Добавлено %lld элемента, настройки восстановлены."
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Добавлено %lld элементов, настройки восстановлены."
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Добавлен %lld элемент, настройки восстановлены."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Добавлено %lld элементов, настройки восстановлены."
                 }
               }
             }

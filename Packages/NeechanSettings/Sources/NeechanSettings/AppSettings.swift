@@ -84,27 +84,73 @@ public final class AppSettings {
         if self.isRestrictedBuild, !isAppStoreBuild {
             Self.migrateAdultDefault(defaults)
         }
-        self.storedImageboard = Self.readImageboard(defaults)
-        self.storedDomain = Self.readDomain(defaults)
-        self.storedTextScale = Self.clampScale(
-            Self.readDouble(defaults, Key.textScale, default: 1)
-        )
-        self.storedThumbnailScale = Self.clampScale(
-            Self.readDouble(defaults, Key.thumbnailScale, default: Self.defaultThumbnailScale)
-        )
-        self.storedCollapsePostLineLimit = Self.readInt(
-            defaults, Key.collapseLines, default: 12
-        )
         Self.migrateSafeForWork(defaults)
-        self.storedNSFWMode = Self.readBool(defaults, Key.nsfwMode, default: false)
-        self.storedMediaLoadPolicy = defaults.string(forKey: Key.mediaLoadPolicy)
-            .flatMap(MediaLoadPolicy.init(rawValue:)) ?? .always
-        self.storedAutoRefreshIntervalSeconds = Self.readInt(
-            defaults, Key.autoRefresh, default: 0
-        )
-        self.storedShowsHiddenThreads = Self.readBool(
-            defaults, Key.showsHiddenThreads, default: true
-        )
+        let drawn = DrawnPreferences(defaults)
+        self.storedImageboard = drawn.imageboard
+        self.storedDomain = drawn.domain
+        self.storedTextScale = drawn.textScale
+        self.storedThumbnailScale = drawn.thumbnailScale
+        self.storedCollapsePostLineLimit = drawn.collapsePostLineLimit
+        self.storedNSFWMode = drawn.nsfwMode
+        self.storedMediaLoadPolicy = drawn.mediaLoadPolicy
+        self.storedAutoRefreshIntervalSeconds = drawn.autoRefreshIntervalSeconds
+        self.storedShowsHiddenThreads = drawn.showsHiddenThreads
+    }
+
+    /// The preferences held in stored properties, read from the defaults.
+    ///
+    /// One reading for both the start and an import, so the two cannot come
+    /// to disagree about a default.
+    @MainActor
+    private struct DrawnPreferences {
+        let imageboard: Imageboard
+        let domain: DvachDomain
+        let textScale: Double
+        let thumbnailScale: Double
+        let collapsePostLineLimit: Int
+        let nsfwMode: Bool
+        let mediaLoadPolicy: MediaLoadPolicy
+        let autoRefreshIntervalSeconds: Int
+        let showsHiddenThreads: Bool
+
+        init(_ defaults: UserDefaults) {
+            imageboard = AppSettings.readImageboard(defaults)
+            domain = AppSettings.readDomain(defaults)
+            textScale = AppSettings.clampScale(
+                AppSettings.readDouble(defaults, Key.textScale, default: 1)
+            )
+            thumbnailScale = AppSettings.clampScale(
+                AppSettings.readDouble(defaults, Key.thumbnailScale, default: AppSettings.defaultThumbnailScale)
+            )
+            collapsePostLineLimit = AppSettings.readInt(defaults, Key.collapseLines, default: 12)
+            nsfwMode = AppSettings.readBool(defaults, Key.nsfwMode, default: false)
+            mediaLoadPolicy = defaults.string(forKey: Key.mediaLoadPolicy)
+                .flatMap(MediaLoadPolicy.init(rawValue:)) ?? .always
+            autoRefreshIntervalSeconds = AppSettings.readInt(defaults, Key.autoRefresh, default: 0)
+            showsHiddenThreads = AppSettings.readBool(defaults, Key.showsHiddenThreads, default: true)
+        }
+    }
+
+    /// Reads the stored properties again, after the defaults were written
+    /// behind their backs. Each is assigned only when it moved, so a screen
+    /// that reads one is redrawn only if it has to be.
+    private func reloadDrawnPreferences() {
+        let drawn = DrawnPreferences(storedDefaults)
+        if storedImageboard != drawn.imageboard { storedImageboard = drawn.imageboard }
+        if storedDomain != drawn.domain { storedDomain = drawn.domain }
+        if storedTextScale != drawn.textScale { storedTextScale = drawn.textScale }
+        if storedThumbnailScale != drawn.thumbnailScale { storedThumbnailScale = drawn.thumbnailScale }
+        if storedCollapsePostLineLimit != drawn.collapsePostLineLimit {
+            storedCollapsePostLineLimit = drawn.collapsePostLineLimit
+        }
+        if storedNSFWMode != drawn.nsfwMode { storedNSFWMode = drawn.nsfwMode }
+        if storedMediaLoadPolicy != drawn.mediaLoadPolicy { storedMediaLoadPolicy = drawn.mediaLoadPolicy }
+        if storedAutoRefreshIntervalSeconds != drawn.autoRefreshIntervalSeconds {
+            storedAutoRefreshIntervalSeconds = drawn.autoRefreshIntervalSeconds
+        }
+        if storedShowsHiddenThreads != drawn.showsHiddenThreads {
+            storedShowsHiddenThreads = drawn.showsHiddenThreads
+        }
     }
 
     /// Writes a preference and tells anyone observing it.
@@ -827,6 +873,96 @@ public final class AppSettings {
     /// A `Sendable` copy safe to hand to actors and background work.
     public var snapshot: SettingsSnapshot {
         SettingsSnapshot(imageboard: imageboard, domain: domain, defaultBoard: defaultBoard)
+    }
+
+    // MARK: Backup
+
+    /// The preferences a backup carries.
+    ///
+    /// Everything the reader chose, except what only means something on the
+    /// device it was chosen on: a bookmark to a folder there, the lock (asked of
+    /// the face or passcode of that device), the terms (agreed to on it), and
+    /// the flag that records a one-off migration. The usage counters travel
+    /// separately, because they are merged rather than replaced.
+    static let backedUpKeys: [String] = [
+        Key.imageboard, Key.postDeletionPassword, Key.domain, Key.defaultBoard,
+        Key.uniqueHash, Key.stripMetadata, Key.removeFileName,
+        Key.postsViewMode, Key.unreadMarkerMode,
+        Key.watcherInterval, Key.watcherNotifications, Key.watcherWiFiOnly,
+        Key.showsHiddenThreads,
+        Key.appearance, Key.themeID, Key.textScale, Key.thumbnailScale, Key.collapseLines,
+        Key.appIcon,
+        Key.nsfwMode, Key.allowsMature,
+        Key.remembersHistory, Key.internalBrowser, Key.language,
+        Key.catalogByDefault, Key.autoRefresh, Key.endlessMode,
+        Key.favoritesOrder, Key.favoriteOnReply, Key.watchNewFavorites,
+        Key.mediaLoadPolicy, Key.videoLoops, Key.videoAutoplay,
+        Key.conflictAction, Key.subdirectoryPattern, Key.convertWebM, Key.savesToPhotos,
+        Key.cacheLimit, Key.cacheMaxAge,
+        Key.boardViewModes, Key.lastViewMode,
+    ]
+
+    /// The preferences as they stand, for a backup: what was set, and which
+    /// were left at their defaults.
+    public func backupPreferences() -> PreferencesBackup {
+        var values: [String: PreferenceValue] = [:]
+        var unset: [String] = []
+        for key in Self.backedUpKeys {
+            guard let stored = storedDefaults.object(forKey: key) else {
+                unset.append(key)
+                continue
+            }
+            if let value = PreferenceValue(propertyList: stored) {
+                values[key] = value
+            }
+        }
+        return PreferencesBackup(values: values, unset: unset)
+    }
+
+    /// Takes a backup's preferences in place of these.
+    ///
+    /// A preference the backup says was left at its default is reset, so the
+    /// device ends up set the way the other one was rather than half and half.
+    /// Anything outside `backedUpKeys` is ignored, whatever the file says.
+    public func applyBackupPreferences(_ backup: PreferencesBackup) {
+        let carried = Set(Self.backedUpKeys)
+        for (key, value) in backup.values where carried.contains(key) {
+            storedDefaults.set(value.propertyList, forKey: key)
+        }
+        for key in backup.unset where carried.contains(key) {
+            storedDefaults.removeObject(forKey: key)
+        }
+        revision &+= 1
+        reloadDrawnPreferences()
+    }
+
+    /// The imageboard these settings will be on once `backup` is applied.
+    ///
+    /// Asked first so the change can go the one safe way, through
+    /// `AppServices.select`, which re-points the client before the setting is
+    /// seen. A backup that does not mention it leaves it where it is.
+    public func imageboard(after backup: PreferencesBackup) -> Imageboard {
+        if case .string(let raw)? = backup.values[Key.imageboard] {
+            return Imageboard(rawValue: raw) ?? .default
+        }
+        return backup.unset.contains(Key.imageboard) ? .default : imageboard
+    }
+
+    /// Folds a backup's usage counters into these, taking the larger of each.
+    ///
+    /// Not a sum: importing the same file twice would count everything twice.
+    /// Not a replacement: a device's own count is never lowered.
+    public func mergeStatistics(_ other: UsageStatistics) {
+        let current = statistics
+        if other.secondsInApp > current.secondsInApp {
+            writeStatistic(other.secondsInApp, forKey: Key.secondsInApp)
+        }
+        if other.postsSent > current.postsSent {
+            writeStatistic(other.postsSent, forKey: Key.postsSent)
+        }
+        if other.threadsOpened > current.threadsOpened {
+            writeStatistic(other.threadsOpened, forKey: Key.threadsOpened)
+        }
     }
 
     private enum Key {

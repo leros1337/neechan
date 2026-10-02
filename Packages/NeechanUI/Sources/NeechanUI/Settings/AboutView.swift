@@ -65,7 +65,7 @@ struct AboutView: View {
                 Text("Backup", bundle: .module)
             } footer: {
                 Text(
-                    "A backup holds your favorites, history and rules. Importing adds what is missing and leaves the rest alone.",
+                    "A backup holds your settings, statistics, favorites, history, hidden posts and themes. Importing takes its settings and adds whatever else is missing.",
                     bundle: .module
                 )
             }
@@ -94,7 +94,7 @@ struct AboutView: View {
 
     private func prepareExport() async {
         do {
-            let backup = try await services.backup.export(settings: [:])
+            let backup = try await services.makeBackup()
             exportDocument = BackupDocument(backup: backup)
             isExporting = true
         } catch {
@@ -112,12 +112,25 @@ struct AboutView: View {
 
         do {
             let backup = try BackupCodec.decode(Data(contentsOf: url))
-            let summary = try await services.backup.import(backup)
+            let restored = try await services.restore(from: backup)
+            // The setting says which icon; only the system can put it on the
+            // home screen, and it does nothing when it is already there.
+            if restored.restoredSettings {
+                await AppIconSwitcher.apply(.named(services.settings.appIconName))
+            }
+            let summary = restored.imported
             message = AlertMessage(
-                text: String(
-                    localized: "Added \(summary.total) items.",
-                    bundle: .module
-                )
+                text: restored.restoredSettings
+                    ? String(
+                        localized: "Added \(summary.total) items and restored the settings.",
+                        bundle: .module,
+                        locale: AppLocale.current
+                    )
+                    : String(
+                        localized: "Added \(summary.total) items.",
+                        bundle: .module,
+                        locale: AppLocale.current
+                    )
             )
         } catch {
             message = AlertMessage(
