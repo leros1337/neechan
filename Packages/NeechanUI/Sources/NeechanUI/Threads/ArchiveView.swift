@@ -51,7 +51,7 @@ struct ArchiveView: View {
         }
         .listStyle(.plain)
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .searchable(text: $searchText, prompt: Text("Filter archive", bundle: .module))
+        .appSearchable(text: $searchText, prompt: Text("Filter archive", bundle: .module))
         .refreshable { await load(page: page) }
         .navigationTitle(Text("Archive of /\(board)/", bundle: .module))
         .inlineNavigationTitle()

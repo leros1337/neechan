@@ -19,17 +19,53 @@ extension View {
     /// A search field docked under the navigation bar, where that placement
     /// exists. Keeps the field visible with the content rather than pushing a
     /// separate screen.
-    @ViewBuilder
-    func searchableInPlace(text: Binding<String>, prompt: Text) -> some View {
+    func searchableInPlace(
+        text: Binding<String>,
+        prompt: Text,
+        isFocused: FocusState<Bool>.Binding? = nil,
+        onSubmit: (() -> Void)? = nil
+    ) -> some View {
         #if os(iOS)
-        searchable(
+        appSearchable(
             text: text,
+            prompt: prompt,
             placement: .navigationBarDrawer(displayMode: .automatic),
-            prompt: prompt
+            isFocused: isFocused,
+            onSubmit: onSubmit
         )
         #else
-        searchable(text: text, prompt: prompt)
+        appSearchable(text: text, prompt: prompt, isFocused: isFocused, onSubmit: onSubmit)
         #endif
+    }
+
+    /// `searchable`, everywhere except an iPad app running on a Mac.
+    ///
+    /// There the system's search cannot be used at all. On macOS 27 opening it
+    /// ends the app: laying out its presentation asks `UIScreen` for the main
+    /// scene's size, and an iPad app on a Mac has none to give, so UIKit throws
+    /// "Accessing the focus system through UIScreen is no longer supported."
+    /// Placing it in the toolbar, or keeping the bar on screen while it is
+    /// open, goes the same way. A plain field above the content does instead.
+    @ViewBuilder
+    func appSearchable(
+        text: Binding<String>,
+        prompt: Text? = nil,
+        placement: SearchFieldPlacement = .automatic,
+        isFocused: FocusState<Bool>.Binding? = nil,
+        onSubmit: (() -> Void)? = nil
+    ) -> some View {
+        if InlineSearchField.isNeeded {
+            safeAreaInset(edge: .top, spacing: 0) {
+                InlineSearchField(text: text, prompt: prompt, isFocused: isFocused, onSubmit: onSubmit)
+            }
+        } else if let isFocused {
+            searchable(text: text, placement: placement, prompt: prompt)
+                .searchFocused(isFocused)
+                .onSubmit(of: .search) { onSubmit?() }
+        } else {
+            searchable(text: text, placement: placement, prompt: prompt)
+                .onSubmit(of: .search) { onSubmit?() }
+        }
     }
 
     /// Turns off automatic capitalisation where that setting exists.

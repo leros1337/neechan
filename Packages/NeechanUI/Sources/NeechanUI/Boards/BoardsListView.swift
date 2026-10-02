@@ -102,7 +102,7 @@ public struct BoardsListView: View {
         }
         .groupedListStyle()
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .searchable(text: $searchText)
+        .appSearchable(text: $searchText)
         // The title is drawn in the list rather than by the navigation bar, so
         // it can share its line with the switcher. Still set, and still
         // inline, so the bar keeps its name for the accessibility tree and for

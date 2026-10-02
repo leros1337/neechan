@@ -225,15 +225,16 @@ public struct ThreadView: View {
         .pullUpToRefresh { await model.refresh(userInitiated: true) }
         // Searching a thread belongs in the thread. Sending the reader to the
         // search tab lost their place and their way back.
+        // The field is tucked above the content, the way iOS hides search until
+        // it is pulled down, so the menu offers an explicit way in through the
+        // focus. Return in the field steps on, the way it does in every find
+        // bar.
         .searchableInPlace(
             text: $model.searchQuery,
-            prompt: Text("Search in thread", bundle: .module)
+            prompt: Text("Search in thread", bundle: .module),
+            isFocused: $isSearchFocused,
+            onSubmit: { model.nextMatch() }
         )
-        // The field is tucked above the content, the way iOS hides search until
-        // it is pulled down, so the menu offers an explicit way in.
-        .searchFocused($isSearchFocused)
-        // Return in the field steps on, the way it does in every find bar.
-        .onSubmit(of: .search) { model.nextMatch() }
         // Room under the last post for the search bar, so nothing is left
         // stuck beneath it.
         .contentMargins(.bottom, model.isSearching ? 64 : 0, for: .scrollContent)

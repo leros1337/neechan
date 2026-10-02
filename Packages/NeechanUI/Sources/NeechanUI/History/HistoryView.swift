@@ -35,7 +35,7 @@ public struct HistoryView: View {
         }
         .listStyle(.plain)
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .searchable(text: $searchText, prompt: Text("Search history", bundle: .module))
+        .appSearchable(text: $searchText, prompt: Text("Search history", bundle: .module))
         .navigationTitle(Text("History", bundle: .module))
         .toolbar {
             if !items.isEmpty {

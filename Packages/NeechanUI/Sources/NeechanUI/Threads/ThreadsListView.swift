@@ -58,7 +58,7 @@ public struct ThreadsListView: View {
         content
             .navigationTitle(navigationTitle)
             .inlineNavigationTitle()
-            .searchable(text: $searchText, prompt: Text("Filter threads", bundle: .module))
+            .appSearchable(text: $searchText, prompt: Text("Filter threads", bundle: .module))
             .refreshable { await load() }
             .toolbar { toolbarContent }
             .fullScreenCoverCompat(item: $galleryStart) { start in

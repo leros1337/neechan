@@ -27,10 +27,11 @@ struct ServerSearchView: View {
         }
         .listStyle(.plain)
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .searchable(text: $query, prompt: Text("Search /\(board)/", bundle: .module))
-        .onSubmit(of: .search) {
-            Task { await search() }
-        }
+        .appSearchable(
+            text: $query,
+            prompt: Text("Search /\(board)/", bundle: .module),
+            onSubmit: { Task { await search() } }
+        )
         .navigationTitle(Text("Search", bundle: .module))
         .inlineNavigationTitle()
         .overlay { stateOverlay }

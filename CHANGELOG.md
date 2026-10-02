@@ -5,10 +5,10 @@ Notable changes per release. Earlier releases are listed under
 
 ## Unreleased
 
-Sound in an older WebM no longer crackles, seeking keeps the sound and lands
-where it was sent, a file's long-press menu works over a playing video, links
-to the file itself, and comes to the video feed, and posts by 2ch's staff are
-signed the way the site signs them.
+Sound in an older WebM no longer crackles and seeking keeps it, a file's
+long-press menu works over a playing video, links to the file itself and comes
+to the video feed, posts by 2ch's staff are signed the way the site signs them,
+and searching on a Mac no longer closes the app.
 
 ### Media
 
@@ -78,6 +78,19 @@ signed the way the site signs them.
   It now shows `## Abu ##` for the administrator and `## Mod ##` for a
   moderator, in the site's own purple and blue, so a post from staff stands
   out from an ordinary trip.
+
+### Search
+
+- **Searching on a Mac no longer closes the app.** The iPad build running on
+  an Apple silicon Mac quit the moment a search field was clicked, starting
+  with the one over the board list. On macOS 27 the system's search cannot be
+  opened by an iPad app at all: setting it out asks the screen for the app's
+  main window, an iPad app on a Mac has none, and UIKit gives up with
+  "Accessing the focus system through UIScreen is no longer supported." On a
+  Mac every search -- boards, history, a board's threads and archive, the
+  board search and searching in a thread -- now uses a field drawn by the app
+  instead, above the content, with a clear button, Esc to clear and Return to
+  search. Nothing changes on an iPhone or iPad.
 
 ## 2.4.6
 

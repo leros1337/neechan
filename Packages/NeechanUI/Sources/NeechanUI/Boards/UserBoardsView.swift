@@ -25,7 +25,7 @@ struct UserBoardsView: View {
         }
         .groupedListStyle()
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .searchable(text: $searchText)
+        .appSearchable(text: $searchText)
         .navigationTitle(Text("User boards", bundle: .module))
         .inlineNavigationTitle()
         .overlay { stateOverlay }
