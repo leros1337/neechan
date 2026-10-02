@@ -161,6 +161,23 @@ public struct NeechanTheme: Sendable, Hashable, Codable, Identifiable {
         midnight,
     ]
 
+    /// A theme the reader made by picking two colours.
+    ///
+    /// Built the way the shipped schemes are, so it sits beside them: the
+    /// accent tints the app and the links, the quote colour is the greentext,
+    /// and the colours the system supplies are left to the system.
+    ///
+    /// - Parameter id: a new one each time by default, so two themes made with
+    ///   the same name are still two themes.
+    public static func custom(
+        id: String = "custom." + UUID().uuidString,
+        name: String,
+        accent: ThemeColor,
+        quote: ThemeColor
+    ) -> NeechanTheme {
+        scheme(id: id, name: name, accent: accent, quote: quote)
+    }
+
     /// A built-in with this id, if there is one.
     public static func builtIn(id: String) -> NeechanTheme? {
         builtIns.first { $0.id == id }

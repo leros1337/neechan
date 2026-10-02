@@ -1,9 +1,16 @@
 import Foundation
 import SwiftData
 
-/// Holds the themes the reader has imported.
+/// Holds the themes the reader has made or imported.
 @ModelActor
 public actor ThemeRepository {
+    public enum Failure: Error, Equatable {
+        /// A shipped theme already answers to this id. A stored copy would
+        /// never be seen, since the built-in is looked up first, and could
+        /// never be deleted.
+        case builtInID
+    }
+
     /// Every theme: the shipped schemes first, then whatever was imported.
     public func themes() throws -> [NeechanTheme] {
         let stored = try modelContext.fetch(
@@ -16,7 +23,13 @@ public actor ThemeRepository {
     /// the copy already held rather than adding a second one.
     @discardableResult
     public func `import`(_ data: Data) throws -> NeechanTheme {
-        let theme = try ThemeJSONDecoder.decode(data)
+        try add(ThemeJSONDecoder.decode(data))
+    }
+
+    /// Keeps a theme, replacing one already held under the same id.
+    @discardableResult
+    public func add(_ theme: NeechanTheme) throws -> NeechanTheme {
+        guard NeechanTheme.builtIn(id: theme.id) == nil else { throw Failure.builtInID }
         let payload = try JSONEncoder().encode(theme)
 
         if let existing = try stored(id: theme.id) {

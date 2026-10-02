@@ -193,6 +193,65 @@ struct ThemeRepositoryTests {
     }
 }
 
+/// A theme the reader makes by picking colours, rather than by finding a file.
+@Suite("Themes made from colours")
+struct CustomThemeTests {
+    private let accent = ThemeColor(red: 0.9, green: 0.2, blue: 0.5)
+    private let quote = ThemeColor(red: 0.2, green: 0.6, blue: 0.3)
+
+    private func makeRepository() throws -> ThemeRepository {
+        ThemeRepository(modelContainer: try NeechanStore.makeContainer(inMemory: true))
+    }
+
+    /// The same shape as a built-in: the accent tints the links as well, and
+    /// the colours the system supplies are left alone.
+    @Test("a theme from two colours is built the way the shipped ones are")
+    func shapedLikeABuiltIn() {
+        let theme = NeechanTheme.custom(name: "Мой", accent: accent, quote: quote)
+
+        #expect(theme.name == "Мой")
+        #expect(theme.accent == accent)
+        #expect(theme.link == accent)
+        #expect(theme.quote == quote)
+        #expect(theme.background == NeechanTheme.builtIn.background)
+        #expect(theme.spoiler == NeechanTheme.builtIn.spoiler)
+        #expect(!theme.isBuiltIn, "a theme the reader made can be deleted")
+    }
+
+    @Test("two themes made the same way are still two themes")
+    func freshIdentity() {
+        let first = NeechanTheme.custom(name: "Мой", accent: accent, quote: quote)
+        let second = NeechanTheme.custom(name: "Мой", accent: accent, quote: quote)
+
+        #expect(first.id != second.id)
+    }
+
+    @Test("a theme that was made is kept, listed and found again")
+    func addAndFind() async throws {
+        let repository = try makeRepository()
+        let theme = try await repository.add(NeechanTheme.custom(name: "Мой", accent: accent, quote: quote))
+
+        #expect(try await repository.themes().contains(theme))
+        #expect(try await repository.theme(id: theme.id) == theme)
+
+        try await repository.remove(id: theme.id)
+        #expect(try await repository.themes() == NeechanTheme.builtIns)
+    }
+
+    /// A stored copy under a shipped id would never be seen, since the
+    /// built-in answers first, and could never be deleted either.
+    @Test("a theme cannot be kept under a built-in's id")
+    func builtInIDRefused() async throws {
+        let repository = try makeRepository()
+        let impostor = NeechanTheme.custom(id: NeechanTheme.builtIn.id, name: "Amber", accent: accent, quote: quote)
+
+        await #expect(throws: ThemeRepository.Failure.builtInID) {
+            try await repository.add(impostor)
+        }
+        #expect(try await repository.themes() == NeechanTheme.builtIns)
+    }
+}
+
 @Suite("Media load policy")
 struct MediaLoadDecisionTests {
     @Test(

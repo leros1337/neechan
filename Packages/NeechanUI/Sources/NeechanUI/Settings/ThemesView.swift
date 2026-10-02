@@ -1,16 +1,13 @@
 import NeechanAPI
 import NeechanCore
 import SwiftUI
-#if canImport(UniformTypeIdentifiers)
-import UniformTypeIdentifiers
-#endif
 
-/// Picks a colour scheme, and takes in theme files exported from Dashchan.
+/// Picks a colour scheme, and makes new ones from colours the reader picks.
 struct ThemesView: View {
     @Environment(AppServices.self) private var services
 
     @State private var themes: [NeechanTheme] = [.builtIn]
-    @State private var isImporting = false
+    @State private var isCreating = false
     @State private var message: AlertMessage?
 
     var body: some View {
@@ -21,16 +18,11 @@ struct ThemesView: View {
                 } label: {
                     HStack(spacing: 12) {
                         ThemeSwatch(theme: theme)
-                        VStack(alignment: .leading) {
-                            Text(theme.name)
-                                .foregroundStyle(.primary)
-                            Text(
-                                theme.isDark ? "Dark" : "Light",
-                                bundle: .module
-                            )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        }
+                        // The name alone. A "Dark" or "Light" under it read as
+                        // what picking the theme would do, but light or dark is
+                        // the Appearance setting's to decide, not the theme's.
+                        Text(theme.name)
+                            .foregroundStyle(.primary)
                         Spacer()
                         if isSelected(theme) {
                             Image(systemName: "checkmark")
@@ -61,19 +53,25 @@ struct ThemesView: View {
         .inlineNavigationTitle()
         .toolbar {
             ToolbarItem(placement: .trailingBar) {
+                // A palette rather than a file: a theme here is two colours,
+                // and asking for a Dashchan file to get them sent the reader to
+                // Files for something they could simply have picked.
                 Button {
-                    isImporting = true
+                    isCreating = true
                 } label: {
                     Label {
-                        Text("Import theme", bundle: .module)
+                        Text("Add theme", bundle: .module)
                     } icon: {
                         Image(systemName: "plus")
                     }
                 }
+                .accessibilityIdentifier("themes-add")
             }
         }
-        .jsonFileImporter(isPresented: $isImporting) { url in
-            Task { await runImport(from: url) }
+        .sheet(isPresented: $isCreating) {
+            NewThemeView(startingFrom: selectedTheme) { theme in
+                Task { await keep(theme) }
+            }
         }
         .alert(item: $message) { message in
             Alert(title: Text(message.text))
@@ -87,6 +85,11 @@ struct ThemesView: View {
         (services.settings.themeID ?? NeechanTheme.builtIn.id) == theme.id
     }
 
+    /// The theme in use, which a new one starts from.
+    private var selectedTheme: NeechanTheme {
+        themes.first(where: isSelected) ?? .builtIn
+    }
+
     private func reload() async {
         themes = (try? await services.themes.themes()) ?? [.builtIn]
     }
@@ -97,17 +100,15 @@ struct ThemesView: View {
         await reload()
     }
 
-    private func runImport(from url: URL) async {
-        let scoped = url.startAccessingSecurityScopedResource()
-        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-
+    /// Keeps a theme the reader made, and puts it on.
+    private func keep(_ theme: NeechanTheme) async {
         do {
-            let theme = try await services.themes.import(Data(contentsOf: url))
+            try await services.themes.add(theme)
             services.settings.themeID = theme.id
             await reload()
         } catch {
             message = AlertMessage(
-                text: String(localized: "That file is not a theme.", bundle: .module.forAppLanguage(), locale: AppLocale.current)
+                text: String(localized: "The theme could not be saved.", bundle: .module.forAppLanguage(), locale: AppLocale.current)
             )
         }
     }
@@ -147,5 +148,25 @@ extension Color {
             blue: colour.blue,
             opacity: colour.opacity
         )
+    }
+}
+
+extension ThemeColor {
+    /// A colour picked in the palette, as a theme keeps it.
+    ///
+    /// Read as sRGB, the space `Color(_: ThemeColor)` draws in, so a colour
+    /// saved from the picker looks the same when the theme is next used. A
+    /// wide-gamut pick can fall outside it, and is kept to the edge.
+    init(_ color: Color) {
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 1
+        #if canImport(UIKit)
+        UIColor(color).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        #elseif canImport(AppKit)
+        if let srgb = NSColor(color).usingColorSpace(.sRGB) {
+            srgb.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        }
+        #endif
+        func clamped(_ value: CGFloat) -> Double { min(1, max(0, Double(value))) }
+        self.init(red: clamped(red), green: clamped(green), blue: clamped(blue), opacity: clamped(alpha))
     }
 }

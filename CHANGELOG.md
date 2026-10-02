@@ -9,8 +9,8 @@ Sound in an older WebM no longer crackles and seeking keeps it, a file's
 long-press menu works over a playing video, links to the file itself and comes
 to the video feed, posts by 2ch's staff are signed the way the site signs them,
 searching on a Mac no longer closes the app, a backup carries everything,
-replies can be followed down from the replies window, and messages are in the
-language chosen in the app.
+replies can be followed down from the replies window, messages are in the
+language chosen in the app, and a theme is made by picking its colours.
 
 ### Media
 
@@ -133,6 +133,17 @@ language chosen in the app.
   report, the "(You)" after a quote of your own post, and the notification
   for new posts in a watched thread. The language picker only reached the
   text drawn on screen. Those messages now follow it too.
+
+### Themes
+
+- **A theme is made by picking its colours.** The "+" on the Theme screen
+  asked for a theme file exported from Dashchan, so making one meant finding
+  one somewhere else first. It now opens the colour palette instead: pick an
+  accent, which tints the app and its links, and a colour for quotes, see
+  them on a sample post, name it and save. A built-in theme is made of the
+  same two colours. Theme files can no longer be imported.
+- **A theme no longer says "Dark" or "Light".** It read as what choosing the
+  theme would do, but light or dark is the Appearance setting's to decide.
 
 ## 2.4.6
 
