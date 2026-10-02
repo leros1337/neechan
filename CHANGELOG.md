@@ -3,6 +3,22 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## Unreleased
+
+Sound in an older WebM no longer crackles.
+
+### Media
+
+- **A WebM with Vorbis sound plays it cleanly.** The sound crackled all the
+  way through. A Vorbis frame lasts 2.7, 12 or 21.3 ms, but WebM stamps each
+  one to the whole millisecond, and the player played every frame at its
+  stamp. Nearly every frame began a fraction of a millisecond too early or
+  too late, cutting into the one before it or leaving a hole, and each of
+  those is a click. Each frame now starts exactly where the previous one
+  ended, and the stamps are followed only across a real gap in the file. Opus
+  sound, which most clips have, was spared all but one click at the start,
+  and that is gone too.
+
 ## 2.4.6
 
 A link to another board opens there instead of in Safari, a quote from another

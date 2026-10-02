@@ -34,6 +34,12 @@ public enum Fixture: String, CaseIterable, Sendable {
     case sampleVP9Profile0 = "sample_vp9_p0"
     /// VP8 with Opus. No hardware decoder exists for VP8 anywhere.
     case sampleVP8 = "sample_vp8"
+    /// VP8 with Vorbis, the older shape 2ch still serves.
+    ///
+    /// A Vorbis frame lasts 1024 samples, 21.333 ms at 48 kHz, so it never
+    /// lands on the millisecond the container stamps it with. Opus frames last
+    /// exactly 20 ms, which is why none of the other fixtures show that.
+    case sampleVorbis = "sample_vorbis"
     /// H.264 High with B-frames and AAC, so frames arrive out of display order.
     case sampleH264 = "sample_h264"
     /// HEVC tagged `hev1` with MP3 audio: the shape 2ch serves and the one
@@ -119,7 +125,7 @@ public enum Fixture: String, CaseIterable, Sendable {
         case .cloudflareChallenge, .fourchanCloudflareGate: "html"
         case .sampleStillPNG: "png"
         case .sampleAnimatedGIF: "gif"
-        case .sampleVideo, .sampleVP9Profile0, .sampleVP8,
+        case .sampleVideo, .sampleVP9Profile0, .sampleVP8, .sampleVorbis,
              .sampleVideoOnly, .sampleAudioOnly, .sampleLong: "webm"
         case .sampleH264, .sampleHEV1: "mp4"
         case .sampleMatroska, .sampleUndecodableAudio: "mkv"

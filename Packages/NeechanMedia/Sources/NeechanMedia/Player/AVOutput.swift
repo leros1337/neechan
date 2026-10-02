@@ -412,7 +412,7 @@ final class AVOutput: @unchecked Sendable {
             state.withLock {
                 if !$0.hasVideo { $0.isAwaitingNewPosition = false }
                 $0.lastAudioEnd = run.presentation
-                    + CMTime(seconds: run.mediaDuration, preferredTimescale: 48_000)
+                    + CMSampleBufferGetDuration(run.sampleBuffer)
             }
         }
         noticeRefill()

@@ -25,6 +25,9 @@ struct DecodedAudio: QueuedMedia, @unchecked Sendable {
 /// Opus and Vorbis both begin with samples that exist only to prime the
 /// decoder and must not be heard. libavcodec trims them itself, which is why
 /// there is nothing here about it.
+///
+/// Each run is played where the one before it ended, not where the container
+/// stamped it; `AudioTimeline` says why.
 final class AudioDecoder: @unchecked Sendable {
     enum Failure: Error, CustomStringConvertible {
         case noDecoder(AVCodecID)
@@ -44,6 +47,7 @@ final class AudioDecoder: @unchecked Sendable {
     private var resampled: UnsafeMutablePointer<AVFrame>?
     private var formatDescription: CMAudioFormatDescription?
     private let timeBase: AVRational
+    private var timeline: AudioTimeline
 
     private(set) var sampleRate: Int32 = 48_000
     private(set) var channelCount: Int32 = 2
@@ -51,6 +55,7 @@ final class AudioDecoder: @unchecked Sendable {
     init(stream: UnsafeMutablePointer<AVStream>) throws {
         let parameters = stream.pointee.codecpar!
         timeBase = stream.pointee.time_base
+        timeline = AudioTimeline(sampleRate: 48_000)
 
         guard let codec = avcodec_find_decoder(parameters.pointee.codec_id) else {
             throw Failure.noDecoder(parameters.pointee.codec_id)
@@ -69,6 +74,7 @@ final class AudioDecoder: @unchecked Sendable {
 
         sampleRate = context.pointee.sample_rate > 0 ? context.pointee.sample_rate : 48_000
         channelCount = min(2, max(1, context.pointee.ch_layout.nb_channels))
+        timeline = AudioTimeline(sampleRate: sampleRate)
 
         MediaLog.decoder.debug(
             """
@@ -133,6 +139,7 @@ final class AudioDecoder: @unchecked Sendable {
     func flush() {
         guard let context else { return }
         avcodec_flush_buffers(context)
+        timeline.reset()
     }
 
     private func makeResampler(from context: UnsafeMutablePointer<AVCodecContext>) throws {
@@ -217,11 +224,14 @@ final class AudioDecoder: @unchecked Sendable {
             with: data, blockBuffer: block, offsetIntoDestination: 0, dataLength: bytes
         ) == noErr else { return nil }
 
-        let presentation = TimeMath.presentation(
-            pts: frame.pointee.best_effort_timestamp,
-            dts: frame.pointee.pkt_dts,
-            numerator: timeBase.num,
-            denominator: timeBase.den
+        let presentation = timeline.place(
+            TimeMath.presentation(
+                pts: frame.pointee.best_effort_timestamp,
+                dts: frame.pointee.pkt_dts,
+                numerator: timeBase.num,
+                denominator: timeBase.den
+            ),
+            sampleCount: sampleCount
         )
         var timing = CMSampleTimingInfo(
             duration: CMTime(value: 1, timescale: sampleRate),

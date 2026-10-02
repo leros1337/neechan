@@ -40,7 +40,7 @@ struct AudioDecoderTests {
     @Test(
         "every audio codec the app meets decodes",
         arguments: [
-            Fixture.sampleVP9Profile0, .sampleVP8, .sampleVideo,
+            Fixture.sampleVP9Profile0, .sampleVP8, .sampleVorbis, .sampleVideo,
             .sampleH264, .sampleHEV1, .sampleMatroska
         ]
     )
@@ -66,6 +66,32 @@ struct AudioDecoderTests {
         // must not be heard. libavcodec trims them, so the first run starts at
         // the beginning rather than before it.
         #expect(times.first.map { $0 >= 0 } == true, "the first run started before zero")
+    }
+
+    /// Each run has to start exactly where the one before it ended. The
+    /// renderer plays a run at the time it is given, so a run stamped a
+    /// fraction of a millisecond early cuts into the last one and a run
+    /// stamped late leaves a hole, and either is a click. Vorbis in WebM made
+    /// one on nearly every frame, which is heard as crackling.
+    @Test(
+        "sound runs back to back, with no gaps and no overlaps",
+        arguments: [Fixture.sampleVorbis, .sampleVP9Profile0, .sampleH264]
+    )
+    func runsAreContiguous(fixture: Fixture) throws {
+        let (runs, _, _) = try decodeEverything(fixture)
+        #expect(runs.count > 1)
+
+        for (previous, next) in zip(runs, runs.dropFirst()) {
+            let previousEnd = previous.presentation
+                + CMSampleBufferGetDuration(previous.sampleBuffer)
+            #expect(
+                next.presentation == previousEnd,
+                """
+                \(fixture.rawValue): a run at \(TimeMath.seconds(next.presentation))s \
+                after one ending at \(TimeMath.seconds(previousEnd))s
+                """
+            )
+        }
     }
 
     @Test("what comes out is what the renderer was promised")
