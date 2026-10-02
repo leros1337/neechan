@@ -3,7 +3,7 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
-## Unreleased
+## 2.5.0
 
 Sound in an older WebM no longer crackles and seeking keeps it, a file's
 long-press menu works over a playing video, links to the file itself and comes
