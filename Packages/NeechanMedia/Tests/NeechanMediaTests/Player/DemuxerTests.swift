@@ -161,6 +161,76 @@ struct DemuxerTests {
         #expect(demuxer.readPacket() != nil, "nothing came back after seeking to the start")
     }
 
+    /// The first picture packet after a seek, in milliseconds, and whether it
+    /// is a keyframe.
+    private func firstPicture(after demuxer: Demuxer) throws -> (pts: Int64, isKeyframe: Bool) {
+        let index = try #require(demuxer.videoStream?.pointee.index)
+        while let packet = demuxer.readPacket() {
+            guard packet.streamIndex == index else { continue }
+            return (packet.packet.pointee.pts, packet.packet.pointee.flags & Int32(AV_PKT_FLAG_KEY) != 0)
+        }
+        Issue.record("no picture came back after the seek")
+        return (-1, false)
+    }
+
+    /// A file whose index calls every frame a keyframe. Believing it landed a
+    /// seek on a frame that cannot be decoded on its own, and the decoder then
+    /// refused every frame until the next real keyframe: the clip failed, or
+    /// showed a picture seconds away from the sound.
+    @Test(
+        "a seek lands on a real keyframe, whatever the file's index says",
+        arguments: [0.5, 2, 2.96, 3.5]
+    )
+    func seekLandsOnAKeyframe(target: TimeInterval) throws {
+        let url = try file(.sampleMisindexed)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let demuxer = try Demuxer(source: .file(url))
+        defer { demuxer.close() }
+
+        #expect(demuxer.seek(to: target))
+        let landed = try firstPicture(after: demuxer)
+        #expect(landed.isKeyframe, "landed on a frame at \(landed.pts) ms that is not a keyframe")
+        #expect(landed.pts <= Int64(target * 1000), "landed past the target, at \(landed.pts) ms")
+    }
+
+    /// Playing reads well ahead, so most keyframes have gone past by the time
+    /// anyone seeks. Going back to the start instead would decode the whole
+    /// clip up to the target before showing anything.
+    @Test("a keyframe already read is gone back to rather than the start")
+    func seekUsesAKeyframeAlreadyRead() throws {
+        let url = try file(.sampleMisindexed)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let demuxer = try Demuxer(source: .file(url))
+        defer { demuxer.close() }
+
+        while demuxer.readPacket() != nil {}
+        #expect(demuxer.seek(to: 3.5))
+        let landed = try firstPicture(after: demuxer)
+        #expect(landed.isKeyframe)
+        #expect(landed.pts == 3000, "landed at \(landed.pts) ms rather than on the keyframe at 3 s")
+    }
+
+    @Test("nothing read while finding a keyframe is lost")
+    func seekKeepsWhatItRead() throws {
+        let url = try file(.sampleMisindexed)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        func packets(afterSeekingTo target: TimeInterval) throws -> [Int64] {
+            let demuxer = try Demuxer(source: .file(url))
+            defer { demuxer.close() }
+            #expect(demuxer.seek(to: target))
+            var times: [Int64] = []
+            while let packet = demuxer.readPacket() { times.append(packet.packet.pointee.pts) }
+            return times
+        }
+
+        // A seek sent back to the start, after reading ahead to see where it
+        // had landed, gives out the same packets as a seek to the start.
+        let sentBack = try packets(afterSeekingTo: 2)
+        let fromTheStart = try packets(afterSeekingTo: 0)
+        #expect(sentBack == fromTheStart)
+    }
+
     /// The path a clip from a board actually takes: bytes fetched by the app,
     /// with its cookies and Apple's TLS, and handed to the demuxer piecemeal.
     @Test("a file still arriving over the network opens the same way")

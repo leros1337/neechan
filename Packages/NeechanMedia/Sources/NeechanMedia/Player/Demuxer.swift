@@ -33,6 +33,9 @@ final class OwnedPacket: QueuedMedia, @unchecked Sendable {
         byteCount = Int(packet.pointee.size)
     }
 
+    /// Whether the container says this packet decodes on its own.
+    var isKeyframe: Bool { packet.pointee.flags & Int32(AV_PKT_FLAG_KEY) != 0 }
+
     deinit {
         var owned: UnsafeMutablePointer<AVPacket>? = packet
         av_packet_free(&owned)
@@ -72,6 +75,14 @@ final class Demuxer: @unchecked Sendable {
     private let isInterrupted = Mutex(false)
 
     private(set) var videoStream: UnsafeMutablePointer<AVStream>?
+
+    /// Packets read while making sure a seek landed on a keyframe, handed out
+    /// before anything new is read. Like everything else here that moves the
+    /// file, only the reading thread touches it.
+    private var readAhead: [OwnedPacket] = []
+    /// Every keyframe of the picture read so far, in its stream's time base
+    /// and in order. What a seek falls back on when the file's index is wrong.
+    private var keyframes: [Int64] = []
     private(set) var audioStream: UnsafeMutablePointer<AVStream>?
 
     init(source: MediaSource) throws {
@@ -235,6 +246,13 @@ final class Demuxer: @unchecked Sendable {
     func read() -> ReadOutcome {
         if isCancelledNow { return .cancelled }
         if shouldInterrupt { return .interrupted }
+        if !readAhead.isEmpty { return .packet(readAhead.removeFirst()) }
+        return readFromFile()
+    }
+
+    private func readFromFile() -> ReadOutcome {
+        if isCancelledNow { return .cancelled }
+        if shouldInterrupt { return .interrupted }
         guard let context, let packet = av_packet_alloc() else { return .failed(0) }
 
         while true {
@@ -277,7 +295,25 @@ final class Demuxer: @unchecked Sendable {
                 av_packet_unref(packet)
                 continue
             }
-            return .packet(OwnedPacket(packet: packet, timeBase: timeBase(ofStream: index)))
+            let read = OwnedPacket(packet: packet, timeBase: timeBase(ofStream: index))
+            if index == videoStream?.pointee.index, read.isKeyframe { noteKeyframe(read) }
+            return .packet(read)
+        }
+    }
+
+    private func noteKeyframe(_ packet: OwnedPacket) {
+        let time = packet.packet.pointee.pts != FFmpegStatus.noTimestamp
+            ? packet.packet.pointee.pts
+            : packet.packet.pointee.dts
+        guard time != FFmpegStatus.noTimestamp else { return }
+        // Nearly always the latest yet; after a seek back, often one already
+        // known.
+        if let last = keyframes.last, time <= last {
+            let at = keyframes.firstIndex { $0 >= time } ?? keyframes.endIndex
+            if at < keyframes.endIndex, keyframes[at] == time { return }
+            keyframes.insert(time, at: at)
+        } else {
+            keyframes.append(time)
         }
     }
 
@@ -293,11 +329,68 @@ final class Demuxer: @unchecked Sendable {
     }
 
     /// Moves to `time`, landing on the keyframe at or before it.
+    ///
+    /// FFmpeg goes wherever the file's index says, and an index can be wrong.
+    /// Old Matroska muxers listed every frame in it as a keyframe, and 2ch
+    /// still serves their files: a seek landed on a picture that cannot be
+    /// decoded without the ones before it, and the decoder refused everything
+    /// up to the next real keyframe, which in one clip was eleven seconds on.
+    /// The clip failed, or showed that keyframe over the sound from where the
+    /// reader had asked.
+    ///
+    /// So where it lands is checked. A seek that misses goes to the nearest
+    /// keyframe already read before the target, which while playing is
+    /// usually close because the reader runs well ahead, and failing that to
+    /// the start. Either way the pictures up to the target are decoded and
+    /// thrown away, as after any seek.
     @discardableResult
     func seek(to time: TimeInterval) -> Bool {
         guard let context else { return false }
+        readAhead.removeAll()
         let target = Int64(max(0, time) * TimeInterval(AV_TIME_BASE))
-        return av_seek_frame(context, -1, target, FFmpegStatus.seekBackward) >= 0
+        guard av_seek_frame(context, -1, target, FFmpegStatus.seekBackward) >= 0 else { return false }
+        guard let video = videoStream, !landsOnKeyframe() else { return true }
+
+        let index = video.pointee.index
+        let inStream = av_rescale_q(target, AVRational(num: 1, den: AV_TIME_BASE), video.pointee.time_base)
+        if let known = keyframes.last(where: { $0 <= inStream }) {
+            readAhead.removeAll()
+            if av_seek_frame(context, index, known, FFmpegStatus.seekBackward) >= 0, landsOnKeyframe() {
+                MediaLog.demuxer.warning(
+                    """
+                    the file's index sent a seek to a picture that is not a keyframe; \
+                    went back to the one at \(TimeMath.seconds(TimeMath.time(known, numerator: video.pointee.time_base.num, denominator: video.pointee.time_base.den)), format: .fixed(precision: 3), privacy: .public)s
+                    """
+                )
+                return true
+            }
+        }
+
+        MediaLog.demuxer.warning(
+            "the file's index sent a seek to a picture that is not a keyframe; went back to the start"
+        )
+        readAhead.removeAll()
+        guard av_seek_frame(context, -1, 0, FFmpegStatus.seekBackward) >= 0 else { return false }
+        _ = landsOnKeyframe()
+        return true
+    }
+
+    /// Reads up to the first picture, keeping everything read for `read` to
+    /// hand out, and says whether that picture is a keyframe.
+    ///
+    /// Also true when there is nothing more to learn: the end of the file, a
+    /// read that failed, or a seek that has been overtaken by another. `read`
+    /// reports those itself once what was kept has gone.
+    private func landsOnKeyframe() -> Bool {
+        let index = videoStream?.pointee.index
+        // A picture always turns up within a few packets of sound; a file
+        // where it does not is not worth reading through.
+        while readAhead.count < 512 {
+            guard case .packet(let packet) = readFromFile() else { return true }
+            readAhead.append(packet)
+            if packet.streamIndex == index { return packet.isKeyframe }
+        }
+        return true
     }
 
     /// The time base of a stream, by index.

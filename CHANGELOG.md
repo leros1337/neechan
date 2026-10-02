@@ -5,7 +5,8 @@ Notable changes per release. Earlier releases are listed under
 
 ## Unreleased
 
-Sound in an older WebM no longer crackles.
+Sound in an older WebM no longer crackles, and seeking keeps the sound and
+lands where it was sent.
 
 ### Media
 
@@ -18,6 +19,29 @@ Sound in an older WebM no longer crackles.
   ended, and the stamps are followed only across a real gap in the file. Opus
   sound, which most clips have, was spared all but one click at the start,
   and that is gone too.
+- **Seeking no longer loses the sound.** After a seek, a clip sometimes
+  played on in silence until a later seek happened to bring the sound back.
+  A seek clears the queue of sound still to decode a moment before the queue
+  of sound ready to play, and a decoder that had been idle -- at the end of
+  the file, or waiting on the network -- could decode everything left in the
+  file in between. The queue of sound ready to play threw all of it away as
+  left over from before the seek. Sound from the new position now waits for
+  that queue to catch up. It happened in WebM and MP4 alike, most often
+  after seeking back from near the end of a clip.
+- **Sound starts where the seek landed.** A seek replaces the audio
+  renderer, and sound decoded for the new position in the moment before the
+  swap went to the renderer being thrown away, so the sound started late.
+  The new renderer now gets all of it.
+- **An old WebM with a broken seek index seeks.** Some files from old
+  Matroska muxers mark every frame as a place to seek to, though only a few
+  can be decoded on their own. A seek landed on one that cannot, the picture
+  stayed frozen up to the next real keyframe -- eleven seconds on in one clip
+  from /b/ -- and the clip failed with "This video could not be played." or
+  showed that later picture over the sound from where you had seeked. The
+  player now checks where a seek lands and goes back to a real keyframe.
+- **A seek no longer loses its first picture now and then.** The decoder
+  could take the new position's keyframe for the old position's, throw it
+  away, and then decode nothing until the next keyframe.
 
 ## 2.4.6
 

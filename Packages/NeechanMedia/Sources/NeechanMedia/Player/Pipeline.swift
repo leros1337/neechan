@@ -206,15 +206,21 @@ final class Pipeline: @unchecked Sendable {
 
         var lastGeneration = videoPackets.currentGeneration
         while !isStopped {
-            let generation = videoPackets.currentGeneration
+            // The generation comes with the packet, never ahead of it: see
+            // `popStamped`. Asked for first, a seek in between had the new
+            // position's keyframe decoded as the old position's and thrown
+            // away, and the decoder reset just after, so nothing decoded until
+            // the next keyframe.
+            let (next, generation) = videoPackets.popStamped()
             if generation != lastGeneration {
-                // A seek happened. Whatever the decoder is holding belongs to
-                // the old position.
+                // A seek happened, or the clip is being played again after
+                // its end was drained. Whatever the decoder is holding belongs
+                // to the old position.
                 decoder.flush()
                 lastGeneration = generation
             }
 
-            switch videoPackets.pop() {
+            switch next {
             case .item(let packet):
                 decodeVideo(packet, with: decoder, generation: generation)
             case .endOfStream:
@@ -223,9 +229,9 @@ final class Pipeline: @unchecked Sendable {
                 try? decoder.decode(nil, generation: generation) { emit($0) }
                 videoFrames.finish()
                 // Then wait to be sent round again rather than ending here.
+                // The next packet comes under a new generation, which resets
+                // the decoder.
                 guard videoPackets.waitForFlush(after: generation) else { return }
-                decoder.flush()
-                lastGeneration = videoPackets.currentGeneration
                 continue
             case .closed:
                 return
@@ -360,13 +366,14 @@ final class Pipeline: @unchecked Sendable {
 
         var lastGeneration = audioPackets.currentGeneration
         while !isStopped {
-            let generation = audioPackets.currentGeneration
+            // As for the picture: the generation comes with the packet.
+            let (next, generation) = audioPackets.popStamped()
             if generation != lastGeneration {
                 decoder.flush()
                 lastGeneration = generation
             }
 
-            switch audioPackets.pop() {
+            switch next {
             case .item(let packet):
                 try? decoder.decode(packet, generation: generation) { run in
                     self.emit(run)
@@ -382,8 +389,6 @@ final class Pipeline: @unchecked Sendable {
                 audioSeekTarget.withLock { $0 = nil }
                 audioRuns.finish()
                 guard audioPackets.waitForFlush(after: generation) else { return }
-                decoder.flush()
-                lastGeneration = audioPackets.currentGeneration
                 continue
             case .closed:
                 return

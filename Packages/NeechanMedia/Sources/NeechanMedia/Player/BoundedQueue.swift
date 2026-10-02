@@ -95,7 +95,8 @@ final class BoundedQueue<Element: QueuedMedia>: @unchecked Sendable {
     /// Adds an item, waiting while the queue is full.
     ///
     /// - Parameter generation: what the producer read before it started this
-    ///   piece of work. A push from before a flush is dropped.
+    ///   piece of work. A push from before a flush is dropped; one from a
+    ///   generation the queue has not been flushed to yet waits until it is.
     /// - Returns: false when the queue closed or moved on, so the producer can
     ///   stop rather than carry on filling a queue nobody is reading.
     @discardableResult
@@ -103,7 +104,12 @@ final class BoundedQueue<Element: QueuedMedia>: @unchecked Sendable {
         condition.lock()
         defer { condition.unlock() }
 
-        while !isClosed, generation == pushGeneration, isFullLocked {
+        // Ahead of the queue is not stale. A seek flushes the packet queues
+        // before the queues of decoded media, and a decoder woken by the
+        // first can have work for the new position before the second is
+        // flushed. Refusing it threw away the sound after the seek, all of it
+        // when the decoder was quick enough to reach the end of the file.
+        while !isClosed, pushGeneration > generation || (generation == pushGeneration && isFullLocked) {
             condition.wait()
         }
         guard !isClosed, generation == pushGeneration else { return false }
@@ -125,15 +131,26 @@ final class BoundedQueue<Element: QueuedMedia>: @unchecked Sendable {
 
     /// The next item, waiting while there is none.
     func pop() -> QueuePop<Element> {
+        popStamped().next
+    }
+
+    /// The next item, and the generation it belongs to.
+    ///
+    /// Read under the same lock as the item, which is the point: a consumer
+    /// that asks for the generation and then pops can be handed the first item
+    /// of a flush that came between the two, and take it for the old
+    /// position's. A flush throws away everything queued, so whatever is
+    /// handed over always belongs to the generation current at that moment.
+    func popStamped() -> (next: QueuePop<Element>, generation: Int) {
         condition.lock()
         defer { condition.unlock() }
 
         while !isClosed, items.isEmpty, !hasEnded {
             condition.wait()
         }
-        guard !isClosed else { return .closed }
-        guard let item = takeLocked() else { return .endOfStream }
-        return .item(item)
+        guard !isClosed else { return (.closed, generation) }
+        guard let item = takeLocked() else { return (.endOfStream, generation) }
+        return (.item(item), generation)
     }
 
     /// The next item without taking it, for deciding what to do about it.
@@ -151,6 +168,21 @@ final class BoundedQueue<Element: QueuedMedia>: @unchecked Sendable {
         condition.lock()
         defer { condition.unlock() }
         guard !isClosed else { return nil }
+        return takeLocked()
+    }
+
+    /// The next item if one is ready and belongs to `generation`, without
+    /// waiting.
+    ///
+    /// For a consumer that is told about a flush only after it has happened:
+    /// what has been queued since is left where it is until the consumer has
+    /// caught up, rather than going wherever the consumer was still sending
+    /// the old position's. A flush throws away everything queued, so every
+    /// item belongs to the generation current when it is taken.
+    func take(inGeneration expected: Int) -> Element? {
+        condition.lock()
+        defer { condition.unlock() }
+        guard !isClosed, generation == expected else { return nil }
         return takeLocked()
     }
 

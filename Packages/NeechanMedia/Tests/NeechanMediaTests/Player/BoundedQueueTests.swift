@@ -133,6 +133,95 @@ struct BoundedQueueTests {
         #expect(queue.push(Chunk(0.1), generation: generation))
     }
 
+    /// The renderers are fed from the queues on a thread of their own, and a
+    /// seek empties the queues a moment before it gives the renderers a fresh
+    /// start. What the decoders produce for the new position in that moment
+    /// went into the renderers about to be thrown away, and the sound after a
+    /// seek began late, or not until the clock caught up with it.
+    @Test("taking for a generation leaves a newer one's items where they are")
+    func takeForAGenerationWaitsForTheConsumer() {
+        let queue = BoundedQueue<Chunk>()
+        let before = queue.currentGeneration
+        queue.push(Chunk(0.1), generation: before)
+        #expect(queue.take(inGeneration: before) != nil)
+
+        let after = queue.flush()
+        queue.push(Chunk(0.2), generation: after)
+        #expect(queue.take(inGeneration: before) == nil, "an item from after the flush went to a consumer that had not caught up")
+        #expect(queue.buffered == 0.2, "the item was lost rather than left")
+        #expect(queue.take(inGeneration: after)?.mediaDuration == 0.2)
+    }
+
+    /// A decoder asked for the generation, then waited for a packet. A seek in
+    /// between handed it the new position's keyframe under the old
+    /// generation, so what it decoded was thrown away; on its next turn it saw
+    /// the new generation and reset itself, throwing away the keyframe too.
+    /// Nothing then decoded until the next keyframe, seconds away.
+    @Test("a pop says which generation it belongs to, even when a flush came while it waited")
+    func popCarriesItsGeneration() {
+        let queue = BoundedQueue<Chunk>()
+        let before = queue.currentGeneration
+
+        let popped = Mutex<Int?>(nil)
+        let returned = DispatchSemaphore(value: 0)
+        Thread.detachNewThread {
+            let (next, generation) = queue.popStamped()
+            if case .item = next { popped.withLock { $0 = generation } }
+            returned.signal()
+        }
+        Thread.sleep(forTimeInterval: 0.05)
+        let after = queue.flush()
+        queue.push(Chunk(0.1), generation: after)
+
+        #expect(returned.wait(timeout: .now() + 2) == .success, "the pop never returned")
+        #expect(after != before)
+        #expect(popped.withLock { $0 } == after, "the item came back stamped \(String(describing: popped.withLock { $0 }))")
+    }
+
+    /// A seek flushes the packet queues a moment before the queues of decoded
+    /// media. A decoder that was idle wakes on the first flush, and the sound
+    /// decoder could get through every packet left in the file before the
+    /// second: each run was stamped with a generation its queue had not
+    /// reached yet, refused as if it were stale, and the clip played silent
+    /// until some later seek won the race.
+    @Test("a push from a generation the queue has not reached yet waits for it")
+    func pushFromAheadWaitsForTheFlush() {
+        let queue = BoundedQueue<Chunk>()
+        let ahead = queue.currentGeneration + 1
+
+        let accepted = Mutex<Bool?>(nil)
+        let returned = DispatchSemaphore(value: 0)
+        Thread.detachNewThread {
+            let result = queue.push(Chunk(0.1), generation: ahead)
+            accepted.withLock { $0 = result }
+            returned.signal()
+        }
+        #expect(returned.wait(timeout: .now() + 0.2) == .timedOut, "the push gave up instead of waiting")
+
+        #expect(queue.flush() == ahead)
+        #expect(returned.wait(timeout: .now() + 2) == .success, "the flush did not release the push")
+        #expect(accepted.withLock { $0 } == true, "the push was refused once the queue caught up")
+        #expect(queue.buffered == 0.1)
+    }
+
+    @Test("a push from ahead is released when the queue closes")
+    func pushFromAheadEndsOnClose() {
+        let queue = BoundedQueue<Chunk>()
+        let ahead = queue.currentGeneration + 1
+        let accepted = Mutex<Bool?>(nil)
+        let returned = DispatchSemaphore(value: 0)
+        Thread.detachNewThread {
+            let result = queue.push(Chunk(0.1), generation: ahead)
+            accepted.withLock { $0 = result }
+            returned.signal()
+        }
+        Thread.sleep(forTimeInterval: 0.05)
+        queue.close()
+
+        #expect(returned.wait(timeout: .now() + 2) == .success, "closing did not release the push")
+        #expect(accepted.withLock { $0 } == false)
+    }
+
     @Test("a producer waiting on a full queue is released by a flush")
     func flushReleasesAWaitingPush() {
         let queue = BoundedQueue<Chunk>(durationLimit: 1)

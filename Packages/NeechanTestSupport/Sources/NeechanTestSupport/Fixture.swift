@@ -70,6 +70,15 @@ public enum Fixture: String, CaseIterable, Sendable {
     /// ever ask for. A player that stops halfway through a clip stops here.
     case sampleLong = "sample_long"
 
+    /// Four seconds of VP8 and Opus with keyframes at 0 and 3 s only, whose
+    /// seek index lists every frame as if it were one.
+    ///
+    /// Old Matroska muxers wrote indexes like this, and 2ch still serves their
+    /// files. FFmpeg believes the index, so a seek lands on a frame that cannot
+    /// be decoded without the ones before it. Made from an ordinary FFmpeg
+    /// WebM by rewriting its Cues.
+    case sampleMisindexed = "sample_misindexed"
+
     // Captcha
     case captchaSettings = "captcha_settings"
     case captchaEmojiID = "captcha_emoji_id"
@@ -126,7 +135,7 @@ public enum Fixture: String, CaseIterable, Sendable {
         case .sampleStillPNG: "png"
         case .sampleAnimatedGIF: "gif"
         case .sampleVideo, .sampleVP9Profile0, .sampleVP8, .sampleVorbis,
-             .sampleVideoOnly, .sampleAudioOnly, .sampleLong: "webm"
+             .sampleVideoOnly, .sampleAudioOnly, .sampleLong, .sampleMisindexed: "webm"
         case .sampleH264, .sampleHEV1: "mp4"
         case .sampleMatroska, .sampleUndecodableAudio: "mkv"
         default: "json"

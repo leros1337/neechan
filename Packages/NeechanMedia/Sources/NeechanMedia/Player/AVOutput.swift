@@ -46,6 +46,17 @@ final class AVOutput: @unchecked Sendable {
 
     private var videoFrames: BoundedQueue<DecodedFrame>?
     private var audioRuns: BoundedQueue<DecodedAudio>?
+    /// The generation of each queue the renderers are being fed from.
+    ///
+    /// A seek empties the queues first and gives the renderers a fresh start
+    /// a moment later, and the decoders do not wait for the second: what they
+    /// produced for the new position in between was fed to the renderers
+    /// about to be thrown away. The sound after a seek then started late, and
+    /// was silent until the clock caught up with it. Only what belongs to the
+    /// generation the renderers were last flushed for is taken; anything newer
+    /// waits for `flush`. Touched only on `queue`.
+    private var videoGeneration = 0
+    private var audioGeneration = 0
     private var progressObserver: Any?
     /// Whether the audio renderer is currently attached to the clock.
     ///
@@ -109,6 +120,10 @@ final class AVOutput: @unchecked Sendable {
     func begin(video: BoundedQueue<DecodedFrame>?, audio: BoundedQueue<DecodedAudio>?) {
         videoFrames = video
         audioRuns = audio
+        queue.sync {
+            videoGeneration = video?.currentGeneration ?? 0
+            audioGeneration = audio?.currentGeneration ?? 0
+        }
         state.withLock {
             $0 = State()
             $0.hasVideo = video != nil
@@ -211,10 +226,19 @@ final class AVOutput: @unchecked Sendable {
     }
 
     /// Throws away what the renderers are holding, after a seek.
+    ///
+    /// On the queue the renderers are fed on, so feeding cannot carry on into
+    /// the renderer being replaced, and it moves on to the queues' new
+    /// generation in the same step. Done from outside, the renderer was
+    /// swapped while a feed was halfway through handing it media.
     func flush() {
-        videoRenderer.flush()
-        if isAudioAttached {
-            attachFreshAudioRenderer()
+        queue.sync {
+            videoRenderer.flush()
+            if isAudioAttached {
+                attachFreshAudioRenderer()
+            }
+            videoGeneration = videoFrames?.currentGeneration ?? 0
+            audioGeneration = audioRuns?.currentGeneration ?? 0
         }
         state.withLock {
             $0.lastVideoEnd = .zero
@@ -383,7 +407,7 @@ final class AVOutput: @unchecked Sendable {
             )
         }
         while renderer.isReadyForMoreMediaData {
-            guard let frame = videoFrames.take() else {
+            guard let frame = videoFrames.take(inGeneration: videoGeneration) else {
                 // Nothing ready. Whether that is the end of the clip or the
                 // network falling behind is decided by the clock watcher,
                 // which can see both queues and the demuxer.
@@ -407,7 +431,7 @@ final class AVOutput: @unchecked Sendable {
     private func feedAudio() {
         guard let audioRuns else { return }
         while audioRenderer.isReadyForMoreMediaData {
-            guard let run = audioRuns.take() else { return }
+            guard let run = audioRuns.take(inGeneration: audioGeneration) else { return }
             audioRenderer.enqueue(run.sampleBuffer)
             state.withLock {
                 if !$0.hasVideo { $0.isAwaitingNewPosition = false }
