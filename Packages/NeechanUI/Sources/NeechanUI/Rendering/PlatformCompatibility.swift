@@ -98,6 +98,17 @@ extension View {
         #endif
     }
 
+    /// Lets a drag near the screen's edge reach the view before the system's
+    /// own edge swipes take it, where there are any.
+    @ViewBuilder
+    func deferringSystemGestures() -> some View {
+        #if os(iOS)
+        defersSystemGestures(on: .all)
+        #else
+        self
+        #endif
+    }
+
     /// The shape a long-press menu lifts, where the menu lifts anything.
     @ViewBuilder
     func contextMenuPreviewShape(_ shape: some Shape) -> some View {

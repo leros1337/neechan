@@ -18,6 +18,8 @@ public struct ReplyFormView: View {
     @State private var photoSelection: [PhotosPickerItem] = []
     @State private var isShowingFileImporter = false
     @State private var editingAttachment: DraftAttachmentState?
+    /// A picture opened in the editor straight from its tile.
+    @State private var editingImage: DraftAttachmentState?
     @FocusState private var isCommentFocused: Bool
 
     public init(
@@ -103,7 +105,16 @@ public struct ReplyFormView: View {
         }
         .overlay { sendingOverlay(model) }
         .sheet(item: $editingAttachment) { attachment in
-            AttachmentOptionsSheet(attachment: attachment) { model.updateAttachment($0) }
+            AttachmentOptionsSheet(
+                attachment: attachment,
+                onSave: { model.updateAttachmentOptions($0) },
+                onReplace: { await model.replaceAttachmentContents($0, with: $1) }
+            )
+        }
+        .fullScreenCoverCompat(item: $editingImage) { attachment in
+            ImageEditorView(attachment: attachment) { output in
+                await model.replaceAttachmentContents(attachment.id, with: output)
+            }
         }
         .fileImporter(
             isPresented: $isShowingFileImporter,
@@ -175,7 +186,8 @@ public struct ReplyFormView: View {
                 AttachmentStrip(
                     attachments: model.draft.attachments,
                     onRemove: { model.removeAttachment($0) },
-                    onEdit: { editingAttachment = $0 }
+                    onEdit: { editingAttachment = $0 },
+                    onEditImage: { editingImage = $0 }
                 )
             } header: {
                 Text("Attachments", bundle: .module)

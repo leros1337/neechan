@@ -85,6 +85,20 @@ struct AttachmentProcessorTests {
         #expect(size.width > 1)
     }
 
+    @Test("a scale saved by an older version still shrinks the file at send")
+    func legacyScale() throws {
+        // The scale used to be set from the options sheet; the editor owns it
+        // now, but a draft saved before then still carries one.
+        let large = try ImageFactory.png(width: 200, height: 100)
+        let output = AttachmentProcessor.process(
+            data: large, fileName: "a.png", mimeType: "image/png",
+            options: AttachmentProcessing(scalePercent: 50)
+        )
+        let size = try #require(EXIFReaderProbe.pixelSize(of: output.data))
+        #expect(size.width == 100)
+        #expect(output.mimeType == "image/jpeg")
+    }
+
     @Test("renaming keeps the extension")
     func renameKeepsExtension() throws {
         let output = AttachmentProcessor.process(
@@ -206,6 +220,31 @@ struct DraftRepositoryTests {
         try await repository.save(DraftState(comment: "х"), board: BoardRef(site: .dvach, code: "test"), thread: 1)
         try await repository.discard(board: BoardRef(site: .dvach, code: "test"), thread: 1)
         #expect(try await repository.draft(for: BoardRef(site: .dvach, code: "test"), thread: 1).isEmpty)
+    }
+
+    @Test("removing a staged file deletes only that file")
+    func removeStaged() throws {
+        let directory = URL.temporaryDirectory.appending(path: "drafts-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        try DraftRepository.$directoryOverride.withValue(directory) {
+            let kept = try DraftRepository.stageAttachment(data: Data("kept".utf8), fileName: "a.png")
+            let removed = try DraftRepository.stageAttachment(data: Data("gone".utf8), fileName: "b.png")
+            #expect(FileManager.default.fileExists(atPath: directory.appending(path: removed).path))
+
+            DraftRepository.removeStagedAttachment(at: removed)
+
+            #expect(!FileManager.default.fileExists(atPath: directory.appending(path: removed).path))
+            #expect(try DraftRepository.attachmentData(at: kept) == Data("kept".utf8))
+        }
+    }
+
+    @Test("removing a file that is not there is not an error")
+    func removeMissing() {
+        let directory = URL.temporaryDirectory.appending(path: "drafts-\(UUID().uuidString)")
+        DraftRepository.$directoryOverride.withValue(directory) {
+            DraftRepository.removeStagedAttachment(at: "nothing-here.png")
+        }
     }
 }
 
@@ -373,45 +412,6 @@ private final class StageRecorder: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return stages
-    }
-}
-
-/// Small image helpers, so the processing tests do not need extra fixtures.
-private enum ImageFactory {
-    static func png(width: Int, height: Int) throws -> Data {
-        let context = CGContext(
-            data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        )
-        let image = try #require(context?.makeImage())
-        let output = NSMutableData()
-        let destination = try #require(
-            CGImageDestinationCreateWithData(output, "public.png" as CFString, 1, nil)
-        )
-        CGImageDestinationAddImage(destination, image, nil)
-        #expect(CGImageDestinationFinalize(destination))
-        return output as Data
-    }
-}
-
-/// Reads back what the processor produced, without depending on NeechanMedia.
-private enum EXIFReaderProbe {
-    static func decodes(_ data: Data) -> Bool {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return false }
-        return CGImageSourceCreateImageAtIndex(source, 0, nil) != nil
-    }
-
-    static func pixelSize(of data: Data) -> (width: Int, height: Int)? {
-        guard
-            let source = CGImageSourceCreateWithData(data as CFData, nil),
-            let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
-            let width = properties[kCGImagePropertyPixelWidth] as? Int,
-            let height = properties[kCGImagePropertyPixelHeight] as? Int
-        else {
-            return nil
-        }
-        return (width, height)
     }
 }
 

@@ -3,6 +3,33 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## Unreleased
+
+A picture can be drawn on, cropped, turned and resized before it is posted.
+
+### Posting
+
+- **A picture can be edited before it is posted.** Tap a staged picture and
+  then the pencil by its size, or long-press it and choose Edit image. Draw
+  with a pen, point with an arrow, pixelate a name or a face, and put text on
+  it; crop it freely or to a shape, turn it and flip it; and scale it down
+  while the size of the file it will make is shown in pixels. Every step can
+  be undone until Done, which writes the picture once, in place of the one
+  picked. A screenshot stays PNG so its text stays sharp, a photo becomes
+  JPEG, and none of the original's location or camera data is carried over.
+  Pixelation uses blocks a 48th of the picture's longest side, coarse enough
+  that a line of text under it becomes a row of flat colour. Animations and
+  videos are left as they are.
+- **The scale moved into the editor.** File options had a Scale stepper,
+  hidden under "Re-encode as JPEG", that scaled the file at send time without
+  saying what size that made. Scaling is now done in the editor, which shows
+  the size, and file options show the picture's size in pixels. A file staged
+  with a scale by an earlier version is still scaled when it is sent.
+- **Staged pictures show without decoding the whole photo.** Each attachment
+  tile decoded its file at full size on the main thread, a couple of hundred
+  megabytes for a large photo. It now decodes a thumbnail in the background,
+  and shows the new picture as soon as an edit replaces the file.
+
 ## 2.5.0
 
 Sound in an older WebM no longer crackles and seeking keeps it, a file's

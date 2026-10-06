@@ -415,12 +415,57 @@ public final class ReplyFormViewModel {
         scheduleAutosave()
     }
 
-    public func updateAttachment(_ attachment: DraftAttachmentState) {
+    /// Applies what the options sheet changed, leaving the file alone.
+    ///
+    /// The sheet holds a copy of the attachment from when it opened, and the
+    /// editor may have replaced the file since. Only the choices the sheet
+    /// offers are taken from it, so its Done can never bring back a deleted
+    /// file or a scale the editor already applied.
+    public func updateAttachmentOptions(_ attachment: DraftAttachmentState) {
         guard let index = draft.attachments.firstIndex(where: { $0.id == attachment.id }) else {
             return
         }
-        draft.attachments[index] = attachment
+        var current = draft.attachments[index]
+        let scale = current.processing.scalePercent
+        current.processing = attachment.processing
+        current.processing.scalePercent = scale
+        current.isSpoiler = attachment.isSpoiler
+        draft.attachments[index] = current
         scheduleAutosave()
+    }
+
+    /// Puts an edited picture in place of a staged file.
+    ///
+    /// The attachment keeps its place and its options, and takes the edited
+    /// file's name and type. Any scale an older version left on it is dropped,
+    /// the editor having applied the scale itself. The draft is saved to point
+    /// at the new file before the old one is deleted, so a crash in between
+    /// leaves a stray file rather than a draft pointing at nothing.
+    ///
+    /// - Returns: the updated attachment, or nil when it was removed while
+    ///   the editor was open.
+    @discardableResult
+    public func replaceAttachmentContents(
+        _ id: UUID,
+        with output: ImageEditOutput
+    ) async -> DraftAttachmentState? {
+        guard let index = draft.attachments.firstIndex(where: { $0.id == id }) else { return nil }
+        let previous = draft.attachments[index]
+        let fileName = output.fileName(replacingExtensionOf: previous.fileName)
+        guard let path = try? DraftRepository.stageAttachment(data: output.data, fileName: fileName) else {
+            return nil
+        }
+
+        var updated = previous
+        updated.fileName = fileName
+        updated.localRelativePath = path
+        updated.mimeType = output.mimeType
+        updated.processing.scalePercent = nil
+        draft.attachments[index] = updated
+
+        await saveNow()
+        DraftRepository.removeStagedAttachment(at: previous.localRelativePath)
+        return updated
     }
 
     /// Four files, or eight with a passcode, matching the site's own limits.

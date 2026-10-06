@@ -175,8 +175,19 @@ public actor DraftRepository {
         try Data(contentsOf: attachmentsDirectory.appending(path: relativePath))
     }
 
+    /// Deletes one staged file, such as the original an edit replaced.
+    ///
+    /// A file already gone is fine: the point is only that it not linger.
+    public nonisolated static func removeStagedAttachment(at relativePath: String) {
+        try? FileManager.default.removeItem(at: attachmentsDirectory.appending(path: relativePath))
+    }
+
+    /// Where staged files go instead, for tests: the real folder is the
+    /// developer's own Application Support when tests run on the Mac.
+    @TaskLocal static var directoryOverride: URL?
+
     nonisolated static var attachmentsDirectory: URL {
-        URL.applicationSupportDirectory.appending(path: attachmentsDirectoryName)
+        directoryOverride ?? URL.applicationSupportDirectory.appending(path: attachmentsDirectoryName)
     }
 
     private func storedDraft(board: BoardRef, threadNum: Int) throws -> Draft? {
