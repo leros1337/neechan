@@ -364,6 +364,29 @@ struct LoopPolicyTests {
     }
 }
 
+/// What leaving the app does to a clip: one that is going stops, and one that
+/// is not is left exactly as the reader left it.
+@Suite("Leaving the app")
+struct PausesWhenAppLeavesTests {
+    /// Opening counts: with autoplay on, a clip still being opened starts the
+    /// moment its first picture arrives, which would be in the background.
+    @Test(
+        "a clip playing, or about to, is paused",
+        arguments: [PlaybackState.playing, .buffering, .preparing]
+    )
+    func pausesWhatIsUnderway(state: PlaybackState) {
+        #expect(state.pausesWhenAppLeaves)
+    }
+
+    @Test(
+        "a clip that is not going anywhere is left alone",
+        arguments: [PlaybackState.idle, .paused, .finished, .failed("no")]
+    )
+    func leavesTheRestAlone(state: PlaybackState) {
+        #expect(state.pausesWhenAppLeaves == false)
+    }
+}
+
 /// How long the cache may keep something nobody has looked at.
 ///
 /// Age is counted from last use, not from arrival, because the cache stamps a

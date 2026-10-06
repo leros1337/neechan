@@ -195,6 +195,16 @@ public final class GalleryViewModel {
     /// at once, and it stops when the gallery closes.
     public let player = MediaPlayer()
 
+    /// The app has gone to the background.
+    ///
+    /// Paused on the player directly rather than through `playbackControl`:
+    /// a binding is applied by the next update of the view, which may not come
+    /// until the app is back in front. It stays paused when the reader returns,
+    /// with the play button saying so, until they tap it.
+    public func appDidEnterBackground() {
+        player.pauseForBackground()
+    }
+
     /// The gallery is closing: the clip stops for good.
     public func finishPlayback() {
         player.shutdown()

@@ -244,13 +244,31 @@ public final class MediaPlayer {
             restart()
             return
         }
+        // Undoes what `pause` told a seek still under way, so its picture
+        // starts the clock rather than stopping it again.
+        shouldResumeAfterSeek = true
         output.setRate(1, time: .invalid)
         state = machine.handle(.play)
     }
 
     public func pause() {
         output.setRate(0, time: .invalid)
+        // A seek still waiting for its picture would otherwise start the clock
+        // again when the picture came, undoing this. A loop is a seek to the
+        // start, so leaving the app just as a clip came round did exactly that.
+        shouldResumeAfterSeek = false
         state = machine.handle(.pause)
+    }
+
+    /// The app has gone to the background.
+    ///
+    /// A clip that is playing, or about to, is paused, and stays paused when
+    /// the reader comes back. Nothing here starts it again: a video that picks
+    /// up by itself as the app returns makes a noise nobody asked for.
+    public func pauseForBackground() {
+        guard state.pausesWhenAppLeaves else { return }
+        MediaLog.player.debug("[\(self.name, privacy: .public)] pausing: the app went to the background")
+        pause()
     }
 
     public func seek(to time: TimeInterval) {

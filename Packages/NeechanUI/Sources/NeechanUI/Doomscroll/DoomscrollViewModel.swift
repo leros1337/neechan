@@ -190,6 +190,19 @@ public final class DoomscrollViewModel {
         warmNextClip()
     }
 
+    /// A tap on the clip.
+    ///
+    /// Turns the sound on and off, except on a clip that is paused, which it
+    /// plays: the feed has no play button, and the app going to the background
+    /// leaves the clip paused until the reader says otherwise.
+    public func tapped() {
+        if isSettled, playbackState == .paused {
+            playbackControl.send(.play)
+        } else {
+            toggleMute()
+        }
+    }
+
     public func toggleMute() {
         isMuted.toggle()
         playbackControl.send(.setMuted(isMuted))
@@ -211,19 +224,16 @@ public final class DoomscrollViewModel {
 
     // MARK: Lifecycle
 
-    /// The app is going away. The engine pauses itself on the way out, but
-    /// nothing starts it again on the way back.
+    /// The app has gone to the background.
+    ///
+    /// The clip is paused on the player directly rather than through
+    /// `playbackControl`: a binding is applied by the next update of the view,
+    /// which may not come until the app is back in front. It stays paused when
+    /// the reader returns, until a tap plays it, and nothing is warmed for a
+    /// feed nobody is looking at.
     public func suspend() {
-        playbackControl.send(.pause)
+        player.pauseForBackground()
         Task { [warmer] in await warmer.cancelAll() }
-    }
-
-    public func resume() {
-        // Only the player's own initialiser claims the session, so one that is
-        // being reused comes back to a session nobody re-activated.
-        MediaAudioSession.claim()
-        playbackControl.send(.play)
-        playbackControl.send(.setMuted(isMuted))
     }
 
     /// Called as the mode closes.

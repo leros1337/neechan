@@ -168,6 +168,95 @@ struct MediaPlayerTests {
         #expect(await wait { player.state == .playing })
     }
 
+    /// A seek remembers whether the clip was playing, and starts the clock
+    /// again once a picture for the new position arrives. A pause that came in
+    /// between was undone by it. Leaving the app just as a clip loops round
+    /// is the same thing: a loop is a seek to the start.
+    @Test("a pause while a seek is under way holds")
+    func pauseDuringSeekHolds() async throws {
+        // One playback test at a time; see PlayerTestGate.
+        await PlayerTestGate.shared.enter()
+        defer { PlayerTestGate.shared.leave() }
+
+        let url = try file(.sampleVP9Profile0)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let player = MediaPlayer()
+        defer { player.shutdown() }
+        player.load(url: url, options: MediaPlayerOptions(kind: .webmVideo, loops: true))
+        #expect(await wait { player.state == .playing })
+
+        player.seek(to: 0.5)
+        player.pause()
+
+        var position: TimeInterval = 0
+        player.onProgress = { position = $0.current }
+        // Long enough for the seek's picture to have arrived.
+        try? await Task.sleep(for: .milliseconds(600))
+        #expect(player.state == .paused, "the seek started the clip again: \(player.state)")
+
+        let settled = position
+        try? await Task.sleep(for: .milliseconds(300))
+        #expect(position == settled, "the clock kept running after the pause")
+    }
+
+    /// The other half of the one above: a pause that stops a seek from
+    /// resuming must not stop a play that comes after it, before the seek's
+    /// picture has arrived, from resuming.
+    @Test("a play straight after that pause still plays")
+    func playAfterPauseDuringSeekPlays() async throws {
+        // One playback test at a time; see PlayerTestGate.
+        await PlayerTestGate.shared.enter()
+        defer { PlayerTestGate.shared.leave() }
+
+        let url = try file(.sampleVP9Profile0)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let player = MediaPlayer()
+        defer { player.shutdown() }
+        player.load(url: url, options: MediaPlayerOptions(kind: .webmVideo, loops: true))
+        #expect(await wait { player.state == .playing })
+
+        player.seek(to: 0.5)
+        player.pause()
+        player.play()
+
+        var position: TimeInterval = 0
+        player.onProgress = { position = $0.current }
+        try? await Task.sleep(for: .milliseconds(600))
+        #expect(player.state == .playing)
+
+        let before = position
+        try? await Task.sleep(for: .milliseconds(300))
+        #expect(position != before, "the clip says it is playing but the clock is stopped")
+    }
+
+    @Test("leaving the app pauses a playing clip and leaves a paused one paused")
+    func leavingTheAppPauses() async throws {
+        // One playback test at a time; see PlayerTestGate.
+        await PlayerTestGate.shared.enter()
+        defer { PlayerTestGate.shared.leave() }
+
+        let url = try file(.sampleVP9Profile0)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let player = MediaPlayer()
+        defer { player.shutdown() }
+        player.load(url: url, options: MediaPlayerOptions(kind: .webmVideo, loops: true))
+        #expect(await wait { player.state == .playing })
+
+        player.pauseForBackground()
+        #expect(player.state == .paused)
+
+        // Coming back does nothing by itself, and leaving again is harmless.
+        try? await Task.sleep(for: .milliseconds(300))
+        player.pauseForBackground()
+        #expect(player.state == .paused)
+
+        player.play()
+        #expect(await wait { player.state == .playing })
+    }
+
     @Test("a file that is not media reports a failure rather than sitting there")
     func brokenFilesFail() async throws {
         // One playback test at a time; see PlayerTestGate.

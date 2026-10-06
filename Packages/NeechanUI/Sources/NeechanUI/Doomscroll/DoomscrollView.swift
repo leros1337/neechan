@@ -62,6 +62,7 @@ struct DoomscrollView: View {
                     ZStack {
                         player
                         feed
+                        pausedIndicator
                     }
                 }
             }
@@ -84,8 +85,10 @@ struct DoomscrollView: View {
         }
         .onAppear { scrolledID = model.playingID }
         .onDisappear { model.finish() }
+        // The background only: a glance at the app switcher or Control
+        // Centre leaves the clip playing. Nothing happens on the way back.
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { model.resume() } else { model.suspend() }
+            if phase == .background { model.suspend() }
         }
         .sheet(isPresented: $isSharing) {
             if let shareURL { ShareSheet(items: [shareURL]) }
@@ -95,6 +98,25 @@ struct DoomscrollView: View {
             set: { model.transfers.saveResult = $0 }
         )) { result in
             Alert(title: Text(result.message))
+        }
+    }
+
+    /// Says a clip is paused, which only the app going to the background
+    /// leaves it. The feed has no transport, so a clip stopped without this
+    /// looks stuck rather than waiting for a tap.
+    ///
+    /// Not a button, like the thumbnails' play button: the tap belongs to the
+    /// page under it, and `doomscroll-status` already says "paused".
+    @ViewBuilder
+    private var pausedIndicator: some View {
+        if model.isSettled, model.playbackState == .paused {
+            Image(systemName: "play.fill")
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 64, height: 64)
+                .glassEffect(in: .circle)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
     }
 
@@ -128,7 +150,7 @@ struct DoomscrollView: View {
                     DoomscrollPage(
                         item: item,
                         isShowingVideo: item.id == model.playingID && model.isSettled,
-                        onTap: { model.toggleMute() },
+                        onTap: { model.tapped() },
                         // What the bottom bar's buttons do. Pressing is only
                         // possible on the clip the feed has settled on, which
                         // is the one they act on.

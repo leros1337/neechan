@@ -20,6 +20,19 @@ public enum PlaybackState: Sendable, Equatable {
     public var isPlaying: Bool {
         self == .playing
     }
+
+    /// Whether the app going to the background should pause this clip.
+    ///
+    /// A clip that is playing, waiting for bytes or still being opened: with
+    /// autoplay on, one still being opened starts the moment its first picture
+    /// arrives. Anything else is left as the reader left it, so a clip they
+    /// paused, or one that ended, comes back the same.
+    public var pausesWhenAppLeaves: Bool {
+        switch self {
+        case .playing, .buffering, .preparing: true
+        case .idle, .paused, .finished, .failed: false
+        }
+    }
 }
 
 /// Where playback has reached.

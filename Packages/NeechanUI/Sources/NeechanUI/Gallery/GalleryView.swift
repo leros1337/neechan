@@ -11,6 +11,7 @@ import SwiftUI
 public struct GalleryView: View {
     @State private var model: GalleryViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var shareURL: URL?
     @State private var isPreparingShare = false
     /// How far the reader has dragged the viewer down to close it.
@@ -124,6 +125,11 @@ public struct GalleryView: View {
             isZoomedIn = false
         }
         .onDisappear { model.finishPlayback() }
+        // The background only: a glance at the app switcher or Control Centre
+        // leaves the clip playing. Nothing happens on the way back.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { model.appDidEnterBackground() }
+        }
     }
 
     private func page(at index: Int, item: GalleryItem) -> some View {

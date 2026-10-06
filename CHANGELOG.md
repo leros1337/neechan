@@ -7,7 +7,8 @@ Notable changes per release. Earlier releases are listed under
 
 A picture can be drawn on, cropped, turned and resized before it is posted,
 a board's menu filters its threads and reloads it from anywhere in the list,
-and a video's thumbnail says how long it runs.
+a video's thumbnail says how long it runs, and a video stops when the app is
+left.
 
 ### Boards
 
@@ -56,6 +57,19 @@ and a video's thumbnail says how long it runs.
   thread's gallery, on posts, and on board and catalog rows. VoiceOver reads
   it with the rest of the thumbnail. 4chan does not say how long its videos
   are, so theirs show none.
+- **A video stops when the app is left.** Going to the Home Screen or to
+  another app left the viewer's clip playing until iOS suspended the app,
+  sound and all, and the feed tried to start its clip again on the way back.
+  Now a clip that is playing, or still opening, is paused as the app goes,
+  in the viewer and in the feed, and is still paused on return. Tap play in
+  the viewer to carry on. The feed has no play button, so a paused clip shows
+  one there, and a tap on it plays the clip rather than turning the sound
+  on. A glance at the app switcher or Control Centre leaves the clip
+  playing.
+- **A pause during a seek holds.** A pause that came while the player was
+  still moving to a new position, or going back round to the start of a
+  looping clip, was undone as soon as the picture for that position
+  arrived, and the clip played on.
 
 ## 2.5.0
 

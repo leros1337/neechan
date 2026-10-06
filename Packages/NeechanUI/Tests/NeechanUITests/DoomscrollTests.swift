@@ -176,17 +176,40 @@ struct DoomscrollTests {
         #expect(model.playbackControl.command == .play)
     }
 
-    @Test("leaving and coming back pauses and plays")
-    func suspendAndResume() async throws {
+    /// The clip itself is paused on the player, which the feed owns; that is
+    /// covered by the player's own tests. What the feed adds is the warming.
+    @Test("leaving the app stops warming the next clip")
+    func suspendStopsWarming() async throws {
         let (model, spy) = try makeModel()
         model.suspend()
-        #expect(model.playbackControl.command == .pause)
-        model.resume()
-        #expect(model.playbackControl.command == .setMuted(true))
 
         // The cancellation is handed to a task, so it lands a turn later.
         try await Task.sleep(for: .milliseconds(50))
         #expect(spy.cancels >= 1, "the warm was left running in the background")
+    }
+
+    /// The feed has no play button, so a clip left paused by the app going
+    /// away is started again the only way the reader can reach: a tap on it.
+    @Test("a tap on a paused clip plays it and leaves the sound alone")
+    func tapPlaysPausedClip() throws {
+        let (model, _) = try makeModel()
+        model.playbackStateChanged(.paused)
+
+        model.tapped()
+
+        #expect(model.playbackControl.command == .play)
+        #expect(model.isMuted, "the tap that started the clip also turned its sound on")
+    }
+
+    @Test("a tap on a playing clip still turns the sound on and off")
+    func tapTogglesSoundWhilePlaying() throws {
+        let (model, _) = try makeModel()
+        model.playbackStateChanged(.playing)
+
+        model.tapped()
+        #expect(!model.isMuted)
+        model.tapped()
+        #expect(model.isMuted)
     }
 
     // MARK: Warming
