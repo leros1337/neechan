@@ -357,3 +357,52 @@ struct RouterLinkTests {
         #expect(router().route(forLink: try link(address)) == nil)
     }
 }
+
+/// Where a tapped notification leads, and whether one is worth a banner.
+@MainActor
+@Suite("Router notifications")
+struct RouterNotificationTests {
+    private let key = ThreadKey(site: .dvach, board: "b", threadNum: 1)
+
+    private func router() -> Router {
+        let router = Router()
+        router.site = .dvach
+        return router
+    }
+
+    @Test("a tapped reply opens its thread on the reply")
+    func opensReply() {
+        let router = router()
+        router.selectedTab = .favorites
+
+        router.openNotification(.threadAtPost(key, postNum: 7))
+
+        #expect(router.selectedTab == .boards)
+        #expect(router.boardsPath == [.board("b"), .thread(key, scrollTo: 7)])
+    }
+
+    /// The watcher only follows the site being read, so a banner for the other
+    /// one was posted before the reader switched; opening it would fetch a
+    /// thread from a site the client is no longer pointed at.
+    @Test("a banner from the other imageboard is left alone")
+    func ignoresOtherSite() {
+        let router = router()
+        let elsewhere = ThreadKey(site: .fourchan, board: "g", threadNum: 1)
+
+        router.openNotification(.thread(elsewhere))
+
+        #expect(router.boardsPath.isEmpty)
+    }
+
+    @Test("the thread in front is the top of the tab on screen")
+    func threadInFront() {
+        let router = router()
+        #expect(router.threadInFront == nil)
+
+        router.open(.thread(key))
+        #expect(router.threadInFront == key)
+
+        router.selectedTab = .favorites
+        #expect(router.threadInFront == nil, "a thread in a tab out of sight is not in front")
+    }
+}

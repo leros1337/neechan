@@ -492,17 +492,42 @@ public final class ThreadViewModel {
             totalPosts: snapshot.posts.count,
             isClosed: snapshot.meta.isClosed
         )
+        #if canImport(UserNotifications)
+        // What the banner announced has now been read.
+        await services.notifications.clearNotification(for: key)
+        #endif
     }
 
     public func toggleFavorite() async {
-        let title = snapshot.meta.title.isEmpty
-            ? snapshot.originalPost?.subject ?? "/\(key.board)/\(key.threadNum)"
-            : snapshot.meta.title
         isFavorite = (try? await services.favorites.toggle(
             key,
-            title: title,
+            title: favoriteTitle,
             thumbnailPath: snapshot.originalPost?.files.first?.thumbnail
         )) ?? isFavorite
+    }
+
+    /// Follows up on a reply the reader just sent from this thread.
+    ///
+    /// Favourites the thread when the reader asked for that, because the
+    /// watcher only follows favourites: without this nobody could be told that
+    /// their post was answered. A thread already kept is left exactly as the
+    /// reader set it, watched or not.
+    public func didPost() async {
+        let settings = services.settings
+        guard settings.favoritesOnReply else { return }
+        let added = (try? await services.favorites.add(
+            key,
+            title: favoriteTitle,
+            thumbnailPath: snapshot.originalPost?.files.first?.thumbnail,
+            watch: settings.watchesNewFavorites
+        )) ?? false
+        if added { isFavorite = true }
+    }
+
+    private var favoriteTitle: String {
+        snapshot.meta.title.isEmpty
+            ? snapshot.originalPost?.subject ?? "/\(key.board)/\(key.threadNum)"
+            : snapshot.meta.title
     }
 
     /// Hides posts by a rule made from one of them.

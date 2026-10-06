@@ -44,6 +44,9 @@ public final class AppServices {
     public var pendingChallengeURL: URL?
     #if canImport(UserNotifications)
     public let notifications: NotificationScheduler
+    /// Where a tapped banner leads. Installed by the app at launch, read by
+    /// the shell, which owns the navigation.
+    public let notificationResponder = NotificationResponder()
     #endif
 
     @ObservationIgnored private var threadRepositories: [ThreadKey: ThreadRepository] = [:]
@@ -124,7 +127,8 @@ public final class AppServices {
             client: client,
             site: siteHolder.provider,
             favorites: favorites,
-            states: watchedThreads
+            states: watchedThreads,
+            ownPosts: ownPosts
         )
         #if canImport(UserNotifications)
         self.notifications = NotificationScheduler()

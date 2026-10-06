@@ -64,6 +64,15 @@ public struct AdaptiveRootView: View {
             .onChange(of: services.settings.domain) {
                 Task { await services.handleDomainChange() }
             }
+            #if canImport(UserNotifications)
+            // Initial as well: a tap that launched the app lands before this
+            // view exists, and must still be taken somewhere once it does.
+            .onChange(of: services.notificationResponder.pendingTarget, initial: true) {
+                guard let target = services.notificationResponder.pendingTarget else { return }
+                services.notificationResponder.pendingTarget = nil
+                router.openNotification(target)
+            }
+            #endif
             .tint(Color(theme.accent))
             .environment(\.neechanTheme, theme)
             .environment(\.locale, appLocale)
@@ -79,6 +88,10 @@ public struct AdaptiveRootView: View {
             // The watcher runs only while the app is in front; background
             // polling is the system's to schedule.
             .task {
+                #if canImport(UserNotifications)
+                // So a banner about the thread being read is not shown over it.
+                services.notificationResponder.threadInFront = { [router] in router.threadInFront }
+                #endif
                 // Before anything else asks the site who we are.
                 await NativeUserAgent.adopt()
                 services.observeChallenges()

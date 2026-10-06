@@ -20,6 +20,12 @@ struct ThreadViewModelTests {
     }
 
     private func makeModel(_ transport: StubTransport) throws -> ThreadViewModel {
+        try makeModelAndServices(transport).0
+    }
+
+    private func makeModelAndServices(
+        _ transport: StubTransport
+    ) throws -> (ThreadViewModel, AppServices) {
         let settings = AppSettings(
             defaults: UserDefaults(suiteName: "ThreadViewModelTests.\(UUID().uuidString)")!
         )
@@ -30,7 +36,7 @@ struct ThreadViewModelTests {
             settings: settings,
             transport: transport
         )
-        return ThreadViewModel(key: key, services: services)
+        return (ThreadViewModel(key: key, services: services), services)
     }
 
     private func stubbedTransport() async throws -> StubTransport {
@@ -367,6 +373,59 @@ struct ThreadViewModelTests {
         await model.rememberPosition(nil)
 
         #expect(model.rememberedPostNum == post.num)
+    }
+
+    // MARK: Replying
+
+    /// The watcher only follows favourites, so a thread replied in and not
+    /// favourited could never tell the reader someone answered.
+    @Test("replying favourites the thread and watches it")
+    func replyingFavoritesThread() async throws {
+        let (model, services) = try makeModelAndServices(try await stubbedTransport())
+        await model.load()
+
+        await model.didPost()
+
+        #expect(model.isFavorite)
+        #expect(try await services.favorites.watchedKeys(site: .dvach) == [key])
+    }
+
+    @Test("replying leaves Favorites alone when the reader turned that off")
+    func replyingRespectsSetting() async throws {
+        let (model, services) = try makeModelAndServices(try await stubbedTransport())
+        services.settings.favoritesOnReply = false
+        await model.load()
+
+        await model.didPost()
+
+        #expect(model.isFavorite == false)
+        #expect(try await services.favorites.isFavorite(key) == false)
+    }
+
+    @Test("a thread favourited on reply starts unwatched when the reader asked for that")
+    func replyingRespectsWatchSetting() async throws {
+        let (model, services) = try makeModelAndServices(try await stubbedTransport())
+        services.settings.watchesNewFavorites = false
+        await model.load()
+
+        await model.didPost()
+
+        #expect(try await services.favorites.isFavorite(key))
+        #expect(try await services.favorites.watchedKeys(site: .dvach).isEmpty)
+    }
+
+    /// Replying again must not turn watching back on for a thread the reader
+    /// favourited and then muted.
+    @Test("replying in a favourite already kept leaves it as it was")
+    func replyingKeepsExistingFavorite() async throws {
+        let (model, services) = try makeModelAndServices(try await stubbedTransport())
+        await model.load()
+        try await services.favorites.add(key, title: "Моё", watch: false)
+
+        await model.didPost()
+
+        #expect(try await services.favorites.watchedKeys(site: .dvach).isEmpty)
+        #expect(try await services.favorites.favorites(site: .dvach).first?.title == "Моё")
     }
 
     // MARK: Spoilers

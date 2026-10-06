@@ -41,39 +41,34 @@ public actor NotificationScheduler {
             || settings.authorizationStatus == .provisional
     }
 
-    /// Posts a notification for each thread that gained posts.
+    /// Posts a notification for each thread whose news the setting asks about.
     ///
-    /// Nothing is scheduled when the setting is off, and nothing is scheduled
-    /// for a thread with no news, so a quiet poll stays quiet.
+    /// What counts is `WatcherNotification`'s to say: nothing when the setting
+    /// is off, only answers to the reader under "Replies to me", so a quiet
+    /// poll stays quiet.
     public func notify(
         about results: [ThreadWatcher.Result],
         titles: [ThreadKey: String],
         setting: WatcherNotificationSetting
     ) async {
-        guard setting != .off else { return }
-        guard let center = center(), await isAuthorized() else { return }
+        let notes = results.compactMap {
+            WatcherNotification(for: $0, title: titles[$0.key], setting: setting)
+        }
+        guard !notes.isEmpty, let center = center(), await isAuthorized() else { return }
 
-        for result in results where result.hasNews {
+        for note in notes {
             let content = UNMutableNotificationContent()
-            content.title = titles[result.key] ?? "/\(result.key.board)/\(result.key.threadNum)"
-            content.body = String(
-                localized: "\(result.newPostCount) new posts",
-                bundle: .module.forAppLanguage(),
-                locale: AppLocale.current
-            )
+            content.title = note.title
+            content.body = note.body
             content.sound = .default
             content.threadIdentifier = Self.threadCategory
             // Carried so tapping the notification can open the right thread.
-            content.userInfo = [
-                "site": result.key.site.rawValue,
-                "board": result.key.board,
-                "threadNum": result.key.threadNum,
-            ]
+            content.userInfo = note.payload.userInfo
 
             let request = UNNotificationRequest(
                 // Qualified by the site: two imageboards' /b/12345 are two
                 // threads, and one banner must not replace the other's.
-                identifier: result.key.identifier,
+                identifier: note.payload.key.identifier,
                 content: content,
                 trigger: nil
             )

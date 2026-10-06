@@ -349,6 +349,17 @@ public final class AppSettings {
         set { write(newValue.rawValue, forKey: Key.watcherNotifications) }
     }
 
+    /// Whether a post just sent should ask for permission to notify.
+    ///
+    /// The picker asks when it is changed, but "Replies to me" is the default
+    /// and so is never picked: a fresh install was set to notify and had no
+    /// permission to. A post is the moment a reply becomes possible, and the
+    /// system shows its prompt only once, so asking on every post costs nothing
+    /// after the first.
+    public var asksForNotificationPermissionAfterPosting: Bool {
+        watcherNotifications != .off
+    }
+
     /// Whether a hidden thread collapses to a dim one-line stub or goes from
     /// the board altogether.
     ///

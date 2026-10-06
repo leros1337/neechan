@@ -1094,4 +1094,22 @@ struct WatcherNotificationChoiceTests {
             #expect(settings.watcherNotifications == mode, "\(mode) did not round-trip")
         }
     }
+
+    /// "Replies to me" is the default, so the picker is never changed and the
+    /// only other place permission was asked for never ran: a fresh install
+    /// was set to notify and could not.
+    @Test("a fresh install that can post asks for permission once it posts")
+    func freshInstallAsksAfterPosting() throws {
+        let settings = try makeSettings(isAppStoreBuild: false)
+
+        #expect(settings.asksForNotificationPermissionAfterPosting)
+    }
+
+    @Test("notifications turned off are not asked for", arguments: [false, true])
+    func offDoesNotAsk(isAppStoreBuild: Bool) throws {
+        let settings = try makeSettings(isAppStoreBuild: isAppStoreBuild)
+        settings.watcherNotifications = .off
+
+        #expect(settings.asksForNotificationPermissionAfterPosting == false)
+    }
 }

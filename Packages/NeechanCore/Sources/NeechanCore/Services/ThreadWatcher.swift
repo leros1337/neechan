@@ -13,8 +13,22 @@ public actor ThreadWatcher {
         public let key: ThreadKey
         public let newPostCount: Int
         public let isDeleted: Bool
+        /// New posts answering one of the reader's own, oldest first.
+        ///
+        /// Empty wherever the watcher could not read the posts themselves: a
+        /// thread the reader has not written in, a site with no incremental
+        /// endpoint, or a check that failed. Empty is "none known", not "none".
+        public let replies: [Int]
+
+        public init(key: ThreadKey, newPostCount: Int, isDeleted: Bool, replies: [Int] = []) {
+            self.key = key
+            self.newPostCount = newPostCount
+            self.isDeleted = isDeleted
+            self.replies = replies
+        }
 
         public var hasNews: Bool { newPostCount > 0 }
+        public var hasReplies: Bool { !replies.isEmpty }
     }
 
     private let client: DvachClient
@@ -23,6 +37,9 @@ public actor ThreadWatcher {
     private let site: SiteProvider
     private let favorites: FavoritesRepository
     private let states: WatchedThreadStore
+    /// Which posts are the reader's, so a poll can tell an answer to them from
+    /// any other post. Without it the watcher counts and nothing more.
+    private let ownPosts: OwnPostsRepository?
     private var pollTask: Task<Void, Never>?
     /// Threads being polled right now.
     ///
@@ -58,12 +75,14 @@ public actor ThreadWatcher {
         site: @escaping SiteProvider,
         favorites: FavoritesRepository,
         states: WatchedThreadStore,
+        ownPosts: OwnPostsRepository? = nil,
         conditions: @escaping @Sendable () async -> PollConditions = { .unrestricted }
     ) {
         self.client = client
         self.site = site
         self.favorites = favorites
         self.states = states
+        self.ownPosts = ownPosts
         self.conditions = conditions
     }
 
@@ -322,14 +341,19 @@ public actor ThreadWatcher {
             let previous = known?.lastKnownPostsCount ?? total
             let newPosts = max(0, total - previous)
 
+            let scan = newPosts > 0 ? await scanReplies(in: key, known: known) : nil
+            guard key.site == site().site else { return nil }
+
             try? await states.record(
                 key: key,
                 postsCount: total,
-                maxNum: max(known?.lastKnownMaxNum ?? 0, info.num),
+                maxNum: max(known?.lastKnownMaxNum ?? 0, info.num, scan?.readUpTo ?? 0),
                 isDeleted: false
             )
             record(key, outcome: newPosts > 0 ? .news : .quiet)
-            return Result(key: key, newPostCount: newPosts, isDeleted: false)
+            return Result(
+                key: key, newPostCount: newPosts, isDeleted: false, replies: scan?.replies ?? []
+            )
         } catch {
             // A thread that is gone stays gone; anything else is a hiccup and
             // must not make the reader think their thread was deleted.
@@ -342,6 +366,60 @@ public actor ThreadWatcher {
             try? await states.recordFailure(key, message: error.readableWatcherMessage)
             record(key, outcome: isRateLimited(error) ? .rateLimited : .failure)
             return nil
+        }
+    }
+
+    /// What reading a thread's new posts found.
+    private struct ReplyScan {
+        /// The new posts answering the reader, oldest first.
+        let replies: [Int]
+        /// The newest post read, where the next scan starts.
+        let readUpTo: Int
+    }
+
+    /// Reads the posts past what is already known and picks out the answers to
+    /// the reader's own.
+    ///
+    /// Only for a thread the reader has written in: anywhere else there is
+    /// nothing to answer, and the count alone is all the watcher needs. Costs
+    /// one request, on a poll that already found news.
+    private func scanReplies(in key: ThreadKey, known: WatchedThreadSnapshot?) async -> ReplyScan? {
+        guard
+            SiteCapabilities.of(key.site).incrementalThreadRefresh,
+            let mine = try? await ownPosts?.postNums(in: key),
+            let newestOwn = mine.max()
+        else { return nil }
+
+        // Whatever comes first is old news: the reader has read up to one,
+        // the last scan read up to the other, and nobody answered a post before
+        // it was written. `/info` reports the thread's own number as its
+        // "num", so the stored maximum alone is not a real anchor.
+        let anchor = max(known?.lastKnownMaxNum ?? 0, known?.lastReadPostNum ?? 0, newestOwn)
+        guard let posts = await posts(in: key, after: anchor) else { return nil }
+
+        let fresh = posts.filter { $0.num > anchor }
+        let index = ReplyIndex(posts: fresh, thread: key)
+        let replies = fresh.map(\.num).filter { num in
+            // The reader following up on themselves is not an answer.
+            !mine.contains(num) && index.references(from: num).contains(where: mine.contains)
+        }
+        return ReplyScan(replies: replies, readUpTo: fresh.map(\.num).max() ?? anchor)
+    }
+
+    /// The thread's posts from `anchor` on, or nil when they cannot be had.
+    private func posts(in key: ThreadKey, after anchor: Int) async -> [Post]? {
+        do {
+            return try await client.after(
+                board: key.board, thread: key.threadNum, sinceNum: anchor
+            ).posts
+        } catch {
+            // The site will not serve "posts after N" once N itself is gone,
+            // and a reader's post is just what a moderator deletes. The opening
+            // post stands for as long as the thread does.
+            guard error.code?.meansMissing == true, anchor != key.threadNum else { return nil }
+            return try? await client.after(
+                board: key.board, thread: key.threadNum, sinceNum: key.threadNum
+            ).posts
         }
     }
 

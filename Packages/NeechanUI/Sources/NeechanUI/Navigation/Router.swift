@@ -195,6 +195,27 @@ public final class Router {
         }
     }
 
+    /// Opens where a tapped notification leads.
+    ///
+    /// Only on the imageboard being read: the watcher follows no other, so a
+    /// banner for the other site was posted before the reader switched, and
+    /// the client can no longer fetch what it names.
+    public func openNotification(_ target: NavigationTarget) {
+        guard target.site == site else { return }
+        open(target)
+    }
+
+    /// The thread the reader is looking at, if the screen in front is one.
+    ///
+    /// A thread in a tab out of sight does not count: the reader is not
+    /// looking at it, so news there is still worth a banner.
+    public var threadInFront: ThreadKey? {
+        switch activePath.last {
+        case .thread(let key, _), .savedThread(let key): key
+        default: nil
+        }
+    }
+
     /// The screen a link inside a post leads to, or nil for the browser.
     ///
     /// Only boards and threads on the imageboard being read: the client can

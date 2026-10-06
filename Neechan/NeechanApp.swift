@@ -15,33 +15,40 @@ struct NeechanApp: App {
     init() {
         let settings = AppSettings()
         _lock = State(initialValue: AppLock(isEnabled: settings.locksApp))
+        let services: AppServices
         do {
             let container = try NeechanStore.makeContainer()
-            _services = State(initialValue: AppServices(settings: settings, modelContainer: container))
+            services = AppServices(settings: settings, modelContainer: container)
         } catch {
             // A corrupt store must not stop the app from launching: fall back to
             // an in-memory one and say so, rather than crashing on open.
-            _services = State(
-                initialValue: AppServices(
-                    settings: settings,
-                    // The current shapes, not a named version: a fallback a
-                    // schema behind would be a container whose every predicate
-                    // names a column it has never heard of.
-                    modelContainer: try! ModelContainer(
-                        for: Schema(NeechanStore.currentModels),
-                        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-                    )
+            services = AppServices(
+                settings: settings,
+                // The current shapes, not a named version: a fallback a
+                // schema behind would be a container whose every predicate
+                // names a column it has never heard of.
+                modelContainer: try! ModelContainer(
+                    for: Schema(NeechanStore.currentModels),
+                    configurations: ModelConfiguration(isStoredInMemoryOnly: true)
                 )
             )
             _startupError = State(initialValue: String(describing: error))
         }
+        _services = State(initialValue: services)
+        Self.registerLaunchHandlers(services)
     }
 
-    /// Registers the background poll before the app finishes launching, which
-    /// is the only moment the system accepts it.
-    private func registerBackgroundRefresh() {
+    /// Hooks up what the system calls into without a window.
+    ///
+    /// Here, during launch, because it is the only moment the system accepts
+    /// either: the background poll must be registered before the app finishes
+    /// launching, and the tap that launched it goes to whichever notification
+    /// delegate is set by then. A view's `.task` was too late on both counts,
+    /// and never runs at all when the system wakes the app in the background
+    /// with no window to show.
+    private static func registerLaunchHandlers(_ services: AppServices) {
         #if os(iOS)
-        let services = self.services
+        services.notificationResponder.install()
         BackgroundRefresh.register {
             await services.pollWatchedThreads()
         }
@@ -61,7 +68,6 @@ struct NeechanApp: App {
             )
                 .environment(services)
                 .environment(lock)
-                .task { registerBackgroundRefresh() }
                 .alert(
                     "Saved data could not be opened",
                     isPresented: .constant(startupError != nil)

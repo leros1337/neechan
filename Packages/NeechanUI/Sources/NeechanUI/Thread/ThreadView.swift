@@ -294,7 +294,10 @@ public struct ThreadView: View {
         }
         .sheet(item: $replyTarget) { target in
             ReplyFormView(board: key.board, thread: key.threadNum, quoting: target.quoting) { _ in
-                Task { await model.refresh() }
+                Task {
+                    await model.didPost()
+                    await model.refresh()
+                }
             }
         }
         .sheet(isPresented: $isShowingFavorites) {

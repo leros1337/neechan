@@ -520,6 +520,13 @@ public final class ReplyFormViewModel {
             draft = DraftState()
             services.settings.recordPostSent()
             sendState = .sent(outcome)
+            #if canImport(UserNotifications)
+            if services.settings.asksForNotificationPermissionAfterPosting {
+                // Not awaited: the prompt must not hold up the form closing.
+                let notifications = services.notifications
+                Task { await notifications.requestAuthorization() }
+            }
+            #endif
         } catch let error as PostingError {
             sendState = .failed(message: error.message, needsNewCaptcha: error.requiresNewCaptcha)
             if error.requiresNewCaptcha {
