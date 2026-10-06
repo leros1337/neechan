@@ -23,6 +23,7 @@ struct AppSettingsTests {
         #expect(settings.remembersHistory)
         #expect(settings.locksApp == false, "the app does not lock itself until asked")
         #expect(settings.catalogByDefault, "a board opens as the catalog until told otherwise")
+        #expect(settings.refreshesBoardsOnReturn == false, "a board changes only when the reader asks")
         #expect(settings.convertsWebMOnSave, "Photos cannot play a WebM, so it is converted by default")
         #expect(settings.showsHiddenThreads, "hiding a thread collapses it rather than removing it")
         #expect(settings.usesInternalBrowser)

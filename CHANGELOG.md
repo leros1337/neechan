@@ -5,8 +5,18 @@ Notable changes per release. Earlier releases are listed under
 
 ## Unreleased
 
-Pulling up at the end of a thread no longer leaves its arrow behind or
-counts a post you have already read as new.
+A board stays as you left it when you come back to it. Pulling up at the end
+of a thread no longer leaves its arrow behind or counts a post you have
+already read as new.
+
+### Boards
+
+- **A board stays as you left it.** Coming back to a board from a thread or
+  from another app fetched it again once it was older than the watcher's
+  interval, which moved the rows under you in a board ordered by bumps. It
+  now changes only when you pull it down or reload it from the menu. Refresh
+  boards when you come back, in Settings › Forum, brings the old behaviour
+  back.
 
 ### Threads
 

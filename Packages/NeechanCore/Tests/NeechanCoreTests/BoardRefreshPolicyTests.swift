@@ -8,6 +8,7 @@ struct BoardRefreshPolicyTests {
     private let loadedAt = Date(timeIntervalSince1970: 1_000_000)
 
     private func shouldRefresh(
+        isEnabled: Bool = true,
         secondsSinceLoad: TimeInterval? = 120,
         staleAfter: Duration = .seconds(60),
         isNearTop: Bool = true,
@@ -15,6 +16,7 @@ struct BoardRefreshPolicyTests {
         allowsAutomaticPolling: Bool = true
     ) -> Bool {
         BoardRefreshPolicy.shouldRefresh(
+            isEnabled: isEnabled,
             lastLoadedAt: secondsSinceLoad == nil ? nil : loadedAt,
             now: loadedAt.addingTimeInterval(secondsSinceLoad ?? 0),
             staleAfter: staleAfter,
@@ -22,6 +24,12 @@ struct BoardRefreshPolicyTests {
             isLoading: isLoading,
             allowsAutomaticPolling: allowsAutomaticPolling
         )
+    }
+
+    /// Everything else says go: stale, at the top, online, nothing running.
+    @Test("a reader who turned it off keeps the board they left")
+    func turnedOff() {
+        #expect(shouldRefresh(isEnabled: false) == false)
     }
 
     @Test("a list older than the window is worth replacing")

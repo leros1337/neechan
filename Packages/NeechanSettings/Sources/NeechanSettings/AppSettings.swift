@@ -622,6 +622,16 @@ public final class AppSettings {
         set { write(newValue, forKey: Key.catalogByDefault) }
     }
 
+    /// Whether a board fetches itself again when the reader comes back to it,
+    /// from a thread or from another app, once it has gone stale.
+    ///
+    /// Off by default: a board is ordered by what was last bumped, so a
+    /// refresh nobody asked for moves the rows the reader came back to.
+    public var refreshesBoardsOnReturn: Bool {
+        get { bool(Key.refreshesBoardsOnReturn, default: false) }
+        set { write(newValue, forKey: Key.refreshesBoardsOnReturn) }
+    }
+
     // MARK: Contents
 
     /// How often an open thread refreshes itself, or 0 for never.
@@ -905,7 +915,7 @@ public final class AppSettings {
         Key.appIcon,
         Key.nsfwMode, Key.allowsMature,
         Key.remembersHistory, Key.internalBrowser, Key.language,
-        Key.catalogByDefault, Key.autoRefresh, Key.endlessMode,
+        Key.catalogByDefault, Key.refreshesBoardsOnReturn, Key.autoRefresh, Key.endlessMode,
         Key.favoritesOrder, Key.favoriteOnReply, Key.watchNewFavorites,
         Key.mediaLoadPolicy, Key.videoLoops, Key.videoAutoplay,
         Key.conflictAction, Key.subdirectoryPattern, Key.convertWebM, Key.savesToPhotos,
@@ -1003,6 +1013,7 @@ public final class AppSettings {
         static let appLock = "general.appLock"
         static let appIcon = "interface.appIcon"
         static let catalogByDefault = "forum.catalogByDefault"
+        static let refreshesBoardsOnReturn = "forum.refreshOnReturn"
         static let autoRefresh = "contents.autoRefresh"
         static let endlessMode = "contents.endlessMode"
         static let favoritesOrder = "contents.favoritesOrder"

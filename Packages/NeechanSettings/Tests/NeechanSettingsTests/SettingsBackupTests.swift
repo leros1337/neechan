@@ -31,6 +31,7 @@ struct SettingsBackupTests {
         source.collapsePostLineLimit = 30
         source.autoRefreshIntervalSeconds = 60
         source.videoLoops = true
+        source.refreshesBoardsOnReturn = true
         source.downloadSubdirectoryPattern = "<board>"
         source.mediaCacheLimitMegabytes = AppSettings.cacheLimitChoicesMegabytes.last!
         let password = source.postDeletionPassword
@@ -53,6 +54,7 @@ struct SettingsBackupTests {
         #expect(target.threadsViewMode(forBoard: "b") == .grid)
         #expect(target.allowsMatureBoards == false)
         #expect(target.videoLoops)
+        #expect(target.refreshesBoardsOnReturn)
         #expect(target.downloadSubdirectoryPattern == "<board>")
         #expect(target.mediaCacheLimitMegabytes == AppSettings.cacheLimitChoicesMegabytes.last!)
         // Without it, the new device cannot delete a post the old one made.

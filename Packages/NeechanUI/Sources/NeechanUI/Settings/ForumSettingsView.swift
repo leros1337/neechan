@@ -84,6 +84,17 @@ struct ForumSettingsView: View {
             }
 
             Section {
+                Toggle(isOn: $settings.refreshesBoardsOnReturn) {
+                    Text("Refresh boards when you come back", bundle: .module)
+                }
+            } footer: {
+                Text(
+                    "Coming back from a thread or another app fetches a board again if you are at its top and it is older than the watcher's interval.",
+                    bundle: .module
+                )
+            }
+
+            Section {
                 // A passcode buys a shorter path to posting — no captcha and
                 // larger files — so a build that cannot post has nothing to
                 // spend one on, and a screen pointing at a purchase made off

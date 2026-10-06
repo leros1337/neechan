@@ -633,6 +633,7 @@ public struct ThreadsListView: View {
     /// error screen.
     private func refreshIfStale() async {
         guard BoardRefreshPolicy.shouldRefresh(
+            isEnabled: services.settings.refreshesBoardsOnReturn,
             lastLoadedAt: lastLoadedAt,
             staleAfter: .seconds(services.settings.watcherIntervalSeconds),
             isNearTop: isNearTop,

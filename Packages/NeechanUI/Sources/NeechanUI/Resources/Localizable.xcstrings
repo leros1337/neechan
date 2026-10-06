@@ -2767,6 +2767,29 @@
         }
       }
     },
+    "Coming back from a thread or another app fetches a board again if you are at its top and it is older than the watcher's interval." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kommst du aus einem Thread oder einer anderen App zurück, wird ein Board neu geladen, wenn du ganz oben bist und es älter als das Intervall des Wächters ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coming back from a thread or another app fetches a board again if you are at its top and it is older than the watcher's interval."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "При возвращении из треда или другого приложения доска загружается заново, если вы в самом верху и она старше интервала слежения."
+          }
+        }
+      }
+    },
     "Comment" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7968,6 +7991,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Обновлять открытый тред"
+          }
+        }
+      }
+    },
+    "Refresh boards when you come back" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boards beim Zurückkehren aktualisieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh boards when you come back"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обновлять доски при возвращении"
           }
         }
       }

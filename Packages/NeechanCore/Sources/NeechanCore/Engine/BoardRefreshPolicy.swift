@@ -7,6 +7,8 @@ import Foundation
 /// asks this on the way back in needs no rule of its own.
 public enum BoardRefreshPolicy {
     /// - Parameters:
+    ///   - isEnabled: the reader's preference. Off, a board changes only when
+    ///     they pull it down or reload it from the menu.
     ///   - lastLoadedAt: when the list on screen arrived, or nil when nothing
     ///     has arrived yet.
     ///   - staleAfter: how old a list may be before it is worth replacing.
@@ -19,6 +21,7 @@ public enum BoardRefreshPolicy {
     ///     state of the network. This refresh is one nobody asked for, so it is
     ///     held back by both; pulling to refresh is not.
     public static func shouldRefresh(
+        isEnabled: Bool,
         lastLoadedAt: Date?,
         now: Date = .now,
         staleAfter: Duration,
@@ -26,7 +29,7 @@ public enum BoardRefreshPolicy {
         isLoading: Bool,
         allowsAutomaticPolling: Bool
     ) -> Bool {
-        guard allowsAutomaticPolling, isNearTop, !isLoading else { return false }
+        guard isEnabled, allowsAutomaticPolling, isNearTop, !isLoading else { return false }
         // Nothing has been loaded yet, so the ordinary first load is what this
         // board needs, and a failure has its own way back.
         guard let lastLoadedAt else { return false }
