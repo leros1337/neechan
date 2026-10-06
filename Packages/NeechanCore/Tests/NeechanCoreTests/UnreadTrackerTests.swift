@@ -86,6 +86,37 @@ struct UnreadTrackerTests {
         #expect(tracker.unreadCount(in: []) == 0)
     }
 
+    // MARK: Since the last visit
+
+    @Test("coming back finds the posts that arrived since the last visit")
+    func postsSinceLastVisit() {
+        let tracker = UnreadTracker(lastReadPostNum: 2, mode: .automatic)
+        #expect(tracker.postsSinceLastVisit(in: [1, 2, 3, 4]) == [3, 4])
+    }
+
+    /// Every post would count, and "300 new posts" on a thread nobody has
+    /// opened before says nothing.
+    @Test("a thread opened for the first time has nothing since a last visit")
+    func firstVisitHasNothingSince() {
+        let tracker = UnreadTracker(lastReadPostNum: 0, mode: .automatic)
+        #expect(tracker.postsSinceLastVisit(in: [1, 2, 3]).isEmpty)
+    }
+
+    @Test("a thread with nothing new since the last visit has nothing since it")
+    func nothingNewSinceLastVisit() {
+        let tracker = UnreadTracker(lastReadPostNum: 4, mode: .automatic)
+        #expect(tracker.postsSinceLastVisit(in: [1, 2, 3, 4]).isEmpty)
+    }
+
+    /// The divider is a setting; what arrived while the reader was away is a
+    /// fact either way.
+    @Test("posts since the last visit are found with the divider turned off")
+    func postsSinceLastVisitIgnoreMarkerMode() {
+        let tracker = UnreadTracker(lastReadPostNum: 2, mode: .never)
+        #expect(tracker.firstUnreadPostNum(in: [1, 2, 3]) == nil)
+        #expect(tracker.postsSinceLastVisit(in: [1, 2, 3]) == [3])
+    }
+
     @Test("posts deleted from the middle do not inflate the count")
     func handlesGaps() {
         // 2 and 3 were deleted; only 4 and 5 are genuinely unread.

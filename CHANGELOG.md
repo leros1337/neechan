@@ -6,9 +6,10 @@ Notable changes per release. Earlier releases are listed under
 ## Unreleased
 
 A board stays as you left it when you come back to it, and a thread's gallery
-grid can show only its videos or only its images. In a thread, Latest post
-goes all the way to the newest post, and pulling up at the end no longer
-leaves its arrow behind or counts a post you have already read as new.
+grid can show only its videos or only its images. A thread you come back to
+says how many posts arrived while you were away, Latest post goes all the
+way to the newest post, and pulling up at the end no longer leaves its arrow
+behind or counts a post you have already read as new.
 
 ### Boards
 
@@ -42,6 +43,11 @@ leaves its arrow behind or counts a post you have already read as new.
   could run past the end and spring back, which looked like a pull up, so
   the thread refreshed and said "No new posts" with nobody pulling. A pull
   up now counts only when it is your finger moving the thread.
+- **A thread you come back to says what is new.** Going back to the board
+  and opening a thread again brought in the posts written since, with
+  nothing saying so. It now says how many arrived while you were away, and
+  how many of them reply to you, the way a refresh does, and tapping it goes
+  to the first of them. A thread you open for the first time says nothing.
 
 ### Gallery
 

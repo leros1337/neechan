@@ -480,14 +480,25 @@ public final class ThreadViewModel {
         isFavorite = (try? await services.favorites.isFavorite(key)) ?? false
     }
 
-    /// Works out where the divider goes, from what the reader last read.
+    /// Works out where the divider goes, from what the reader last read, and
+    /// says what arrived since.
+    ///
+    /// Announced like a refresh, because to the reader it is one: going back
+    /// to the board and opening the thread again builds it from scratch, and
+    /// that full load used to bring in the new posts with nothing saying so.
     public func refreshUnreadMarker() async {
         let state = try? await services.watchedThreads.state(for: key)
         let tracker = UnreadTracker(
             lastReadPostNum: state?.lastReadPostNum ?? 0,
             mode: services.settings.unreadMarkerMode
         )
-        firstUnreadPostNum = tracker.firstUnreadPostNum(in: snapshot.posts.map(\.num))
+        let nums = snapshot.posts.map(\.num)
+        firstUnreadPostNum = tracker.firstUnreadPostNum(in: nums)
+
+        let arrived = tracker.postsSinceLastVisit(in: nums)
+        if !arrived.isEmpty {
+            lastRefresh = makeAnnouncement(arrived: arrived)
+        }
     }
 
     /// Reads back where the reader left off.

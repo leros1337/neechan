@@ -28,6 +28,17 @@ public struct UnreadTracker: Sendable, Equatable {
         return postNums.first { $0 > lastReadPostNum }
     }
 
+    /// The posts that arrived since the reader was last in the thread, in order.
+    ///
+    /// Empty for a thread opened for the first time, for the divider's reason:
+    /// with nothing read above them, every post would count. Found whatever
+    /// the marker mode, which is about drawing the divider; what arrived while
+    /// the reader was away is a fact either way.
+    public func postsSinceLastVisit(in postNums: [Int]) -> [Int] {
+        guard let first = postNums.first, first <= lastReadPostNum else { return [] }
+        return postNums.filter { $0 > lastReadPostNum }
+    }
+
     /// How many posts the reader has not seen. Counted even with markers off,
     /// because the favourites badge uses it.
     public func unreadCount(in postNums: [Int]) -> Int {

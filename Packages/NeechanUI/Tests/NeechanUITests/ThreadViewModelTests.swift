@@ -1038,6 +1038,69 @@ struct RefreshAnnouncementTests {
         #expect(model.isNew(first))
     }
 
+    // MARK: Coming back
+
+    /// A model for a thread opened again, after the reader had left it with
+    /// everything up to `lastSeen` on screen.
+    private func reopenedModel(lastSeen: Int) async throws -> (ThreadViewModel, AppServices) {
+        let transport = StubTransport()
+        await transport.stub(
+            pathSuffix: "/po/res/\(recorded.currentThread).json",
+            data: try FixtureLoader.data(.thread)
+        )
+        let (model, services) = try makeModel(transport)
+        let read = recorded.posts.count { $0.num <= lastSeen }
+        try await services.watchedThreads.markRead(key, upTo: lastSeen, totalPosts: read)
+        return (model, services)
+    }
+
+    /// Going back to the board and opening the thread again builds it from
+    /// scratch, and a full load announced nothing: the posts that had arrived
+    /// were there at the end with nothing saying so.
+    @Test("opening a thread again announces the posts since the last visit")
+    func reopeningAnnouncesPostsSinceLastVisit() async throws {
+        let nums = recorded.posts.map(\.num)
+        let (model, _) = try await reopenedModel(lastSeen: nums[nums.count - 3])
+
+        await model.load()
+
+        let announcement = try #require(model.lastRefresh)
+        #expect(announcement.failure == nil)
+        #expect(announcement.newPostCount == 2)
+        #expect(announcement.firstNewPostNum == nums[nums.count - 2])
+    }
+
+    @Test("a reply to the reader that arrived while they were away is called out")
+    func reopeningCountsRepliesToTheReader() async throws {
+        let nums = recorded.posts.map(\.num)
+        // The last post in the fixture answers the one before it.
+        let own = nums[nums.count - 2]
+        let (model, services) = try await reopenedModel(lastSeen: own)
+        try await services.ownPosts.record(key, postNum: own)
+
+        await model.load()
+
+        let announcement = try #require(model.lastRefresh)
+        #expect(announcement.newPostCount == 1)
+        #expect(announcement.replyToOwnCount == 1)
+        #expect(announcement.destinationPostNum == nums.last)
+    }
+
+    @Test("opening a thread again with nothing new announces nothing")
+    func reopeningWithNothingNewStaysQuiet() async throws {
+        let (model, _) = try await reopenedModel(lastSeen: try #require(recorded.posts.last?.num))
+
+        await model.load()
+
+        #expect(model.lastRefresh == nil)
+    }
+
+    @Test("opening a thread for the first time announces nothing")
+    func firstOpenStaysQuiet() async throws {
+        let (model, _, _) = try await loadedModel()
+        #expect(model.lastRefresh == nil)
+    }
+
     @Test("each refresh is announced separately, even with the same result")
     func announcementsAreDistinct() async throws {
         let (model, transport, _) = try await loadedModel()
