@@ -418,8 +418,8 @@ public struct ThreadView: View {
             // Wi-Fi.
             guard services.allowsAutomaticPolling else { continue }
 
-            await model?.refresh()
-            quietPolls = model?.newPostNums.isEmpty == false ? 0 : quietPolls + 1
+            let arrived = await model?.refresh() ?? []
+            quietPolls = arrived.isEmpty ? quietPolls + 1 : 0
         }
     }
 

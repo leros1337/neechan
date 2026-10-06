@@ -973,6 +973,71 @@ struct RefreshAnnouncementTests {
         #expect(announcement.firstNewPostNum == model.newPostNums.first)
     }
 
+    /// A quiet refresh comes back as a change to the thread's facts rather than
+    /// as an append, and the count used to be read from the posts the last
+    /// append brought. Every pull after a new post then announced that same
+    /// post again, however long ago the reader had read it.
+    @Test("a refresh that finds nothing does not announce the last one's posts again")
+    func quietRefreshAfterNewPostsAnnouncesNothingNew() async throws {
+        let (model, transport, _) = try await loadedModel()
+        await transport.stub(
+            pathContaining: "/api/mobile/v2/after/", data: try FixtureLoader.data(.threadAfter)
+        )
+        await model.refresh()
+        #expect(try #require(model.lastRefresh).newPostCount > 0)
+
+        await transport.stub(
+            pathContaining: "/api/mobile/v2/after/", data: try FixtureLoader.data(.threadAfterEmpty)
+        )
+        await model.refresh(userInitiated: true)
+
+        let announcement = try #require(model.lastRefresh)
+        #expect(announcement.failure == nil)
+        #expect(announcement.newPostCount == 0)
+        #expect(announcement.replyToOwnCount == 0)
+        #expect(announcement.firstNewPostNum == nil)
+    }
+
+    /// The same stale count made every quiet poll on a timer announce the last
+    /// new post again, and kept the poll from ever slowing down.
+    @Test("a timer refresh that finds nothing after new posts stays quiet")
+    func quietTimerRefreshAfterNewPostsStaysQuiet() async throws {
+        let (model, transport, _) = try await loadedModel()
+        await transport.stub(
+            pathContaining: "/api/mobile/v2/after/", data: try FixtureLoader.data(.threadAfter)
+        )
+        #expect(await model.refresh().isEmpty == false, "the first refresh brought posts")
+        model.dismissRefreshAnnouncement()
+
+        await transport.stub(
+            pathContaining: "/api/mobile/v2/after/", data: try FixtureLoader.data(.threadAfterEmpty)
+        )
+        let arrived = await model.refresh()
+
+        #expect(arrived.isEmpty, "the poll found nothing, so it can back off")
+        #expect(model.lastRefresh == nil)
+    }
+
+    /// Only the announcement forgets them. The tint stays on the posts until
+    /// more arrive, so a reader who has not scrolled down yet can still see
+    /// which ones they are.
+    @Test("the posts a refresh brought stay marked new through a quiet one")
+    func newPostsStayMarkedThroughAQuietRefresh() async throws {
+        let (model, transport, _) = try await loadedModel()
+        await transport.stub(
+            pathContaining: "/api/mobile/v2/after/", data: try FixtureLoader.data(.threadAfter)
+        )
+        let arrived = await model.refresh()
+        let first = try #require(arrived.first)
+
+        await transport.stub(
+            pathContaining: "/api/mobile/v2/after/", data: try FixtureLoader.data(.threadAfterEmpty)
+        )
+        await model.refresh(userInitiated: true)
+
+        #expect(model.isNew(first))
+    }
+
     @Test("each refresh is announced separately, even with the same result")
     func announcementsAreDistinct() async throws {
         let (model, transport, _) = try await loadedModel()

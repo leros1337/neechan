@@ -5,7 +5,8 @@ Notable changes per release. Earlier releases are listed under
 
 ## Unreleased
 
-Pulling up at the end of a thread no longer leaves its arrow behind.
+Pulling up at the end of a thread no longer leaves its arrow behind or
+counts a post you have already read as new.
 
 ### Threads
 
@@ -15,6 +16,11 @@ Pulling up at the end of a thread no longer leaves its arrow behind.
   refresh partway through the spring-back, and the rest of the spring-back
   was ignored while the refresh ran, so nothing told the arrow the pull was
   over. It now goes away as soon as the refresh ends.
+- **A refresh counts only the posts it brought.** After a refresh that
+  brought a new post, every pull that found nothing still said "1 new posts",
+  and the automatic refresh announced that post again each time it looked,
+  without ever slowing down in a quiet thread. A refresh that finds nothing
+  now says so, and the post that arrived keeps its tint until more arrive.
 
 ## 2.5.1
 

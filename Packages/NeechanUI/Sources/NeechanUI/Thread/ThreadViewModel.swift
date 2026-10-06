@@ -27,7 +27,12 @@ public final class ThreadViewModel {
         }
     }
     public private(set) var loadState: LoadStatus = .idle
-    /// Numbers of posts that arrived in the most recent refresh, in order.
+    /// Numbers of posts that arrived in the most recent refresh that brought
+    /// any, in order: what the new-post tint marks.
+    ///
+    /// Kept through a refresh that finds nothing, so the tint stays until more
+    /// posts arrive. That makes it the wrong thing to count for "what did this
+    /// refresh bring"; see `refresh(userInitiated:)`.
     public private(set) var newPostNums: [Int] = [] {
         didSet { newPostNumSet = Set(newPostNums) }
     }
@@ -315,7 +320,11 @@ public final class ThreadViewModel {
     /// - Parameter userInitiated: true when the reader pulled to refresh or
     ///   asked for it from the menu, which is announced either way. A refresh
     ///   on a timer announces itself only when something actually arrived.
-    public func refresh(userInitiated: Bool = false) async {
+    /// - Returns: the posts this refresh brought, for a poll deciding whether
+    ///   to back off. Not `newPostNums`, which outlives a refresh that found
+    ///   nothing.
+    @discardableResult
+    public func refresh(userInitiated: Bool = false) async -> [Int] {
         await loadOwnPosts()
         let update = await repository.refresh()
         apply(update)
@@ -324,26 +333,39 @@ public final class ThreadViewModel {
             // Worth saying only when the reader asked: a timer that cannot
             // reach the site should not keep interrupting the thread.
             if userInitiated {
-                lastRefresh = makeAnnouncement(failure: error.readableMessage)
+                lastRefresh = makeAnnouncement(arrived: [], failure: error.readableMessage)
             }
-            return
+            return []
         }
-        if userInitiated || !newPostNums.isEmpty {
-            lastRefresh = makeAnnouncement()
+        let arrived = Self.arrivals(in: update)
+        if userInitiated || !arrived.isEmpty {
+            lastRefresh = makeAnnouncement(arrived: arrived)
         }
+        return arrived
     }
 
-    /// Describes what the last refresh brought in.
+    /// The posts one update brought.
+    ///
+    /// Read from the update rather than from `newPostNums`: a refresh that
+    /// finds nothing comes back as `.metaChanged`, which leaves those alone,
+    /// and counting them announced the last new post again on every pull and
+    /// every quiet poll after it.
+    private static func arrivals(in update: ThreadUpdate) -> [Int] {
+        if case .appended(_, let nums) = update { return nums }
+        return []
+    }
+
+    /// Describes what a refresh brought in.
     ///
     /// Replies to the reader are counted here rather than by the watcher, which
     /// only ever sees post counts from `/info` and cannot tell who answered whom.
-    private func makeAnnouncement(failure: String? = nil) -> RefreshAnnouncement {
-        let repliesToReader = newPostNums.filter(snapshot.repliesToOwnPost)
+    private func makeAnnouncement(arrived: [Int], failure: String? = nil) -> RefreshAnnouncement {
+        let repliesToReader = arrived.filter(snapshot.repliesToOwnPost)
         return RefreshAnnouncement(
             failure: failure,
-            newPostCount: newPostNums.count,
+            newPostCount: arrived.count,
             replyToOwnCount: repliesToReader.count,
-            firstNewPostNum: newPostNums.first,
+            firstNewPostNum: arrived.first,
             firstReplyToOwnPostNum: repliesToReader.first
         )
     }
@@ -358,9 +380,10 @@ public final class ThreadViewModel {
 
     /// Fetches the whole thread again.
     public func reload(userInitiated: Bool = false) async {
-        apply(await repository.reloadFully())
+        let update = await repository.reloadFully()
+        apply(update)
         if userInitiated {
-            lastRefresh = makeAnnouncement()
+            lastRefresh = makeAnnouncement(arrived: Self.arrivals(in: update))
         }
     }
 
