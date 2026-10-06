@@ -1,13 +1,13 @@
 {
-  "originHash" : "e803e42c5dd28a30bc90db08529332a87420b416420fa647f1dce03bab986aa6",
+  "originHash" : "038e2839e6f23638202a9fe48b0044584ba5a41ddff3489c354e820dfffde800",
   "pins" : [
     {
       "identity" : "neechan-ffmpeg",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/leros1337/neechan-ffmpeg.git",
       "state" : {
-        "revision" : "2fcd740ec02b9d9567354c1c3f65d59cf2aee8bc",
-        "version" : "9.0.2"
+        "revision" : "51daca322da5ca14c047be6736bbe053841c66ef",
+        "version" : "9.0.3"
       }
     }
   ],

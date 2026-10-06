@@ -262,7 +262,10 @@ check-ipa-appstore:
 	test "$$name" = "Neechan" || { echo "wrong display name: $$name (expected Neechan)"; exit 1; }; \
 	plutil -extract CFBundleIcons.CFBundleAlternateIcons json -o - "$$plist" 2>/dev/null | grep -q '"AppIcon3"' && { echo "AppIcon3 (the nude artwork) is in the App Store build. Run 'make gen'."; exit 1; } || true; \
 	test ! -e "$$app/NeechanUI_NeechanUI.bundle/app-icon-neechan.png" || { echo "the nude icon preview is in the App Store build"; exit 1; }; \
-	echo "App Store .ipa confirmed: $$id, posting off, no AppIcon3"
+	: "A framework from neechan-ffmpeg is embedded as an empty stub, which App"; \
+	: "Store validation reports as a missing dSYM. It has to ship static libraries."; \
+	! ls -d "$$app"/Frameworks/Lib*.framework >/dev/null 2>&1 || { echo "FFmpeg is embedded as stub frameworks: neechan-ffmpeg must ship static-library xcframeworks"; exit 1; }; \
+	echo "App Store .ipa confirmed: $$id, posting off, no AppIcon3, no FFmpeg stubs"
 
 ## Checks the Release archive `ipa` just cut, before it is zipped: the build the
 ## release workflow publishes, which carries every restriction but the posting

@@ -24,7 +24,7 @@ let package = Package(
         .package(path: "../NeechanAPI"),
         .package(path: "../NeechanSettings"),
         .package(path: "../NeechanTestSupport"),
-        .package(url: "https://github.com/leros1337/neechan-ffmpeg.git", from: "9.0.2")
+        .package(url: "https://github.com/leros1337/neechan-ffmpeg.git", from: "9.0.3")
     ],
     targets: [
         .target(

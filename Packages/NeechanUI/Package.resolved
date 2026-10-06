@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/leros1337/neechan-ffmpeg.git",
       "state" : {
-        "revision" : "2fcd740ec02b9d9567354c1c3f65d59cf2aee8bc",
-        "version" : "9.0.2"
+        "revision" : "51daca322da5ca14c047be6736bbe053841c66ef",
+        "version" : "9.0.3"
       }
     }
   ],
