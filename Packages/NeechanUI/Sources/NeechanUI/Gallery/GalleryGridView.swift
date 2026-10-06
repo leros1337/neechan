@@ -19,11 +19,20 @@ struct GalleryGridView: View {
     /// Saving and sharing from a long press, without opening the file first.
     @State private var model: GalleryGridModel
     @State private var shareURL: URL?
+    /// Not kept between openings: a thread with no video would otherwise open
+    /// on an empty grid.
+    @State private var filter: GalleryFilter
 
-    init(items: [GalleryItem], services: AppServices, onGoToPost: ((Int) -> Void)? = nil) {
+    init(
+        items: [GalleryItem],
+        services: AppServices,
+        filter: GalleryFilter = .all,
+        onGoToPost: ((Int) -> Void)? = nil
+    ) {
         self.items = items
         self.onGoToPost = onGoToPost
         _model = State(initialValue: GalleryGridModel(services: services))
+        _filter = State(initialValue: filter)
     }
 
     /// The file being viewed, shown over the grid.
@@ -35,12 +44,16 @@ struct GalleryGridView: View {
     @State private var start: GalleryStart?
 
     var body: some View {
+        let shown = filter.apply(to: items)
         NavigationStack {
             ScrollView {
                 DuoAdaptiveGrid(minimum: 104, spacing: 6) {
-                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    ForEach(Array(shown.enumerated()), id: \.element.id) { index, item in
                         Button {
-                            start = GalleryStart(items: items, index: index)
+                            // The viewer is given what the grid shows, so the
+                            // index lands on the file tapped and a swipe stays
+                            // within the filter.
+                            start = GalleryStart(items: shown, index: index)
                         } label: {
                             ThumbnailView(attachment: item.attachment, side: nil)
                         }
@@ -68,6 +81,11 @@ struct GalleryGridView: View {
                 .padding(.vertical, 8)
             }
             .scrollEdgeEffectStyle(.soft, for: .top)
+            .safeAreaBar(edge: .top) {
+                if !items.isEmpty {
+                    filterPicker
+                }
+            }
             .overlay(alignment: .bottom) {
                 if let transfer = model.transfers.transfer {
                     TransferCapsule(transfer: transfer) { model.transfers.cancelTransfer() }
@@ -112,6 +130,24 @@ struct GalleryGridView: View {
                     } description: {
                         Text("Nothing has been posted in this thread yet.", bundle: .module)
                     }
+                } else if shown.isEmpty {
+                    ContentUnavailableView {
+                        Label {
+                            if filter == .videos {
+                                Text("No videos in this thread", bundle: .module)
+                            } else {
+                                Text("No images in this thread", bundle: .module)
+                            }
+                        } icon: {
+                            Image(systemName: filter == .videos ? "film" : "photo")
+                        }
+                    } actions: {
+                        Button {
+                            filter = .all
+                        } label: {
+                            Text("Show all files", bundle: .module)
+                        }
+                    }
                 }
             }
             .fullScreenCoverCompat(item: $start) { start in
@@ -127,7 +163,7 @@ struct GalleryGridView: View {
                     }
                 )
             }
-            .navigationTitle(Text("\(items.count) attachments", bundle: .module))
+            .navigationTitle(title(count: shown.count))
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -142,6 +178,33 @@ struct GalleryGridView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// A segmented control rather than a menu: readers flip between the three,
+    /// so one tap beats two, and which one is on stays in sight.
+    private var filterPicker: some View {
+        Picker(selection: $filter) {
+            Text("All", bundle: .module).tag(GalleryFilter.all)
+            Text("Videos", bundle: .module).tag(GalleryFilter.videos)
+            Text("Images", bundle: .module).tag(GalleryFilter.images)
+        } label: {
+            Text("Show", bundle: .module)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .frame(maxWidth: 420)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+        .accessibilityIdentifier("gallery-filter")
+    }
+
+    /// Counts what is shown, and names it.
+    private func title(count: Int) -> Text {
+        switch filter {
+        case .all: Text("\(count) attachments", bundle: .module)
+        case .videos: Text("\(count) videos", bundle: .module)
+        case .images: Text("\(count) images", bundle: .module)
         }
     }
 

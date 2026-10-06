@@ -5,9 +5,10 @@ Notable changes per release. Earlier releases are listed under
 
 ## Unreleased
 
-A board stays as you left it when you come back to it. Pulling up at the end
+A board stays as you left it when you come back to it, pulling up at the end
 of a thread no longer leaves its arrow behind or counts a post you have
-already read as new.
+already read as new, and a thread's gallery grid can show only its videos or
+only its images.
 
 ### Boards
 
@@ -31,6 +32,16 @@ already read as new.
   and the automatic refresh announced that post again each time it looked,
   without ever slowing down in a quiet thread. A refresh that finds nothing
   now says so, and the post that arrived keeps its tint until more arrive.
+
+### Gallery
+
+- **The gallery grid can show only videos or only images.** A switch at the
+  top of a thread's grid picks All, Videos or Images, and the title counts
+  what is shown. A file opened from a narrowed grid swipes through that
+  selection only. A GIF counts as an image, and a `.mov` the server calls a
+  picture counts as a video, because that is how the viewer plays it. The
+  grid opens on All each time, and a thread with none of the chosen kind
+  offers a button back to every file.
 
 ## 2.5.1
 
