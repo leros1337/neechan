@@ -31,6 +31,16 @@ struct PullUpProgress: Equatable {
     /// of the thread, gray and half faded, until the reader scrolled.
     private(set) var isRefreshing = false
 
+    /// Whether the app, not the reader, is moving the content: a jump to the
+    /// newest post, to a search hit, to where the reader left off.
+    ///
+    /// Such a jump down a lazy stack aims with estimated heights, and as the
+    /// rows are built the content can shrink under it, carrying it past the
+    /// end and springing it back. That is exactly what a release looks like,
+    /// and the Latest post button used to refresh the thread with nobody
+    /// pulling. Nothing is a pull while this is on.
+    private(set) var isProgrammaticScroll = false
+
     /// Spelled out rather than left to the memberwise initialiser: a private
     /// stored property makes that one private too on Swift 6.2, so the tests
     /// could not build it. Swift 6.3 is happy either way, which is why this
@@ -89,6 +99,10 @@ struct PullUpProgress: Equatable {
             reset()
             return false
         }
+        guard !isProgrammaticScroll else {
+            reset()
+            return false
+        }
 
         distance = max(0, reading.overscroll)
 
@@ -109,6 +123,13 @@ struct PullUpProgress: Equatable {
     /// The refresh is over, so the next release can start another.
     mutating func finishRefreshing() {
         isRefreshing = false
+    }
+
+    /// Notes whether the app has started or finished a scroll of its own. A
+    /// pull in progress when one starts is dropped.
+    mutating func setProgrammaticScroll(_ isProgrammatic: Bool) {
+        isProgrammaticScroll = isProgrammatic
+        if isProgrammatic { reset() }
     }
 
     /// Forgets the pull. A refresh in progress carries on: new posts landing
@@ -171,6 +192,15 @@ private struct PullUpToRefreshModifier: ViewModifier {
                 let fires = next.update(reading)
                 if next != progress { progress = next }
                 if fires { refresh() }
+            }
+            // `.animating` is how SwiftUI reports a scroll the app asked for;
+            // a finger on the glass is `.interacting`. Only the start of the
+            // drag matters here, since it is what arms a pull, so the phase
+            // changes that go missing at the end of some gestures do not.
+            .onScrollPhaseChange { _, phase in
+                var next = progress
+                next.setProgrammaticScroll(phase == .animating)
+                if next != progress { progress = next }
             }
             .overlay(alignment: .bottom) { indicator }
     }

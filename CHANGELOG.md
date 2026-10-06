@@ -38,6 +38,10 @@ leaves its arrow behind or counts a post you have already read as new.
   rest had to be scrolled by hand. The line above each post had the post's
   own number, and the scroll lined up the bottom of the line instead of the
   bottom of the post.
+- **Latest post no longer refreshes the thread.** On a long thread the jump
+  could run past the end and spring back, which looked like a pull up, so
+  the thread refreshed and said "No new posts" with nobody pulling. A pull
+  up now counts only when it is your finger moving the thread.
 
 ### Gallery
 

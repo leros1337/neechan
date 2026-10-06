@@ -246,6 +246,68 @@ struct PullUpProgressTests {
         ) == true)
     }
 
+    // MARK: Scrolls the app makes
+
+    /// The Latest post button animates down a lazy stack that is still
+    /// measuring its rows, so the content can run past its end and spring
+    /// back, which is exactly what a release looks like. It used to refresh
+    /// the thread and say "No new posts" to a reader who had pulled nothing.
+    @Test("a scroll the app animates past the end neither shows nor refreshes anything")
+    func programmaticOvershootDoesNotFire() {
+        var progress = PullUpProgress(threshold: 72)
+        let height: CGFloat = 4000
+
+        _ = progress.update(PullUpReading(overscroll: -90_000, contentHeight: height, isScrollable: true))
+        progress.setProgrammaticScroll(true)
+        for overscroll: CGFloat in [-300, 150, 385, 200, 60, 20, -200] {
+            #expect(progress.update(
+                PullUpReading(overscroll: overscroll, contentHeight: height, isScrollable: true)
+            ) == false)
+            #expect(progress.isVisible == false)
+            #expect(progress.isArmed == false)
+        }
+        progress.setProgrammaticScroll(false)
+
+        #expect(progress.update(
+            PullUpReading(overscroll: 0, contentHeight: height, isScrollable: true)
+        ) == false)
+        #expect(progress.showsIndicator == false)
+    }
+
+    @Test("the reader's own pull still refreshes after a scroll the app made")
+    func pullAfterProgrammaticScrollFires() {
+        var progress = PullUpProgress(threshold: 72)
+        let height: CGFloat = 4000
+
+        _ = progress.update(PullUpReading(overscroll: 0, contentHeight: height, isScrollable: true))
+        progress.setProgrammaticScroll(true)
+        _ = progress.update(PullUpReading(overscroll: 200, contentHeight: height, isScrollable: true))
+        progress.setProgrammaticScroll(false)
+
+        _ = progress.update(PullUpReading(overscroll: 0, contentHeight: height, isScrollable: true))
+        _ = progress.update(PullUpReading(overscroll: 100, contentHeight: height, isScrollable: true))
+        #expect(progress.update(
+            PullUpReading(overscroll: 10, contentHeight: height, isScrollable: true)
+        ) == true)
+    }
+
+    @Test("a scroll the app starts disarms a pull in progress")
+    func programmaticScrollDisarms() {
+        var progress = PullUpProgress(threshold: 72)
+        let height: CGFloat = 4000
+
+        _ = progress.update(PullUpReading(overscroll: 0, contentHeight: height, isScrollable: true))
+        _ = progress.update(PullUpReading(overscroll: 100, contentHeight: height, isScrollable: true))
+        #expect(progress.isArmed)
+
+        progress.setProgrammaticScroll(true)
+        #expect(progress.isArmed == false)
+        #expect(progress.isVisible == false)
+        #expect(progress.update(
+            PullUpReading(overscroll: 10, contentHeight: height, isScrollable: true)
+        ) == false)
+    }
+
     @Test("resetting clears it, so the next pull starts from nothing")
     func resetClears() {
         var progress = PullUpProgress(threshold: 50)
