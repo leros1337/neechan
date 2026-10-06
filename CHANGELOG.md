@@ -3,46 +3,13 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
-## Unreleased
-
-"Replies to me" tells you about replies to you, a thread you reply in is
-watched for them, and tapping a notification opens the reply.
-
-### Notifications
-
-- **"Replies to me" notifies about replies to you, and nothing else.** It
-  fired for every new post in a watched thread: the watcher only asked 2ch how
-  many posts a thread held, which cannot tell an answer from anything else. In
-  a thread you have posted in, it now reads the posts that arrived -- one
-  request, and only when there are any -- and the notification says how many
-  answer you. "All new posts" still says how many arrived, and now how many of
-  those answer you. It is still your phone asking the site; there is no push
-  server. On 4chan, which cannot be asked for only the new posts, "Replies to
-  me" stays quiet.
-- **A thread you reply in is watched.** "Add to favorites when I reply" and
-  "Watch new favorites" were in Settings and did nothing. Replying now adds the
-  thread to Favorites, watched unless Watch new favorites is off, so the
-  watcher checks it. A thread already in Favorites is left as you set it.
-- **Notifications are asked for when you post.** The permission prompt came
-  only when the Notifications picker was changed, and "Replies to me" is its
-  default, so a fresh install was set to notify with no permission to. The
-  first post now asks, unless notifications are Off.
-- **A notification opens its thread.** Tapping one only brought the app
-  forward. It now opens the thread, on the reply when it is about one, and is
-  cleared once you leave the thread. One that arrives while the app is open is
-  shown as well, unless it is about the thread on screen; those used to be
-  dropped.
-- **The background check is there when iOS runs it.** It was set up by the
-  first screen, which is not drawn when iOS wakes the app in the background to
-  run the check, so it could be missing exactly then. It is now set up as the
-  app launches.
-
 ## 2.5.1
 
 A picture can be drawn on, cropped, turned and resized before it is posted,
 a board's menu filters its threads and reloads it from anywhere in the list,
 a video's thumbnail says how long it runs, and a video stops when the app is
-left.
+left. "Replies to me" tells you about replies to you, a thread you reply in
+is watched for them, and tapping a notification opens the reply.
 
 ### Boards
 
@@ -104,6 +71,47 @@ left.
   still moving to a new position, or going back round to the start of a
   looping clip, was undone as soon as the picture for that position
   arrived, and the clip played on.
+
+### Notifications
+
+- **"Replies to me" notifies about replies to you, and nothing else.** It
+  fired for every new post in a watched thread: the watcher only asked 2ch how
+  many posts a thread held, which cannot tell an answer from anything else. In
+  a thread you have posted in, it now reads the posts that arrived -- one
+  request, and only when there are any -- and the notification says how many
+  answer you. "All new posts" still says how many arrived, and now how many of
+  those answer you. It is still your phone asking the site; there is no push
+  server. On 4chan, which cannot be asked for only the new posts, "Replies to
+  me" stays quiet.
+- **A thread you reply in is watched.** "Add to favorites when I reply" and
+  "Watch new favorites" were in Settings and did nothing. Replying now adds the
+  thread to Favorites, watched unless Watch new favorites is off, so the
+  watcher checks it. A thread already in Favorites is left as you set it.
+- **Notifications are asked for when you post.** The permission prompt came
+  only when the Notifications picker was changed, and "Replies to me" is its
+  default, so a fresh install was set to notify with no permission to. The
+  first post now asks, unless notifications are Off.
+- **A notification opens its thread.** Tapping one only brought the app
+  forward. It now opens the thread, on the reply when it is about one, and is
+  cleared once you leave the thread. One that arrives while the app is open is
+  shown as well, unless it is about the thread on screen; those used to be
+  dropped.
+- **The background check is there when iOS runs it.** It was set up by the
+  first screen, which is not drawn when iOS wakes the app in the background to
+  run the check, so it could be missing exactly then. It is now set up as the
+  app launches.
+
+### Building
+
+- **App Store validation no longer warns about FFmpeg.** Validating an archive
+  reported "Upload Symbols Failed" for `Libavcodec.framework` and the four
+  other FFmpeg libraries. They were empty stubs: neechan-ffmpeg shipped FFmpeg
+  as static frameworks, and Xcode embeds a framework from a package even when
+  it is static, taking the code out and linking an empty library in its place,
+  which no dSYM can describe. FFmpeg itself was always linked into the app.
+  neechan-ffmpeg 9.0.3 -- the same FFmpeg n9.0.2 -- ships static libraries
+  instead, so nothing is embedded and the app has no `Frameworks` folder.
+  `make ipa-appstore` fails if an FFmpeg framework turns up in the app again.
 
 ## 2.5.0
 
