@@ -5,7 +5,24 @@ Notable changes per release. Earlier releases are listed under
 
 ## Unreleased
 
-A picture can be drawn on, cropped, turned and resized before it is posted.
+A picture can be drawn on, cropped, turned and resized before it is posted,
+and a board's menu filters its threads and reloads it from anywhere in the
+list.
+
+### Boards
+
+- **The board's menu can filter its threads.** The filter field above the
+  thread list is tucked away as soon as the list scrolls, and the menu only
+  offered Search this board, which asks the server and searches every post.
+  Filter threads now brings the field back from anywhere in the list, ready
+  to type into, and narrows the threads already loaded, as the field always
+  did.
+- **The board's menu can reload it.** Pulling down was the only way, and it
+  only works from the very top. Reload in the menu fetches the board from
+  wherever the list is, with a small spinner at the top while it runs, and
+  then goes back to the first thread, which is where a board in bump order
+  puts what is new. A reload that fails shows the usual error and leaves the
+  list where it was.
 
 ### Posting
 

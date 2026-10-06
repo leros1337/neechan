@@ -48,6 +48,16 @@ public struct ThreadsListView: View {
     /// A board is ordered by what was last bumped, so a refresh moves rows: it
     /// waits while somebody is reading part way down.
     @State private var isNearTop = true
+    /// Lets the menu bring the filter field back: the system tucks it away
+    /// above the list as soon as the list scrolls.
+    @FocusState private var isFilterFocused: Bool
+    /// A reload the reader asked for from the menu. Pulling down shows a
+    /// spinner of its own, but with rows on screen nothing else would say this
+    /// one is running.
+    @State private var isReloading = false
+    /// Counts the menu's reloads that landed, each one a request to go back to
+    /// the top.
+    @State private var topJump = 0
     @Environment(\.scenePhase) private var scenePhase
 
     public init(board: String) {
@@ -58,7 +68,11 @@ public struct ThreadsListView: View {
         content
             .navigationTitle(navigationTitle)
             .inlineNavigationTitle()
-            .appSearchable(text: $searchText, prompt: Text("Filter threads", bundle: .module))
+            .appSearchable(
+                text: $searchText,
+                prompt: Text("Filter threads", bundle: .module),
+                isFocused: $isFilterFocused
+            )
             .refreshable { await load() }
             .toolbar { toolbarContent }
             .fullScreenCoverCompat(item: $galleryStart) { start in
@@ -80,6 +94,7 @@ public struct ThreadsListView: View {
                 }
             }
             .overlay { stateOverlay }
+            .overlay(alignment: .top) { reloadIndicator }
             .safeAreaInset(edge: .bottom) { pageControls }
             // One task, not one per thing it depends on: keyed separately on
             // the sort and the page, both fired on the first appearance and
@@ -126,8 +141,20 @@ public struct ThreadsListView: View {
             }
     }
 
-    @ViewBuilder
+    /// The threads, with the way back to the top of them that a reload from
+    /// the menu takes.
     private var content: some View {
+        ScrollViewReader { proxy in
+            threadList
+                .onChange(of: topJump) { _, _ in
+                    guard let first = visibleThreads.first else { return }
+                    withAnimation { proxy.scrollTo(first.id, anchor: .top) }
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var threadList: some View {
         switch viewMode {
         case .list, .cards:
             List(visibleThreads) { thread in
@@ -189,6 +216,9 @@ public struct ThreadsListView: View {
                                 )
                             }
                         }
+                        // What the jump back to the top scrolls to. A list
+                        // row has it from the list already.
+                        .id(thread.id)
                         .contextMenu { threadActions(for: thread) }
                     }
                 }
@@ -313,6 +343,17 @@ public struct ThreadsListView: View {
         }
         ToolbarItem(placement: .trailingBar) {
             Menu {
+                // Pulling down only reloads from the very top of the list.
+                Button {
+                    Task { await reload() }
+                } label: {
+                    Label {
+                        Text("Reload", bundle: .module)
+                    } icon: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                }
+                .disabled(loadState == .loading)
                 Button {
                     Task { await toggleBoardFavorite() }
                 } label: {
@@ -323,6 +364,18 @@ public struct ThreadsListView: View {
                     }
                 }
                 Section {
+                    // The field is tucked away once the list scrolls. Beside
+                    // the server's search, so the two read as different: this
+                    // one only narrows the threads already here.
+                    Button {
+                        isFilterFocused = true
+                    } label: {
+                        Label {
+                            Text("Filter threads", bundle: .module)
+                        } icon: {
+                            Image(systemName: "line.3.horizontal.decrease.circle")
+                        }
+                    }
                     if services.capabilities.serverSearch {
                         Button {
                             router.push(.serverSearch(board))
@@ -419,6 +472,20 @@ public struct ThreadsListView: View {
             }
         case .idle, .loading, .loaded:
             EmptyView()
+        }
+    }
+
+    /// A small spinner over the top of the list while a reload from the menu
+    /// runs. An empty board has the centred one in `stateOverlay` instead.
+    @ViewBuilder
+    private var reloadIndicator: some View {
+        if isReloading, !threads.isEmpty {
+            ProgressView()
+                .padding(10)
+                .glassEffect(in: .capsule)
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .accessibilityIdentifier("board-reloading")
         }
     }
 
@@ -574,6 +641,18 @@ public struct ThreadsListView: View {
         ) else { return }
 
         await load(quietly: true)
+    }
+
+    /// A reload the reader asked for from the menu.
+    ///
+    /// Unlike pulling down it can start anywhere in the list, so once it lands
+    /// it goes back to the top, which is where a board in bump order puts
+    /// what is new. A failure stays where it is, under the error.
+    private func reload() async {
+        withAnimation(.snappy) { isReloading = true }
+        await load()
+        withAnimation(.snappy) { isReloading = false }
+        if loadState == .loaded { topJump += 1 }
     }
 
     /// - Parameter quietly: leaves the rows and the state where they are until
