@@ -3,16 +3,33 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
-## Unreleased
+## 2.5.1
 
-A board stays as you left it when you come back to it, and a thread's gallery
-grid can show only its videos or only its images. A thread you come back to
-says how many posts arrived while you were away, Latest post goes all the
-way to the newest post, and pulling up at the end no longer leaves its arrow
-behind or counts a post you have already read as new.
+A picture can be drawn on, cropped, turned and resized before it is posted,
+a board's menu filters its threads and reloads it from anywhere in the list,
+and a board stays as you left it when you come back to it. A video's
+thumbnail says how long it runs, a video stops when the app is left, and a
+thread's gallery grid can show only its videos or only its images. A thread
+you come back to says how many posts arrived while you were away, Latest post
+goes all the way to the newest post, and pulling up at the end no longer
+leaves its arrow behind or counts a post you have already read as new.
+"Replies to me" tells you about replies to you, a thread you reply in is
+watched for them, and tapping a notification opens the reply.
 
 ### Boards
 
+- **The board's menu can filter its threads.** The filter field above the
+  thread list is tucked away as soon as the list scrolls, and the menu only
+  offered Search this board, which asks the server and searches every post.
+  Filter threads now brings the field back from anywhere in the list, ready
+  to type into, and narrows the threads already loaded, as the field always
+  did.
+- **The board's menu can reload it.** Pulling down was the only way, and it
+  only works from the very top. Reload in the menu fetches the board from
+  wherever the list is, with a small spinner at the top while it runs, and
+  then goes back to the first thread, which is where a board in bump order
+  puts what is new. A reload that fails shows the usual error and leaves the
+  list where it was.
 - **A board stays as you left it.** Coming back to a board fetched it again,
   which moved the rows under you in a board ordered by bumps: every time you
   came back from a thread or another tab, and from another app once the list
@@ -48,39 +65,6 @@ behind or counts a post you have already read as new.
   nothing saying so. It now says how many arrived while you were away, and
   how many of them reply to you, the way a refresh does, and tapping it goes
   to the first of them. A thread you open for the first time says nothing.
-
-### Gallery
-
-- **The gallery grid can show only videos or only images.** A switch at the
-  top of a thread's grid picks All, Videos or Images, and the title counts
-  what is shown. A file opened from a narrowed grid swipes through that
-  selection only. A GIF counts as an image, and a `.mov` the server calls a
-  picture counts as a video, because that is how the viewer plays it. The
-  grid opens on All each time, and a thread with none of the chosen kind
-  offers a button back to every file.
-
-## 2.5.1
-
-A picture can be drawn on, cropped, turned and resized before it is posted,
-a board's menu filters its threads and reloads it from anywhere in the list,
-a video's thumbnail says how long it runs, and a video stops when the app is
-left. "Replies to me" tells you about replies to you, a thread you reply in
-is watched for them, and tapping a notification opens the reply.
-
-### Boards
-
-- **The board's menu can filter its threads.** The filter field above the
-  thread list is tucked away as soon as the list scrolls, and the menu only
-  offered Search this board, which asks the server and searches every post.
-  Filter threads now brings the field back from anywhere in the list, ready
-  to type into, and narrows the threads already loaded, as the field always
-  did.
-- **The board's menu can reload it.** Pulling down was the only way, and it
-  only works from the very top. Reload in the menu fetches the board from
-  wherever the list is, with a small spinner at the top while it runs, and
-  then goes back to the first thread, which is where a board in bump order
-  puts what is new. A reload that fails shows the usual error and leaves the
-  list where it was.
 
 ### Posting
 
@@ -127,6 +111,16 @@ is watched for them, and tapping a notification opens the reply.
   still moving to a new position, or going back round to the start of a
   looping clip, was undone as soon as the picture for that position
   arrived, and the clip played on.
+
+### Gallery
+
+- **The gallery grid can show only videos or only images.** A switch at the
+  top of a thread's grid picks All, Videos or Images, and the title counts
+  what is shown. A file opened from a narrowed grid swipes through that
+  selection only. A GIF counts as an image, and a `.mov` the server calls a
+  picture counts as a video, because that is how the viewer plays it. The
+  grid opens on All each time, and a thread with none of the chosen kind
+  offers a button back to every file.
 
 ### Notifications
 
