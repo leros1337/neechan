@@ -3,7 +3,7 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
-## Unreleased
+## 2.5.1
 
 A picture can be drawn on, cropped, turned and resized before it is posted,
 a board's menu filters its threads and reloads it from anywhere in the list,
