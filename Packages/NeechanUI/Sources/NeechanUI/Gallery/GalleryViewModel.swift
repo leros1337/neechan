@@ -163,9 +163,8 @@ public final class GalleryViewModel {
     /// `0:07 / 0:23`, or empty when the clip reports no duration.
     public var timeLabel: String {
         guard playbackProgress.isSeekable else { return "" }
-        let format = Duration.TimeFormatStyle(pattern: .minuteSecond)
-        let current = Duration.seconds(Int(playbackProgress.current)).formatted(format)
-        let total = Duration.seconds(Int(playbackProgress.total)).formatted(format)
+        let current = VideoDuration.label(seconds: Int(playbackProgress.current))
+        let total = VideoDuration.label(seconds: Int(playbackProgress.total))
         return "\(current) / \(total)"
     }
 

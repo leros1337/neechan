@@ -6,8 +6,8 @@ Notable changes per release. Earlier releases are listed under
 ## Unreleased
 
 A picture can be drawn on, cropped, turned and resized before it is posted,
-and a board's menu filters its threads and reloads it from anywhere in the
-list.
+a board's menu filters its threads and reloads it from anywhere in the list,
+and a video's thumbnail says how long it runs.
 
 ### Boards
 
@@ -46,6 +46,16 @@ list.
   tile decoded its file at full size on the main thread, a couple of hundred
   megabytes for a large photo. It now decodes a thumbnail in the background,
   and shows the new picture as soon as an edit replaces the file.
+
+### Media
+
+- **A video's thumbnail shows how long it runs.** A video's thumbnail had a
+  play button and nothing else, so a five-second clip and a ten-minute one
+  looked the same until opened. The length now sits in the corner, in
+  minutes and seconds the way the player's clock reads (1:23), in the
+  thread's gallery, on posts, and on board and catalog rows. VoiceOver reads
+  it with the rest of the thumbnail. 4chan does not say how long its videos
+  are, so theirs show none.
 
 ## 2.5.0
 

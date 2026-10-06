@@ -44,6 +44,7 @@ public struct ThumbnailView: View {
             .overlay { playIndicator }
             .overlay { revealButton }
             .overlay(alignment: .bottomTrailing) { badge }
+            .overlay(alignment: .bottomTrailing) { durationBadge }
             .overlay(alignment: .topTrailing) { countBadge }
             // Names the format so a reader using VoiceOver, and the UI tests,
             // can tell a WebM from an MP4 without opening it.
@@ -170,10 +171,11 @@ public struct ThumbnailView: View {
 
     /// An animation is marked, because nothing else says that it moves.
     ///
-    /// A video is not marked here: it carries a play button in the middle
-    /// instead. The two want different things said about them — a video waits
-    /// for a tap, while an animation is already running — so a shared badge that
-    /// only differed by its text was saying the wrong thing about one of them.
+    /// A video is not marked "video" here: it carries a play button in the
+    /// middle instead, and its length in this corner. The two want different
+    /// things said about them — a video waits for a tap, while an animation is
+    /// already running — so a shared badge that only differed by its text was
+    /// saying the wrong thing about one of them.
     @ViewBuilder
     private var badge: some View {
         if attachment.isAnimated {
@@ -184,6 +186,39 @@ public struct ThumbnailView: View {
                 .background(.thinMaterial, in: .capsule)
                 .padding(3)
         }
+    }
+
+    /// How long a video runs, so a reader can tell a clip from a film before
+    /// opening it.
+    ///
+    /// Shown as soon as the length is known, whether or not the picture has
+    /// arrived or is blurred: it is in the corner, clear of the reveal button,
+    /// and says nothing the picture would. Not a button, for the same reason
+    /// the play button is not, and said by `accessibilityDescription` instead.
+    ///
+    /// A dark capsule rather than glass: a board grid already draws one glass
+    /// play button per video, and a second blur on each one is not free.
+    @ViewBuilder
+    private var durationBadge: some View {
+        if let duration = attachment.durationLabel {
+            Text(verbatim: duration)
+                .font(.system(size: durationFontSize, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+                .padding(.horizontal, durationFontSize * 0.45)
+                .padding(.vertical, durationFontSize * 0.15)
+                .background(.black.opacity(0.6), in: .capsule)
+                .padding(durationFontSize * 0.35)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+    }
+
+    /// Sized off the thumbnail the way the play button is, with a ceiling for
+    /// the grid and a floor that still reads on a 44-point board row.
+    private var durationFontSize: CGFloat {
+        guard let side else { return 11 }
+        return min(11, max(7, side * services.settings.thumbnailScale * 0.16))
     }
 
     /// Marks a thumbnail that stands for several attachments.
@@ -234,13 +269,17 @@ public struct ThumbnailView: View {
     /// languages this ships in do not all put the count in the same place.
     private var accessibilityDescription: Text {
         if attachmentCount > 1 {
-            if attachment.isVideo {
+            if attachment.isVideo, let duration = attachment.durationLabel {
+                Text("Video, \(attachment.fileExtension), \(duration), 1 of \(attachmentCount)", bundle: .module)
+            } else if attachment.isVideo {
                 Text("Video, \(attachment.fileExtension), 1 of \(attachmentCount)", bundle: .module)
             } else if attachment.isAnimated {
                 Text("Animation, \(attachment.fileExtension), 1 of \(attachmentCount)", bundle: .module)
             } else {
                 Text("Image, \(attachment.fileExtension), 1 of \(attachmentCount)", bundle: .module)
             }
+        } else if attachment.isVideo, let duration = attachment.durationLabel {
+            Text("Video, \(attachment.fileExtension), \(duration)", bundle: .module)
         } else if attachment.isVideo {
             Text("Video, \(attachment.fileExtension)", bundle: .module)
         } else if attachment.isAnimated {

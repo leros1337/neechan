@@ -11797,6 +11797,29 @@
         }
       }
     },
+    "Video in post %lld, %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video in Beitrag %lld, %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video in post %lld, %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Видео в посте %lld, %@"
+          }
+        }
+      }
+    },
     "Video, %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -11820,6 +11843,29 @@
         }
       }
     },
+    "Video, %@, %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video, %@, %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video, %@, %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Видео, %@, %@"
+          }
+        }
+      }
+    },
     "Video, %@, 1 of %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -11839,6 +11885,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Видео, %@, 1 из %lld"
+          }
+        }
+      }
+    },
+    "Video, %@, %@, 1 of %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video, %@, %@, 1 von %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video, %@, %@, 1 of %lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Видео, %@, %@, 1 из %lld"
           }
         }
       }

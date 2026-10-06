@@ -152,10 +152,16 @@ struct GalleryGridView: View {
         }
     }
 
+    /// Said in place of the thumbnail's own description, so the length its
+    /// corner shows is said here too.
     private func label(for item: GalleryItem) -> Text {
-        item.attachment.isVideo
-            ? Text("Video in post \(item.postNum)", bundle: .module)
-            : Text("Image in post \(item.postNum)", bundle: .module)
+        if let duration = item.attachment.durationLabel {
+            Text("Video in post \(item.postNum), \(duration)", bundle: .module)
+        } else if item.attachment.isVideo {
+            Text("Video in post \(item.postNum)", bundle: .module)
+        } else {
+            Text("Image in post \(item.postNum)", bundle: .module)
+        }
     }
 }
 
