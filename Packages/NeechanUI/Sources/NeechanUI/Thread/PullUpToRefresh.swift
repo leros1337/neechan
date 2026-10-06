@@ -21,6 +21,16 @@ struct PullUpProgress: Equatable {
     /// Whether the reader has dragged far enough that letting go will refresh.
     private(set) var isArmed = false
 
+    /// Whether the refresh a release started is still running.
+    ///
+    /// Kept here rather than beside the value in the view, because readings
+    /// have to keep coming in while it runs. The view used to drop them, and
+    /// the release fires partway through the spring-back, so the distance
+    /// stayed wherever the release caught it. A refresh that brought nothing
+    /// new left nothing else to move it, and the indicator stayed at the end
+    /// of the thread, gray and half faded, until the reader scrolled.
+    private(set) var isRefreshing = false
+
     /// Spelled out rather than left to the memberwise initialiser: a private
     /// stored property makes that one private too on Swift 6.2, so the tests
     /// could not build it. Swift 6.3 is happy either way, which is why this
@@ -35,14 +45,22 @@ struct PullUpProgress: Equatable {
     /// indicator flashing up on every one of those would be noise.
     var isVisible: Bool { distance > 8 }
 
+    /// Whether the indicator is on screen: the pull itself, or the refresh
+    /// it started.
+    var showsIndicator: Bool { isRefreshing || isVisible }
+
     /// Takes a new overscroll reading.
     ///
-    /// - Returns: true at the moment the refresh should start.
+    /// - Returns: true at the moment the refresh should start, which is also
+    ///   the moment `isRefreshing` turns on.
     ///
     /// Firing is recognised by the content springing back rather than by the
     /// scroll view reporting that the finger lifted: the phase change does not
     /// arrive for every gesture, and a pull that armed and then sprang back is
     /// exactly what letting go looks like.
+    ///
+    /// A release while a refresh is still running disarms without firing
+    /// again.
     mutating func update(overscroll: CGFloat) -> Bool {
         update(PullUpReading(
             overscroll: overscroll, contentHeight: contentHeight, isScrollable: true
@@ -81,11 +99,20 @@ struct PullUpProgress: Equatable {
         // Retreating from an armed pull: the reader let go.
         if isArmed, distance < threshold / 2 {
             isArmed = false
+            guard !isRefreshing else { return false }
+            isRefreshing = true
             return true
         }
         return false
     }
 
+    /// The refresh is over, so the next release can start another.
+    mutating func finishRefreshing() {
+        isRefreshing = false
+    }
+
+    /// Forgets the pull. A refresh in progress carries on: new posts landing
+    /// mid-refresh are a relayout, and the spinner stays until they are in.
     mutating func reset() {
         distance = 0
         isArmed = false
@@ -111,7 +138,6 @@ private struct PullUpToRefreshModifier: ViewModifier {
     let action: () async -> Void
 
     @State private var progress = PullUpProgress()
-    @State private var isRefreshing = false
 
     func body(content: Content) -> some View {
         content
@@ -132,7 +158,10 @@ private struct PullUpToRefreshModifier: ViewModifier {
                     isScrollable: geometry.contentSize.height > geometry.containerSize.height
                 )
             } action: { _, reading in
-                guard !isRefreshing else { return }
+                // Taken during a refresh too, so the indicator knows where
+                // the content really is when it ends; the value itself keeps
+                // a second release from firing.
+                //
                 // Updated on a copy and stored only when it actually moved.
                 // This fires on every scrolled frame, and SwiftUI treats any
                 // store into `@State` as a change, so assigning unconditionally
@@ -148,7 +177,8 @@ private struct PullUpToRefreshModifier: ViewModifier {
 
     @ViewBuilder
     private var indicator: some View {
-        if isRefreshing || progress.isVisible {
+        let isRefreshing = progress.isRefreshing
+        if progress.showsIndicator {
             Image(systemName: "arrow.clockwise")
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(progress.isArmed || isRefreshing ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
@@ -169,8 +199,8 @@ private struct PullUpToRefreshModifier: ViewModifier {
         }
     }
 
+    /// Runs the refresh `update` has just switched on.
     private func refresh() {
-        isRefreshing = true
         Task {
             // A spinner that flashes up for a frame reads as a glitch, so it
             // stays long enough to be seen even when the reply comes back at
@@ -178,7 +208,7 @@ private struct PullUpToRefreshModifier: ViewModifier {
             async let minimumShowing: Void? = try? await Task.sleep(for: .milliseconds(700))
             await action()
             _ = await minimumShowing
-            isRefreshing = false
+            progress.finishRefreshing()
         }
     }
 }

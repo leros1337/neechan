@@ -3,6 +3,19 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## Unreleased
+
+Pulling up at the end of a thread no longer leaves its arrow behind.
+
+### Threads
+
+- **Pulling up to refresh leaves no arrow behind.** A pull up at the end of a
+  thread that brought no new posts left the refresh arrow at the bottom of
+  the thread, gray and half faded, until you scrolled. Letting go starts the
+  refresh partway through the spring-back, and the rest of the spring-back
+  was ignored while the refresh ran, so nothing told the arrow the pull was
+  over. It now goes away as soon as the refresh ends.
+
 ## 2.5.1
 
 A picture can be drawn on, cropped, turned and resized before it is posted,

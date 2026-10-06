@@ -120,8 +120,72 @@ struct PullUpProgressTests {
 
         #expect(progress.update(overscroll: 150) == false)
         #expect(progress.update(overscroll: 0) == true)
+        progress.finishRefreshing()
         #expect(progress.update(overscroll: 150) == false)
         #expect(progress.update(overscroll: 0) == true)
+    }
+
+    // MARK: While refreshing
+
+    /// The release fires partway through the spring-back, and the readings
+    /// after it used to be dropped while the refresh ran. With nothing new to
+    /// change the content's height, the indicator was left gray and half faded
+    /// at the end of the thread until the reader scrolled.
+    @Test("the indicator goes away after a refresh that brought nothing new")
+    func quietRefreshLeavesNothingBehind() {
+        var progress = PullUpProgress(threshold: 72)
+        let height: CGFloat = 4000
+
+        _ = progress.update(PullUpReading(overscroll: 0, contentHeight: height, isScrollable: true))
+        _ = progress.update(PullUpReading(overscroll: 100, contentHeight: height, isScrollable: true))
+        #expect(progress.update(
+            PullUpReading(overscroll: 20, contentHeight: height, isScrollable: true)
+        ) == true)
+        #expect(progress.isRefreshing)
+        #expect(progress.showsIndicator)
+
+        // The rest of the spring-back arrives while the refresh runs.
+        #expect(progress.update(
+            PullUpReading(overscroll: 0, contentHeight: height, isScrollable: true)
+        ) == false)
+        progress.finishRefreshing()
+
+        #expect(progress.isRefreshing == false)
+        #expect(progress.isVisible == false)
+        #expect(progress.showsIndicator == false)
+    }
+
+    @Test("a pull during a refresh does not start a second one")
+    func pullWhileRefreshingDoesNotFire() {
+        var progress = PullUpProgress(threshold: 100)
+
+        _ = progress.update(overscroll: 150)
+        #expect(progress.update(overscroll: 0) == true)
+
+        #expect(progress.update(overscroll: 150) == false)
+        #expect(progress.update(overscroll: 0) == false, "already refreshing")
+        #expect(progress.isArmed == false)
+        #expect(progress.isRefreshing)
+    }
+
+    @Test("a refresh that brought new posts leaves nothing behind")
+    func refreshWithNewPostsLeavesNothingBehind() {
+        var progress = PullUpProgress(threshold: 72)
+
+        _ = progress.update(PullUpReading(overscroll: 0, contentHeight: 4000, isScrollable: true))
+        _ = progress.update(PullUpReading(overscroll: 100, contentHeight: 4000, isScrollable: true))
+        #expect(progress.update(
+            PullUpReading(overscroll: 20, contentHeight: 4000, isScrollable: true)
+        ) == true)
+
+        // New posts land: the height changes under the reader.
+        #expect(progress.update(
+            PullUpReading(overscroll: -600, contentHeight: 5000, isScrollable: true)
+        ) == false)
+        #expect(progress.showsIndicator, "the spinner stays for the whole refresh")
+        progress.finishRefreshing()
+
+        #expect(progress.showsIndicator == false)
     }
 
     // MARK: Layout, which is not a gesture
