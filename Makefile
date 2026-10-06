@@ -12,7 +12,7 @@ SHELL := /bin/bash
 # Recursively expanded: the App Store configuration has a scheme of its own,
 # because its test action leaves out the unit bundle that needs testability.
 SCHEME       = $(if $(filter $(APPSTORE),$(CONFIGURATION)),Neechan (App Store),Neechan X (Test Flight))
-SIMULATOR   := iPhone 17 Pro
+SIMULATOR   := iPhone 17
 # The baseline iPad, not a Pro: it is the narrowest of them, so a layout that
 # only just fits shows its seams here first.
 IPAD        := iPad (A16)
@@ -21,7 +21,7 @@ DUO_OS      := 27.1
 # Pinned to one runtime: several Xcode versions can be installed side by side,
 # and a bare device name then matches one simulator per runtime, which
 # xcodebuild refuses as ambiguous.
-SIM_OS      := 26.5
+SIM_OS      := 27.0
 # Recursively expanded on purpose: `make ipad` overrides SIMULATOR for its own
 # targets, and an immediate assignment here would bake the iPhone in and build
 # for the wrong device while installing on the right one.
@@ -199,7 +199,7 @@ ipad: sim
 ## Resolved to a UDID before handing over, unlike the others: the runtime ships
 ## two devices called "iPhone Duo", so the name alone picks neither. The
 ## runtime is pinned separately from SIM_OS because the device type's
-## minRuntimeVersion is 27.1 and it simply does not exist on 26.5. Needs Xcode
+## minRuntimeVersion is 27.1 and it simply does not exist on 27.0. Needs Xcode
 ## 27.1 selected -- earlier Xcodes ship neither the device type nor the runtime.
 duo:
 	@set -e; \
