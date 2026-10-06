@@ -5,10 +5,10 @@ Notable changes per release. Earlier releases are listed under
 
 ## Unreleased
 
-A board stays as you left it when you come back to it, pulling up at the end
-of a thread no longer leaves its arrow behind or counts a post you have
-already read as new, and a thread's gallery grid can show only its videos or
-only its images.
+A board stays as you left it when you come back to it, and a thread's gallery
+grid can show only its videos or only its images. In a thread, Latest post
+goes all the way to the newest post, and pulling up at the end no longer
+leaves its arrow behind or counts a post you have already read as new.
 
 ### Boards
 
@@ -33,6 +33,11 @@ only its images.
   and the automatic refresh announced that post again each time it looked,
   without ever slowing down in a quiet thread. A refresh that finds nothing
   now says so, and the post that arrived keeps its tint until more arrive.
+- **Latest post goes all the way to the newest post.** The button stopped on
+  the post before it, with the newest one just below the screen, and the
+  rest had to be scrolled by hand. The line above each post had the post's
+  own number, and the scroll lined up the bottom of the line instead of the
+  bottom of the post.
 
 ### Gallery
 

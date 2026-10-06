@@ -111,6 +111,14 @@ public struct ThreadView: View {
             // between two posts do the dividing the gap used to do.
             LazyVStack(spacing: asCards ? 10 : 0) {
                 ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
+                  // One scroll target per post, the rule above it included.
+                  // Side by side, the rule took the post's number from the
+                  // `ForEach` and the post took the same number from `.id`,
+                  // and a scroll to that number found the rule first. Anchored
+                  // at the top nobody could tell, but Latest post lines up the
+                  // bottom: it lined up the hairline's, and left the newest
+                  // post just below the screen.
+                  VStack(spacing: asCards ? 10 : 0) {
                     if model.showsUnreadDivider(before: post.num) {
                         NewPostsDivider()
                             .padding(.horizontal, asCards ? 0 : 12)
@@ -119,12 +127,6 @@ public struct ThreadView: View {
                         PostSeparator()
                     }
 
-                    // One identity for the row, outside the branch. With `.id`
-                    // inside each branch SwiftUI saw the same identity either
-                    // way and kept the view it already had, so a post that had
-                    // just been hidden went on drawing itself in full -- while
-                    // every `>>N` pointing at it, read from the same set, was
-                    // struck through correctly.
                     Group {
                         if model.isHidden(post.num) {
                             HiddenPostStub(
@@ -175,7 +177,14 @@ public struct ThreadView: View {
                     )
                         }
                     }
-                    .id(post.num)
+                  }
+                  // One identity for the row, outside the branch. With `.id`
+                  // inside each branch SwiftUI saw the same identity either
+                  // way and kept the view it already had, so a post that had
+                  // just been hidden went on drawing itself in full -- while
+                  // every `>>N` pointing at it, read from the same set, was
+                  // struck through correctly.
+                  .id(post.num)
                 }
             }
             // Marks the posts as the scroll targets, which is what lets the
