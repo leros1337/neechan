@@ -12,12 +12,13 @@ only its images.
 
 ### Boards
 
-- **A board stays as you left it.** Coming back to a board from a thread or
-  from another app fetched it again once it was older than the watcher's
-  interval, which moved the rows under you in a board ordered by bumps. It
-  now changes only when you pull it down or reload it from the menu. Refresh
-  boards when you come back, in Settings › Forum, brings the old behaviour
-  back.
+- **A board stays as you left it.** Coming back to a board fetched it again,
+  which moved the rows under you in a board ordered by bumps: every time you
+  came back from a thread or another tab, and from another app once the list
+  was older than the watcher's interval. It now changes only when you pull it
+  down or reload it from the menu. Refresh boards when you come back, in
+  Settings › Forum, fetches a board you come back to once it is older than
+  the watcher's interval.
 
 ### Threads
 

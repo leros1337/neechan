@@ -40,6 +40,13 @@ public struct ThreadsListView: View {
     /// When the threads on screen arrived, so coming back to a board that has
     /// gone stale can fetch it again and coming straight back need not.
     @State private var lastLoadedAt: Date?
+    /// What the list on screen was loaded for.
+    ///
+    /// SwiftUI runs the load task again every time this screen comes back into
+    /// sight, from a thread pushed over it or from another tab, with the key
+    /// unchanged. A fetch then is a refresh nobody asked for, and it moved the
+    /// rows the reader came back to.
+    @State private var loadedKey: LoadKey?
     /// Whether this is the screen being looked at, rather than one left under
     /// a thread the reader opened from it.
     @State private var isVisible = false
@@ -99,15 +106,18 @@ public struct ThreadsListView: View {
             // One task, not one per thing it depends on: keyed separately on
             // the sort and the page, both fired on the first appearance and
             // every board was fetched twice for it.
-            .task(id: LoadKey(sort: sort, pageIndex: pageIndex, isCatalog: isCatalog)) {
+            .task(id: loadKey) {
+                // Run again on the way back with the same key: the list on
+                // screen is still the one that key asked for.
+                guard loadKey != loadedKey else { return }
                 await load()
             }
             .task { await loadHidden() }
             .onAppear {
                 let wasVisible = isVisible
                 isVisible = true
-                // Coming back from a thread. The board's own view never went
-                // away, so nothing else here knows anything happened.
+                // Coming back from a thread or another tab. The load task runs
+                // again too, but leaves a list it already has alone.
                 if !wasVisible { Task { await refreshIfStale() } }
             }
             .onDisappear { isVisible = false }
@@ -644,6 +654,11 @@ public struct ThreadsListView: View {
         await load(quietly: true)
     }
 
+    /// What the list depends on, as it stands.
+    private var loadKey: LoadKey {
+        LoadKey(sort: sort, pageIndex: pageIndex, isCatalog: isCatalog)
+    }
+
     /// A reload the reader asked for from the menu.
     ///
     /// Unlike pulling down it can start anywhere in the list, so once it lands
@@ -659,6 +674,7 @@ public struct ThreadsListView: View {
     /// - Parameter quietly: leaves the rows and the state where they are until
     ///   an answer arrives, for a refresh the reader did not ask for.
     private func load(quietly: Bool = false) async {
+        let key = loadKey
         if !quietly { loadState = .loading }
         do {
             if isCatalog {
@@ -674,6 +690,7 @@ public struct ThreadsListView: View {
             }
             loadState = .loaded
             lastLoadedAt = .now
+            loadedKey = key
         } catch {
             // A refresh nobody asked for keeps its failure to itself: the rows
             // it could not replace are still worth reading.
