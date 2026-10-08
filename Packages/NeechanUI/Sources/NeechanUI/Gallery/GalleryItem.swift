@@ -87,6 +87,27 @@ extension ThreadSnapshot {
             post.files.map { GalleryItem(attachment: $0, post: post, site: key.site) }
         }
     }
+
+    /// The viewer, opened on the file a link in one of these posts leads to.
+    ///
+    /// Nil when the link is not to a picture or a clip, or the reader's
+    /// restrictions keep it out of the viewer; the link then goes wherever it
+    /// went before.
+    ///
+    /// Filed under the post that carries the link, so "Go to post" and a save
+    /// treat it the way they treat that post's attachments. A tap reports the
+    /// address and not where it was, so the post is found by its links: the
+    /// first to carry this one, or the opening post when none here does, as
+    /// for a quote fetched from another thread.
+    func galleryStart(forLink url: URL, policy: ContentPolicy) -> GalleryStart? {
+        guard let link = MediaLink(url: url, readingOn: key.site), link.isAllowed(by: policy)
+        else { return nil }
+        let address = url.absoluteString
+        let postNum = posts.first { content(of: $0.num).externalLinks.contains(address) }?.num
+            ?? key.threadNum
+        let item = GalleryItem(attachment: link.attachment, postNum: postNum, threadKey: key)
+        return GalleryStart(items: [item], index: 0)
+    }
 }
 
 /// What the gallery should open with.

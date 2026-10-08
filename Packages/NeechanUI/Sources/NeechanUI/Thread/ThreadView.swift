@@ -785,6 +785,15 @@ public struct ThreadView: View {
                 follow(route, model: model)
                 return
             }
+            // A link straight to a picture or a clip opens in the viewer, the
+            // way a file attached to a post does, rather than in a browser.
+            // The quotes are put away as for a board or a thread, so closing
+            // the viewer returns to the thread rather than to a popup.
+            if let start = model.snapshot.galleryStart(forLink: url, policy: services.contentPolicy) {
+                model.dismissAllQuotes()
+                galleryStart = start
+                return
+            }
             // Links off the site open in the app so a tap does not lose the
             // thread -- unless the reader asked for Safari, or has not yet said
             // they are 18, in which case the link leaves rather than being

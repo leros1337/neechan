@@ -502,7 +502,13 @@ struct RepliesSheet: View {
                 onOpenOutside(action)
             }
 
-        case .external:
+        case .external(let url):
+            // A file opens over this window, as one attached to a card here
+            // does, so closing it returns to the replies being read.
+            if let start = snapshot.galleryStart(forLink: url, policy: services.contentPolicy) {
+                galleryStart = start
+                return
+            }
             dismiss()
             onOpenOutside(action)
         }

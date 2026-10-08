@@ -3,6 +3,33 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## Unreleased
+
+A link in a post to a video or a picture opens in the app's own viewer, and
+a file on another host is no longer sent your 2ch session.
+
+### Links
+
+- **A link to a file opens in the viewer.** A link straight to a video or a
+  picture, such as `2ch.su/test/src/237957/17847495108690174855.mp4`, opened
+  a Safari sheet. Only boards and threads were recognised, and a file is
+  neither. A link to an mp4, webm, mov, mkv, jpg, png, gif, webp or bmp now
+  opens in the viewer, the way a file attached to a post does. This works in
+  the thread, in a quote and in the replies window, and Go to post and Save
+  treat it as part of the post that links to it. A file on any 2ch mirror
+  (2ch.su, 2ch.hk, 2ch.pm, 2ch.life) is fetched from the mirror you have
+  chosen, so a link to a mirror that has gone dark still plays. A file on
+  another host plays from that host. Until you turn on Adult 18+, a file on
+  a board for adults, or on a host other than the imageboard's, still opens
+  in Safari, the same rule the in-app browser follows.
+
+### Gallery
+
+- **A file on another host is not sent your session.** The player sent your
+  2ch cookies, including a passcode's, with every file it fetched, whatever
+  host the file was on. In a 4chan thread they went to 4chan's file host.
+  Only a file on the mirror you have chosen is sent them now.
+
 ## 2.5.1
 
 A picture can be drawn on, cropped, turned and resized before it is posted,
