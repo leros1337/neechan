@@ -41,7 +41,22 @@ final class Pipeline: @unchecked Sendable {
     /// Sharing one let whichever arrived first clear it for both.
     private let gate = Mutex(FirstFrameGate())
     private let audioSeekTarget = Mutex<TimeInterval?>(nil)
-    private let pendingSeek = Mutex<TimeInterval?>(nil)
+    private let seekRequest = Mutex(SeekRequest())
+
+    /// What the reading thread is asked to do about seeking.
+    ///
+    /// A seek is announced in two steps, and the reading thread looks at both.
+    /// `epoch` moves the moment one begins, so a packet whose read overlapped
+    /// it is known to come from where the clip was. `target` is published only
+    /// once the queues have been emptied, so the generation the thread stamps
+    /// on the packets of the new position is the queues' new one.
+    private struct SeekRequest {
+        var target: TimeInterval?
+        var epoch = 0
+        /// Between the two steps: the queues are being emptied, and nothing
+        /// read now belongs anywhere.
+        var isUnderway = false
+    }
     /// How many pictures were decoded and thrown away getting back to where
     /// the reader asked for, which is how far the keyframe was behind it.
     private let droppedSinceSeek = Mutex(0)
@@ -49,7 +64,21 @@ final class Pipeline: @unchecked Sendable {
     /// Called when there is something to show: once after opening, and once
     /// after every seek, with the seek's target so a report can be matched to
     /// the seek it answers rather than taken for a later one.
-    var onFirstFrame: (@Sendable (_ forSeek: TimeInterval?) -> Void)?
+    var onFirstFrame: (@Sendable (_ picture: FirstPicture) -> Void)?
+
+    /// What there is to show, once there is something.
+    struct FirstPicture: Sendable {
+        /// The seek this answers, or nil for the opening of the clip.
+        let forSeek: TimeInterval?
+        /// When the picture is to be shown. Usually a little after the seek's
+        /// target, since the target rarely falls exactly on a picture, and a
+        /// clock stopped at the target would never show it.
+        let presentation: CMTime
+        /// The last picture decoded and thrown away on the way to the target:
+        /// the one before this. The only record of it there is, since it never
+        /// reaches the renderer, and what a step back from here goes back to.
+        let previous: CMTime?
+    }
     /// Called if decoding fails outright.
     var onFailed: (@Sendable (String) -> Void)?
 
@@ -120,6 +149,10 @@ final class Pipeline: @unchecked Sendable {
         // and the frames arrive already in the past.
         gate.withLock { $0.beginSeek(to: time) }
         audioSeekTarget.withLock { $0 = time }
+        seekRequest.withLock {
+            $0.epoch += 1
+            $0.isUnderway = true
+        }
         // Cut short whatever read is in flight so the seek is answered now
         // rather than whenever the network gets round to answering.
         //
@@ -128,11 +161,20 @@ final class Pipeline: @unchecked Sendable {
         // reads of the very seek it was announcing, and nothing came round to
         // make that seek again.
         demuxer.interruptForSeek()
-        pendingSeek.withLock { $0 = time }
         videoPackets.flush()
         audioPackets.flush()
         videoFrames.flush()
         audioRuns.flush()
+        // After the queues, never before. A packet is stamped with the
+        // generation its queue has when the reading thread starts on it, and
+        // one read from the old position just as a seek began was stamped
+        // with the new generation, decoded, and taken for the seek's answer: a
+        // step back from 5.93s landed at 6.67s, and everything after it came
+        // from the keyframe at the start of the clip.
+        seekRequest.withLock {
+            $0.target = time
+            $0.isUnderway = false
+        }
     }
 
     private var isStopped: Bool { isCancelled.withLock { $0 } }
@@ -148,10 +190,19 @@ final class Pipeline: @unchecked Sendable {
 
     private func demuxLoop() {
         while !isStopped {
-            if let target = pendingSeek.withLock({ value -> TimeInterval? in
-                defer { value = nil }
-                return value
-            }) {
+            let request = seekRequest.withLock { request -> SeekRequest in
+                let taken = request
+                if !request.isUnderway { request.target = nil }
+                return taken
+            }
+            // A seek between its two steps: the queues are being emptied.
+            // Over in a moment, and nothing read before it is over belongs
+            // anywhere.
+            if request.isUnderway {
+                Thread.sleep(forTimeInterval: 0.001)
+                continue
+            }
+            if let target = request.target {
                 demuxer.resumeAfterSeek()
                 let moved = demuxer.seek(to: target)
                 MediaLog.demuxer.debug(
@@ -162,12 +213,21 @@ final class Pipeline: @unchecked Sendable {
                 droppedSinceSeek.withLock { $0 = 0 }
             }
 
+            // Taken before the read, so a seek that empties the queues while
+            // it is under way leaves this packet stamped with the generation
+            // the queues have just left behind, where it is refused.
+            let videoGeneration = videoPackets.currentGeneration
+            let audioGeneration = audioPackets.currentGeneration
+
             switch demuxer.read() {
             case .packet(let packet):
+                // A seek began while this was being read, so it is from where
+                // the clip was. The loop comes round to make the seek.
+                guard seekRequest.withLock({ $0.epoch }) == request.epoch else { continue }
                 if packet.streamIndex == videoStreamIndex {
-                    videoPackets.push(packet, generation: videoPackets.currentGeneration)
+                    videoPackets.push(packet, generation: videoGeneration)
                 } else if packet.streamIndex == audioStreamIndex {
-                    audioPackets.push(packet, generation: audioPackets.currentGeneration)
+                    audioPackets.push(packet, generation: audioGeneration)
                 }
 
             case .endOfFile:
@@ -302,6 +362,7 @@ final class Pipeline: @unchecked Sendable {
                 if time < target { lastBeforeSeek = frame }
                 return
             }
+            let previous = lastBeforeSeek?.presentation
             lastBeforeSeek = nil
             // The target is cleared only once a picture has actually been
             // taken. A picture left over from where the clip was before the
@@ -317,7 +378,7 @@ final class Pipeline: @unchecked Sendable {
                 first picture after the seek at \(time, format: .fixed(precision: 3), privacy: .public)s,                 \(self.droppedSinceSeek.withLock { $0 }, privacy: .public) dropped on the way
                 """
             )
-            onFirstFrame?(answered)
+            onFirstFrame?(FirstPicture(forSeek: answered, presentation: frame.presentation, previous: previous))
             return
         }
 
@@ -325,7 +386,9 @@ final class Pipeline: @unchecked Sendable {
         // Claimed after the push, under the same lock a seek uses: a picture
         // of the old position whose push straddled a seek is refused here,
         // where it used to be taken for the seek's first picture.
-        if gate.withLock({ $0.claimPlainReport() }) { onFirstFrame?(nil) }
+        if gate.withLock({ $0.claimPlainReport() }) {
+            onFirstFrame?(FirstPicture(forSeek: nil, presentation: frame.presentation, previous: nil))
+        }
     }
 
     /// The last picture thrown away on the way to a seek's target, in case
@@ -358,7 +421,7 @@ final class Pipeline: @unchecked Sendable {
             showing its last picture, from \(TimeMath.seconds(last.presentation), format: .fixed(precision: 3), privacy: .public)s
             """
         )
-        onFirstFrame?(answered)
+        onFirstFrame?(FirstPicture(forSeek: answered, presentation: shown.presentation, previous: nil))
     }
 
     /// Whether a decoded picture or run of sound belongs to the seek being
@@ -462,10 +525,12 @@ final class Pipeline: @unchecked Sendable {
     /// For a clip with no picture, the sound stands in for the first frame.
     private func reportSoundAsFirstFrame() {
         guard audioSeekTarget.withLock({ $0 }) == nil else { return }
+        // There is no picture to time, so the sound is said to start where
+        // it was asked to, which is where the player puts the clock anyway.
         if let answered = gate.withLock({ $0.claimSeekReport() }) {
-            onFirstFrame?(answered)
+            onFirstFrame?(FirstPicture(forSeek: answered, presentation: .invalid, previous: nil))
         } else if gate.withLock({ $0.claimPlainReport() }) {
-            onFirstFrame?(nil)
+            onFirstFrame?(FirstPicture(forSeek: nil, presentation: .invalid, previous: nil))
         }
     }
 }

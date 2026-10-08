@@ -19,6 +19,8 @@ struct PlaybackStateMachine {
         case refilled
         case play
         case pause
+        /// The reader moved one picture on or back with the clip stopped.
+        case stepped
         /// The last frame has been shown.
         case endOfStream
         case failed(String)
@@ -70,6 +72,11 @@ struct PlaybackStateMachine {
             state = .playing
         case .pause:
             if state != .finished { state = .paused }
+        case .stepped:
+            // Unlike a pause, this leaves the end behind: the reader is
+            // looking at a picture inside the clip, and playing goes on from
+            // there rather than from the start.
+            if state == .paused || state == .finished { state = .paused }
         case .endOfStream:
             state = isLooping ? .playing : .finished
         case .failed:

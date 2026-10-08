@@ -77,13 +77,21 @@ public struct WebMConverter: Sendable {
     ) async throws {
         let sourcePath = source.path
         let destinationPath = destination.path
-        try await Task.detached(priority: .userInitiated) {
+        let work = Task.detached(priority: .userInitiated) {
             try Transcode(
                 sourcePath: sourcePath,
                 destinationPath: destinationPath,
                 onProgress: onProgress
             ).run()
-        }.value
+        }
+        // A detached task does not inherit the caller's cancellation, so it
+        // is passed on by hand. Without this a cancelled save stopped its
+        // capsule while the encoder carried on to the end of the clip.
+        try await withTaskCancellationHandler {
+            try await work.value
+        } onCancel: {
+            work.cancel()
+        }
     }
 }
 

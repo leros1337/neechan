@@ -19,6 +19,7 @@ struct GalleryGridView: View {
     /// Saving and sharing from a long press, without opening the file first.
     @State private var model: GalleryGridModel
     @State private var shareURL: URL?
+    @State private var browserLink: BrowserLink?
     /// Not kept between openings: a thread with no video would otherwise open
     /// on an empty grid.
     @State private var filter: GalleryFilter
@@ -50,15 +51,25 @@ struct GalleryGridView: View {
                 DuoAdaptiveGrid(minimum: 104, spacing: 6) {
                     ForEach(Array(shown.enumerated()), id: \.element.id) { index, item in
                         Button {
-                            // The viewer is given what the grid shows, so the
-                            // index lands on the file tapped and a swipe stays
-                            // within the filter.
-                            start = GalleryStart(items: shown, index: index)
+                            if model.isSelecting {
+                                model.toggleSelection(item)
+                            } else {
+                                // The viewer is given what the grid shows, so
+                                // the index lands on the file tapped and a
+                                // swipe stays within the filter.
+                                start = GalleryStart(items: shown, index: index)
+                            }
                         } label: {
                             ThumbnailView(attachment: item.attachment, side: nil)
+                                .overlay(alignment: .bottomTrailing) {
+                                    if model.isSelecting {
+                                        SelectionMark(isSelected: model.isSelected(item))
+                                    }
+                                }
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(label(for: item))
+                        .accessibilityAddTraits(model.isSelected(item) ? .isSelected : [])
                         // The same menu the viewer offers. The system's own
                         // lift is fine here, unlike in the viewer: the cell is
                         // a thumbnail, and cheap to draw twice.
@@ -72,7 +83,8 @@ struct GalleryGridView: View {
                                     }
                                 },
                                 onSave: { model.save(item) },
-                                onShare: { share(item) }
+                                onShare: { share(item) },
+                                onReverseSearch: { openOffSite($0, settings: services.settings, in: $browserLink) }
                             )
                         }
                     }
@@ -86,9 +98,14 @@ struct GalleryGridView: View {
                     filterPicker
                 }
             }
+            .safeAreaBar(edge: .bottom) {
+                if model.isSelecting {
+                    selectionBar(shown: shown)
+                }
+            }
             .overlay(alignment: .bottom) {
                 if let transfer = model.transfers.transfer {
-                    TransferCapsule(transfer: transfer) { model.transfers.cancelTransfer() }
+                    TransferCapsule(transfer: transfer, batch: model.transfers.batch) { model.transfers.cancelTransfer() }
                         .padding(.bottom, 24)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
@@ -108,6 +125,7 @@ struct GalleryGridView: View {
             )) { target in
                 ShareSheet(items: [target.url])
             }
+            .internalBrowser(link: $browserLink)
             // Only failures interrupt: a save that worked says so in the capsule.
             .alert(item: Binding(
                 get: { model.transfers.saveResult },
@@ -166,6 +184,20 @@ struct GalleryGridView: View {
             .navigationTitle(title(count: shown.count))
             .inlineNavigationTitle()
             .toolbar {
+                if !items.isEmpty {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button {
+                            model.isSelecting.toggle()
+                        } label: {
+                            if model.isSelecting {
+                                Text("Cancel", bundle: .module)
+                            } else {
+                                Text("Select", bundle: .module)
+                            }
+                        }
+                        .accessibilityIdentifier("gallery-select")
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
                         dismiss()
@@ -179,6 +211,42 @@ struct GalleryGridView: View {
                 }
             }
         }
+    }
+
+    /// Select all, and the save the picking is for.
+    private func selectionBar(shown: [GalleryItem]) -> some View {
+        let count = model.selectionCount(in: shown)
+        let allPicked = !shown.isEmpty && count == shown.count
+        return HStack {
+            Button {
+                model.toggleSelectAll(in: shown)
+            } label: {
+                if allPicked {
+                    Text("Deselect all", bundle: .module)
+                } else {
+                    Text("Select all", bundle: .module)
+                }
+            }
+            .buttonStyle(.glass)
+            .accessibilityIdentifier("gallery-select-all")
+
+            Spacer()
+
+            Button {
+                model.saveSelection(in: shown)
+            } label: {
+                Label {
+                    Text("Save \(count)", bundle: .module)
+                } icon: {
+                    Image(systemName: "square.and.arrow.down")
+                }
+            }
+            .buttonStyle(.glassProminent)
+            .disabled(count == 0)
+            .accessibilityIdentifier("gallery-save-selection")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
     }
 
     /// A segmented control rather than a menu: readers flip between the three,
@@ -232,4 +300,19 @@ struct GalleryGridView: View {
 private struct GridShareTarget: Identifiable {
     let url: URL
     var id: String { url.absoluteString }
+}
+
+/// The tick in the corner of a file while files are being picked.
+private struct SelectionMark: View {
+    let isSelected: Bool
+
+    var body: some View {
+        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+            .font(.title3)
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(.white, isSelected ? Color.accentColor : Color.black.opacity(0.3))
+            .shadow(radius: 2)
+            .padding(6)
+            .accessibilityHidden(true)
+    }
 }

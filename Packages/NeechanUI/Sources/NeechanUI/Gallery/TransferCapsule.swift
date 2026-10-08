@@ -6,6 +6,9 @@ import SwiftUI
 /// gallery while a long clip comes down, which a blocking overlay would stop.
 struct TransferCapsule: View {
     let transfer: GalleryViewModel.Transfer
+    /// Set while several files are saved one after another. The label then
+    /// counts files, and the ring says how far the current one has got.
+    var batch: MediaTransferController.Batch? = nil
     var onCancel: () -> Void
 
     var body: some View {
@@ -69,6 +72,16 @@ struct TransferCapsule: View {
     }
 
     private var label: Text {
+        if let batch, !transfer.isFinished {
+            transfer.stage == .converting
+                ? Text("Converting \(batch.current) of \(batch.total)", bundle: .module)
+                : Text("Saving \(batch.current) of \(batch.total)", bundle: .module)
+        } else {
+            stageLabel
+        }
+    }
+
+    private var stageLabel: Text {
         switch transfer.stage {
         case .downloading:
             if let fraction = transfer.fraction {

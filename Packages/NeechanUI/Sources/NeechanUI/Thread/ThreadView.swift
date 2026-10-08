@@ -11,7 +11,6 @@ public struct ThreadView: View {
 
     @Environment(AppServices.self) private var services
     @Environment(Router.self) private var router
-    @Environment(\.openURL) private var openURL
     @State private var model: ThreadViewModel?
     @State private var scrollPosition = ScrollPosition()
     @State private var galleryStart: GalleryStart?
@@ -20,6 +19,7 @@ public struct ThreadView: View {
     @State private var hasReported = false
     @State private var isShowingHiddenPosts = false
     @State private var isShowingGalleryGrid = false
+    @State private var isConfirmingSaveAllFiles = false
     @State private var doomscrollStart: GalleryStart?
     /// Whether the favorites are open over the thread.
     @State private var isShowingFavorites = false
@@ -166,6 +166,11 @@ public struct ThreadView: View {
                             }
                         },
                         onReport: reportAction(for: post.num),
+                        translation: model.translation(of: post.num),
+                        isTranslating: model.isTranslating(post.num),
+                        onTranslate: translateAction(for: post.num, model: model),
+                        votes: model.voteCounts(for: post),
+                        onVote: voteAction(for: post.num, model: model),
                         postURL: SiteLinks.post(
                             board: key.board,
                             threadNum: key.threadNum,
@@ -250,6 +255,8 @@ public struct ThreadView: View {
         .overlay { statusOverlay(model, posts: posts) }
         .overlay(alignment: .bottom) { refreshToast(model) }
         .overlay(alignment: .bottom) { quoteStatusToast(model) }
+        .overlay(alignment: .bottom) { noticeToast(model) }
+        .animation(.snappy, value: model.notice)
         // An overlay on the whole screen, last so it is on top. As a safe-area
         // inset of the scroll view its taps fell through to the post beneath:
         // the arrows did nothing and a picture under them opened instead.
@@ -267,6 +274,17 @@ public struct ThreadView: View {
         }
         .animation(.snappy(duration: 0.2), value: model.isSearching)
         .saveProgress(model.saveProgress) { model.cancelSave() }
+        // Started by the model when the reader asks for a translation: a new
+        // configuration runs this, and the system asks to download a language
+        // it lacks before the session comes back.
+        .translationTask(model.translationConfiguration) { session in
+            await model.translatePending(with: SessionTranslator(session: session))
+        }
+        .saveAllFiles(
+            model: model,
+            isConfirming: $isConfirmingSaveAllFiles,
+            savesToFolder: !services.settings.savesToPhotos && services.settings.downloadFolderBookmark != nil
+        )
         .reportPresentation(
             board: key.board,
             thread: key.threadNum,
@@ -289,7 +307,8 @@ public struct ThreadView: View {
                 onOpenOutside: { action in handle(action, model: model) },
                 onToggleOwn: { postNum, owned in
                     Task { await model.setOwned(owned, postNum: postNum) }
-                }
+                },
+                translations: model.translations
             )
             .presentationDetents([.large])
             // Beside the thread on a display wide enough to hold both, which
@@ -565,6 +584,14 @@ public struct ThreadView: View {
                 onSearch: { isSearchFocused = true },
                 onShowGallery: { isShowingGalleryGrid = true },
                 onShowDoomscroll: { startDoomscroll(in: model) },
+                onSaveAllFiles: { isConfirmingSaveAllFiles = true },
+                onToggleTranslation: {
+                    if model.isThreadTranslated {
+                        model.showOriginalThread()
+                    } else {
+                        model.translateThread()
+                    }
+                },
                 onShowHiddenPosts: { isShowingHiddenPosts = true },
                 onReload: { Task { await model.reload(userInitiated: true) } },
                 onSave: { model.startSave(includingFiles: $0) }
@@ -595,6 +622,27 @@ public struct ThreadView: View {
     private func reportAction(for postNum: Int) -> (() -> Void)? {
         guard services.capabilities.reporting != .none else { return nil }
         return { reportTarget = ReportTarget(postNum: postNum) }
+    }
+
+    /// Translates the post, or puts the original back.
+    ///
+    /// A method for the same reason as `reportAction(for:)`.
+    private func translateAction(for postNum: Int, model: ThreadViewModel) -> () -> Void {
+        {
+            if model.translation(of: postNum) != nil {
+                model.showOriginal(postNum)
+            } else {
+                model.translate(postNum)
+            }
+        }
+    }
+
+    /// Sends a vote on the post, or nil where the counts can only be read.
+    ///
+    /// A method for the same reason as `reportAction(for:)`.
+    private func voteAction(for postNum: Int, model: ThreadViewModel) -> ((Bool) -> Void)? {
+        guard model.canVote else { return nil }
+        return { isLike in Task { await model.vote(postNum, like: isLike) } }
     }
 
     /// Says what a `>>` tap is doing when it cannot simply show the post.
@@ -637,6 +685,31 @@ public struct ThreadView: View {
                 }
                 try? await Task.sleep(for: .seconds(2.5))
                 withAnimation(.snappy) { model.dismissQuoteStatus() }
+            }
+        }
+    }
+
+    /// Says why something the reader did here did not work, such as a vote
+    /// the site refused, then takes itself away.
+    @ViewBuilder
+    private func noticeToast(_ model: ThreadViewModel) -> some View {
+        if let notice = model.notice {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.circle")
+                    .foregroundStyle(.secondary)
+                Text(notice)
+            }
+            .font(.subheadline)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .glassEffect(in: .capsule)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 56)
+            .accessibilityIdentifier("thread-notice")
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .task(id: notice) {
+                try? await Task.sleep(for: .seconds(3))
+                model.dismissNotice()
             }
         }
     }
@@ -742,7 +815,10 @@ public struct ThreadView: View {
                         threadNum: quoted.threadKey.threadNum,
                         postNum: quoted.post.num,
                         on: services.settings.siteSelection
-                    )
+                    ),
+                    // A post from another thread shares only its number with
+                    // one here, so it is never drawn in that one's words.
+                    translation: quoted.isRemote ? nil : model.translation(of: quoted.post.num)
                 )
                 .padding(.horizontal, 12)
                 .padding(.bottom, 12)
@@ -794,15 +870,7 @@ public struct ThreadView: View {
                 galleryStart = start
                 return
             }
-            // Links off the site open in the app so a tap does not lose the
-            // thread -- unless the reader asked for Safari, or has not yet said
-            // they are 18, in which case the link leaves rather than being
-            // followed on a surface this app answers for.
-            if services.settings.opensLinksInApp {
-                browserLink = BrowserLink(url: url)
-            } else {
-                openURL(url)
-            }
+            openOffSite(url, settings: services.settings, in: $browserLink)
         }
     }
 

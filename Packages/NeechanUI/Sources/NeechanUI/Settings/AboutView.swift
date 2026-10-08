@@ -43,6 +43,39 @@ struct AboutView: View {
             }
 
             Section {
+                let links = AboutLinks(locale: AppLocale.current)
+                Link(destination: links.website) {
+                    Label {
+                        Text("Website", bundle: .module)
+                    } icon: {
+                        Image(systemName: "globe")
+                    }
+                }
+                Link(destination: links.privacyPolicy) {
+                    Label {
+                        Text("Privacy policy", bundle: .module)
+                    } icon: {
+                        Image(systemName: "hand.raised")
+                    }
+                }
+                Link(destination: links.sourceCode) {
+                    Label {
+                        Text("Source code", bundle: .module)
+                    } icon: {
+                        Image(systemName: "chevron.left.forwardslash.chevron.right")
+                    }
+                }
+                Link(destination: links.contact) {
+                    Label {
+                        Text("Contact", bundle: .module)
+                    } icon: {
+                        Image(systemName: "envelope")
+                    }
+                }
+            }
+            .accessibilityIdentifier("about-links")
+
+            Section {
                 Button {
                     Task { await prepareExport() }
                 } label: {
@@ -137,6 +170,28 @@ struct AboutView: View {
                 text: String(localized: "That file is not a Neechan backup.", bundle: .module.forAppLanguage(), locale: AppLocale.current)
             )
         }
+    }
+}
+
+/// Where the rows in About lead.
+///
+/// The site's front page picks its language from the browser's, which is the
+/// device's, and the reader may have set the app to another. So the app names
+/// the language itself, and falls back to English where the site has no page.
+struct AboutLinks {
+    static let siteLanguages: Set<String> = ["en", "ru", "de"]
+
+    let website: URL
+    let privacyPolicy: URL
+    let sourceCode = URL(string: "https://github.com/leros1337/neechan")!
+    let contact = URL(string: "mailto:\(AgreementView.contactAddress)")!
+
+    init(locale: Locale) {
+        let code = locale.language.languageCode?.identifier ?? "en"
+        let language = Self.siteLanguages.contains(code) ? code : "en"
+        let site = URL(string: "https://neechan.pro/\(language)/")!
+        website = site
+        privacyPolicy = site.appending(path: "privacy")
     }
 }
 

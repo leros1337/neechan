@@ -39,6 +39,8 @@ struct QuotePopupView: View {
     var onReply: (() -> Void)? = nil
     /// The post's own address on the site, for copying and sharing.
     var postURL: URL?
+    /// The post in the reader's language, when the thread behind has it so.
+    var translation: PostContent?
 
     @Environment(\.neechanTheme) private var theme
     @State private var revealSpoilers = false
@@ -285,7 +287,7 @@ struct QuotePopupView: View {
 
     private func body(for quoted: ThreadViewModel.QuotedPost) -> AttributedString {
         Self.renderer.render(
-            quoted.content,
+            translation ?? quoted.content,
             options: .init(
                 postNum: quoted.post.num,
                 revealSpoilers: revealSpoilers,
@@ -317,6 +319,9 @@ struct RepliesSheet: View {
     /// Claims a post as the reader's own, or takes the claim back. Handled by
     /// the thread behind this window, which owns the snapshot the cards read.
     var onToggleOwn: (Int, Bool) -> Void = { _, _ in }
+    /// Posts the thread behind shows in the reader's language, drawn the same
+    /// way here.
+    var translations: [Int: PostContent] = [:]
 
     @Environment(\.dismiss) private var dismiss
     @Environment(AppServices.self) private var services
@@ -469,7 +474,8 @@ struct RepliesSheet: View {
             indexInThread: snapshot.indexInThread(of: post),
             onOpenReplies: { path.append(.replies(to: post.num)) },
             onOpenAttachment: { attachment in openGallery(at: attachment) },
-            onToggleOwn: { onToggleOwn(post.num, !snapshot.isOwn(post.num)) }
+            onToggleOwn: { onToggleOwn(post.num, !snapshot.isOwn(post.num)) },
+            translation: translations[post.num]
         )
     }
 

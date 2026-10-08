@@ -367,6 +367,7 @@ final class Demuxer: @unchecked Sendable {
     /// thirteenth to bytes that are not there.
     @discardableResult
     func seek(to time: TimeInterval) -> Bool {
+        lastSeekMissed = false
         guard let context else { return false }
         readAhead.removeAll()
         let target = Int64(max(0, time) * TimeInterval(AV_TIME_BASE))
@@ -383,6 +384,7 @@ final class Demuxer: @unchecked Sendable {
             miss = "the end of the file with no picture on the way"
         }
 
+        lastSeekMissed = true
         let index = video.pointee.index
         let inStream = av_rescale_q(target, AVRational(num: 1, den: AV_TIME_BASE), video.pointee.time_base)
         if let known = keyframes.last(where: { $0 <= inStream }) {
@@ -406,6 +408,12 @@ final class Demuxer: @unchecked Sendable {
         _ = landing()
         return true
     }
+
+    /// Whether the last seek missed, and went back to a keyframe already read
+    /// or to the start instead. The player decodes forward from there as from
+    /// any keyframe; the scrubber's previews, which show the keyframe itself,
+    /// would show a picture of somewhere else.
+    private(set) var lastSeekMissed = false
 
     /// Where a seek put the reading, judged by the first picture after it.
     private enum Landing: Equatable {

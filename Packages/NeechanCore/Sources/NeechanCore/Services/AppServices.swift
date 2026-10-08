@@ -28,6 +28,7 @@ public final class AppServices {
     public let watcher: ThreadWatcher
     public let search: SearchService
     public let reports: ReportService
+    public let likes: LikeService
     public let archive: ArchiveRepository
     public let savedThreads: SavedThreadsRepository
     public let themes: ThemeRepository
@@ -136,6 +137,7 @@ public final class AppServices {
 
         self.search = SearchService(client: client)
         self.reports = ReportService(client: client)
+        self.likes = LikeService(client: client)
         self.archive = ArchiveRepository(client: client)
         self.savedThreads = SavedThreadsRepository(
             modelContainer: modelContainer, policy: policyHolder.provider

@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import NeechanAPI
 import NeechanCore
@@ -166,6 +167,86 @@ public final class GalleryViewModel {
         playbackControl.send(.seek(fraction * playbackProgress.total))
     }
 
+    /// The speeds the viewer offers.
+    public static let playbackRates: [Float] = [0.5, 0.75, 1, 1.25, 1.5, 2]
+
+    /// How fast clips play in this viewer.
+    ///
+    /// Set on the player itself, which keeps it from clip to clip as the
+    /// reader pages, and goes when the viewer closes, so the next one opens at
+    /// the speed things were recorded at.
+    public var playbackRate: Float = 1 {
+        didSet { player.playbackRate = playbackRate }
+    }
+
+    /// Shows the next picture, or the one before, with the clip stopped.
+    ///
+    /// On the player directly rather than through `playbackControl`: a reader
+    /// tapping quickly sends several steps in one update of the view, and
+    /// commands sent that way collapse into one.
+    public func stepFrame(forward: Bool) {
+        player.step(forward: forward)
+    }
+
+    // MARK: Scrubbing
+
+    /// While the scrubber is held: where, and the picture for there.
+    public private(set) var scrubbing: ScrubPreview?
+
+    public struct ScrubPreview {
+        /// Where the finger is, 0 to 1.
+        public var fraction: Double
+        /// When that is in the clip.
+        public var seconds: Double
+        /// The picture for there, or nil while there is none: that part of the
+        /// clip has not arrived, or the picture is still being made.
+        public var image: CGImage?
+    }
+
+    /// Pictures for the scrubber, for the clip on screen.
+    private var scrubPreviewer: ScrubPreviewer?
+    private var scrubPreviewerURL: URL?
+    /// The last position asked for, so a picture that comes back for an
+    /// earlier one is not shown at this one.
+    private var scrubRequest = 0
+
+    /// The finger is on the scrubber, at `fraction`.
+    public func scrub(to fraction: Double) {
+        guard playbackProgress.isSeekable, let item = currentItem, item.isVideo,
+              let url = url(for: item)
+        else { return }
+        if scrubPreviewerURL != url {
+            scrubPreviewer?.close()
+            scrubPreviewer = ScrubPreviewer(url: url)
+            scrubPreviewerURL = url
+        }
+        let seconds = fraction * playbackProgress.total
+        // The last picture stays up until the next one is ready, so a drag
+        // does not flicker between pictures and nothing.
+        scrubbing = ScrubPreview(fraction: fraction, seconds: seconds, image: scrubbing?.image)
+        scrubRequest += 1
+        let request = scrubRequest
+        guard let previewer = scrubPreviewer else { return }
+        Task { [weak self] in
+            let image = await previewer.preview(at: seconds)
+            guard let self, request == self.scrubRequest, self.scrubbing != nil else { return }
+            self.scrubbing?.image = image
+        }
+    }
+
+    /// The finger has left the scrubber.
+    public func endScrub() {
+        scrubbing = nil
+        scrubRequest += 1
+    }
+
+    private func closeScrubPreviewer() {
+        scrubPreviewer?.close()
+        scrubPreviewer = nil
+        scrubPreviewerURL = nil
+        scrubbing = nil
+    }
+
     /// `0:07 / 0:23`, or empty when the clip reports no duration.
     public var timeLabel: String {
         guard playbackProgress.isSeekable else { return "" }
@@ -182,6 +263,7 @@ public final class GalleryViewModel {
         playbackState = .idle
         playbackProgress = PlaybackProgress()
         playbackControl = PlaybackControl()
+        closeScrubPreviewer()
         // The file being fetched is the one just paged away from. Its blocks
         // stay on disk for a reader who pages back; only the fetching stops.
         stopFetchingWholeClip()
@@ -215,6 +297,7 @@ public final class GalleryViewModel {
     public func finishPlayback() {
         player.shutdown()
         stopFetchingWholeClip()
+        closeScrubPreviewer()
     }
 
     public func toggleControls() {

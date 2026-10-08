@@ -19,9 +19,15 @@ struct GalleryPage: View {
     var onGoToPost: (() -> Void)?
     var onSave: () -> Void = {}
     var onShare: () -> Void = {}
+    var onReverseSearch: ((URL) -> Void)?
     /// Reports a picture being magnified, so the gallery leaves the
     /// drag-to-close gesture alone while the reader moves it about.
     var onZoomChanged: (Bool) -> Void = { _ in }
+    /// Whether the reader has asked to see the text in the picture.
+    var isLiveTextHighlighted = false
+    /// Reports what Live Text found in the picture, so the gallery can offer
+    /// its button only where there is something to show.
+    var onLiveTextChanged: (LiveTextStatus) -> Void = { _ in }
     /// Playback is reported upward so the gallery can host one control stack
     /// rather than each page drawing its own bar.
     @Binding var playbackState: PlaybackState
@@ -92,8 +98,14 @@ struct GalleryPage: View {
                 // A long press of our own was tried instead and cost more than
                 // it bought: written either way it left the pager unable to
                 // turn to the next file once it had fired.
+                //
+                // Empty while the text is lifted out of the picture, which
+                // leaves the long press to the text: a menu with nothing in it
+                // is not shown.
                 surface.contextMenu {
-                    menu
+                    if !isLiveTextHighlighted {
+                        menu
+                    }
                 } preview: {
                     menuPreview
                 }
@@ -126,7 +138,13 @@ struct GalleryPage: View {
 
     /// What a long press offers.
     private var menu: some View {
-        GalleryItemMenu(item: item, onGoToPost: onGoToPost, onSave: onSave, onShare: onShare)
+        GalleryItemMenu(
+            item: item,
+            onGoToPost: onGoToPost,
+            onSave: onSave,
+            onShare: onShare,
+            onReverseSearch: onReverseSearch
+        )
     }
 
     /// The card the menu lifts: small on purpose.
@@ -157,8 +175,11 @@ struct GalleryPage: View {
             #if os(iOS)
             ZoomableImageView(
                 image: image,
+                analysisKey: isCurrent ? item.id : nil,
+                isLiveTextHighlighted: isLiveTextHighlighted,
                 onSingleTap: onSingleTap,
-                onZoomChanged: onZoomChanged
+                onZoomChanged: onZoomChanged,
+                onLiveTextChanged: onLiveTextChanged
             )
             #else
             Image(platformImage: image).resizable().scaledToFit()

@@ -107,6 +107,9 @@ final class RangeReaderIO: @unchecked Sendable {
                 MediaLog.reader.debug("end of file at \(start, privacy: .public)")
                 return FFmpegStatus.endOfFile
             }
+            // Not on the device, and not going to be fetched: waiting for the
+            // network to come back would only hold up the scrubber.
+            if reader.isCacheOnly { return FFmpegStatus.inputOutputError }
             MediaLog.reader.error(
                 """
                 read failed at \(start, privacy: .public)                 for \(size, privacy: .public) bytes,                 attempt \(attempt + 1, privacy: .public) of \(Self.retries + 1, privacy: .public)

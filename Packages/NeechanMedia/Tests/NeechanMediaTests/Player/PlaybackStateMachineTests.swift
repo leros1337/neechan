@@ -96,4 +96,19 @@ struct PlaybackStateMachineTests {
         machine.handle(.endOfStream)
         #expect(machine.handle(.pause) == .finished)
     }
+
+    /// A pause leaves a finished clip finished, so the play button starts it
+    /// again. A step is different: the reader is now looking at a picture
+    /// inside the clip, and playing should go on from there.
+    @Test("a step leaves the clip paused, even from the end")
+    func stepPauses() {
+        var machine = PlaybackStateMachine()
+        machine.handle(.opened)
+        machine.handle(.firstFrame)
+        machine.handle(.endOfStream)
+        #expect(machine.handle(.stepped) == .paused)
+
+        machine.handle(.play)
+        #expect(machine.handle(.stepped) == .playing, "a playing clip is not stepped")
+    }
 }

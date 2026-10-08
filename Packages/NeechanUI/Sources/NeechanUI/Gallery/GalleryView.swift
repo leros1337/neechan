@@ -14,11 +14,16 @@ public struct GalleryView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var shareURL: URL?
     @State private var isPreparingShare = false
+    @State private var browserLink: BrowserLink?
     /// How far the reader has dragged the viewer down to close it.
     @State private var dragOffset: CGFloat = 0
     /// Set while the picture on screen is magnified, where a drag belongs to
     /// the picture rather than to the viewer.
     @State private var isZoomedIn = false
+    /// What Live Text found in the picture on screen, and whether the reader
+    /// has the text lifted out, where a drag selects words rather than
+    /// closing the viewer.
+    @State private var liveText = LiveTextStatus()
 
     /// Called with a post number when the reader asks to go to it.
     ///
@@ -80,6 +85,7 @@ public struct GalleryView: View {
         )) { target in
             ShareSheet(items: [target.url])
         }
+        .internalBrowser(link: $browserLink)
         // A short tap when a video finishes saving, which is the one action here
         // the reader starts and then looks away from. Nothing is played for an
         // image, which saves too quickly to be worth announcing, nor for a save
@@ -113,6 +119,8 @@ public struct GalleryView: View {
         .tabViewStyle(.page(indexDisplayMode: .never))
         #endif
         .ignoresSafeArea()
+        // A drag across lifted-out text is selecting it, not turning the page.
+        .scrollDisabled(liveText.isHighlighted)
         // Follows the finger on the way out, and shrinks a little as it goes,
         // so the drag reads as putting the file down rather than as the screen
         // glitching.
@@ -123,6 +131,7 @@ public struct GalleryView: View {
             // A new page is never zoomed, and the one left behind stops having
             // a say in the gesture.
             isZoomedIn = false
+            liveText = LiveTextStatus()
         }
         .onDisappear { model.finishPlayback() }
         // The background only: a glance at the app switcher or Control Centre
@@ -148,11 +157,17 @@ public struct GalleryView: View {
             },
             onSave: { model.saveCurrentItem() },
             onShare: { share() },
+            onReverseSearch: { openOffSite($0, settings: services.settings, in: $browserLink) },
             onZoomChanged: { zoomed in
                 // Only the page being looked at has a say: the ones either side
                 // report as they are built.
                 guard index == model.currentIndex else { return }
                 isZoomedIn = zoomed
+            },
+            isLiveTextHighlighted: index == model.currentIndex && liveText.isHighlighted,
+            onLiveTextChanged: { status in
+                guard index == model.currentIndex else { return }
+                liveText = status
             },
             playbackState: $model.playbackState,
             // Written, never read, here: only the scrubber reads it, so only
@@ -171,7 +186,7 @@ public struct GalleryView: View {
             .onChanged { value in
                 // A magnified picture owns its own drags: the reader is moving
                 // it around, not putting it away.
-                guard !isZoomedIn else { return }
+                guard !isZoomedIn, !liveText.isHighlighted else { return }
                 // Downward and more down than across, or this would fight the
                 // swipe between files.
                 guard value.translation.height > 0,
@@ -220,7 +235,7 @@ public struct GalleryView: View {
             if let transfer = model.transfer {
                 VStack {
                     Spacer()
-                    TransferCapsule(transfer: transfer) { model.cancelTransfer() }
+                    TransferCapsule(transfer: transfer, batch: model.transfers.batch) { model.cancelTransfer() }
                         // Clear of the transport, which owns the bottom strip.
                         .padding(.bottom, model.areControlsVisible ? 56 : 24)
                 }
@@ -308,6 +323,10 @@ public struct GalleryView: View {
 
                     Spacer(minLength: 0)
 
+                    if !model.isShowingVideo, liveText.isAvailable {
+                        LiveTextButton(isHighlighted: $liveText.isHighlighted)
+                    }
+
                     Button {
                         model.saveCurrentItem()
                     } label: {
@@ -350,6 +369,32 @@ public struct GalleryView: View {
     }
 }
 
+/// Lifts the text out of the picture, so it can be selected, copied or
+/// looked up, or puts it back.
+///
+/// Offered only where Live Text found something, so a photo of a cat does
+/// not carry a button that does nothing.
+private struct LiveTextButton: View {
+    @Binding var isHighlighted: Bool
+
+    var body: some View {
+        Button {
+            isHighlighted.toggle()
+        } label: {
+            Label {
+                Text("Live Text", bundle: .module)
+            } icon: {
+                Image(systemName: "text.viewfinder")
+            }
+            .labelStyle(.iconOnly)
+        }
+        .buttonStyle(.glass)
+        .tint(isHighlighted ? Color.accentColor : nil)
+        .accessibilityAddTraits(isHighlighted ? .isSelected : [])
+        .accessibilityIdentifier("live-text")
+    }
+}
+
 /// The scrubber, and nothing else that would be redrawn with it.
 private struct ScrubberRow: View {
     let model: GalleryViewModel
@@ -361,8 +406,102 @@ private struct ScrubberRow: View {
             isSeekable: model.playbackProgress.isSeekable,
             timeLabel: model.timeLabel,
             isBusy: model.playbackState.isBusy,
-            onSeek: { model.seek(toFraction: $0) }
-        )
+            onSeek: { model.seek(toFraction: $0) },
+            preview: model.scrubbing,
+            fallback: model.currentItem?.attachment,
+            onScrub: { fraction in
+                if let fraction {
+                    model.scrub(to: fraction)
+                } else {
+                    model.endScrub()
+                }
+            }
+        ) {
+            FrameStepButtons(model: model)
+            SpeedMenu(model: model)
+        }
+    }
+}
+
+/// One picture back, one picture on, while the clip is stopped.
+///
+/// Only then: on a running clip a picture is gone before the finger is off
+/// the glass. Its own view so it reads the playback state and nothing else.
+private struct FrameStepButtons: View {
+    let model: GalleryViewModel
+
+    var body: some View {
+        switch model.playbackState {
+        case .paused, .finished:
+            HStack(spacing: 2) {
+                step(forward: false)
+                step(forward: true)
+            }
+        default:
+            EmptyView()
+        }
+    }
+
+    private func step(forward: Bool) -> some View {
+        Button {
+            model.stepFrame(forward: forward)
+        } label: {
+            Label {
+                if forward {
+                    Text("Next frame", bundle: .module)
+                } else {
+                    Text("Previous frame", bundle: .module)
+                }
+            } icon: {
+                Image(systemName: forward ? "forward.frame.fill" : "backward.frame.fill")
+            }
+            .labelStyle(.iconOnly)
+            .font(.caption)
+            .frame(width: 32, height: 24)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .buttonRepeatBehavior(.enabled)
+        .accessibilityIdentifier(forward ? "next-frame" : "previous-frame")
+    }
+}
+
+/// The speed the clip plays at, under the scrubber.
+///
+/// Its own view so the ten-a-second progress reports that redraw the scrubber
+/// leave it alone: it reads the speed and nothing else.
+private struct SpeedMenu: View {
+    let model: GalleryViewModel
+
+    var body: some View {
+        Menu {
+            Picker(selection: Binding(
+                get: { model.playbackRate },
+                set: { model.playbackRate = $0 }
+            )) {
+                ForEach(GalleryViewModel.playbackRates, id: \.self) { rate in
+                    Text(verbatim: Self.label(for: rate)).tag(rate)
+                }
+            } label: {
+                Text("Playback speed", bundle: .module)
+            }
+        } label: {
+            Text(verbatim: Self.label(for: model.playbackRate))
+                .font(.caption2.monospacedDigit().weight(.semibold))
+                .foregroundStyle(model.playbackRate == 1 ? Color.secondary : Color.accentColor)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .contentShape(.rect)
+        }
+        .accessibilityLabel(Text("Playback speed", bundle: .module))
+        .accessibilityValue(Text(verbatim: Self.label(for: model.playbackRate)))
+        .accessibilityIdentifier("playback-speed")
+    }
+
+    /// `1×`, `0,75×`: in the app's own way of writing numbers.
+    static func label(for rate: Float) -> String {
+        Double(rate).formatted(.number.precision(.fractionLength(0...2)).locale(AppLocale.current)) + "×"
     }
 }
 
@@ -440,7 +579,7 @@ private struct LoopButton: View {
 /// Hand-built rather than a `Slider`, which only responds to dragging its thumb.
 /// A tap anywhere on the track jumps there, which is what a video scrubber is
 /// expected to do.
-private struct PlaybackScrubber: View {
+private struct PlaybackScrubber<Accessory: View>: View {
     let fraction: Double
     /// How much of the file is on disk, 0 to 1: the dimmed bar behind the
     /// playhead. Bytes rather than seconds, so it is a close approximation
@@ -450,6 +589,14 @@ private struct PlaybackScrubber: View {
     let timeLabel: String
     let isBusy: Bool
     var onSeek: (Double) -> Void
+    /// The picture for where the finger is, while it is on the track.
+    var preview: GalleryViewModel.ScrubPreview?
+    /// The post's own thumbnail, for where there is no picture yet.
+    var fallback: NeechanAPI.Attachment?
+    /// Where the finger is on the track, or nil once it has let go.
+    var onScrub: (Double?) -> Void = { _ in }
+    /// Controls at the end of the time row, opposite the time.
+    @ViewBuilder var accessory: Accessory
 
     /// Where the thumb is while the finger is down, before the seek commits.
     @State private var dragFraction: Double?
@@ -478,6 +625,7 @@ private struct PlaybackScrubber: View {
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
+                accessory
             }
         }
         .padding(.horizontal, 16)
@@ -523,20 +671,73 @@ private struct PlaybackScrubber: View {
                 // tapping the track seeks instead of doing nothing.
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
-                        dragFraction = clamp(value.location.x / width)
+                        let fraction = clamp(value.location.x / width)
+                        dragFraction = fraction
+                        onScrub(fraction)
                     }
                     .onEnded { value in
                         let target = clamp(value.location.x / width)
                         dragFraction = nil
+                        onScrub(nil)
                         onSeek(target)
                     }
             )
+            .overlay(alignment: .bottomLeading) {
+                // Above the thumb, kept inside the track's ends so it is never
+                // cut off at the edge of the screen.
+                if let preview, dragFraction != nil {
+                    ScrubPreviewBubble(preview: preview, fallback: fallback)
+                        .offset(
+                            x: min(max(0, width * shown - ScrubPreviewBubble.width / 2), max(0, width - ScrubPreviewBubble.width)),
+                            y: -(touchHeight + 8)
+                        )
+                        .transition(.opacity)
+                }
+            }
         }
         .frame(height: touchHeight)
     }
 
     private func clamp(_ value: Double) -> Double {
         min(1, max(0, value))
+    }
+}
+
+/// The picture for where the finger is on the scrubber, and when that is.
+///
+/// The post's own thumbnail stands in where the clip has not arrived yet:
+/// the previews come only from what is already on the device.
+private struct ScrubPreviewBubble: View {
+    static let width: CGFloat = 136
+
+    let preview: GalleryViewModel.ScrubPreview
+    let fallback: NeechanAPI.Attachment?
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Group {
+                if let image = preview.image {
+                    Image(decorative: image, scale: 1)
+                        .resizable()
+                        .scaledToFit()
+                } else if let fallback {
+                    ThumbnailView(attachment: fallback, side: nil)
+                } else {
+                    Color.black
+                }
+            }
+            .frame(width: Self.width - 8, height: (Self.width - 8) * 9 / 16)
+            .background(.black)
+            .clipShape(.rect(cornerRadius: 8))
+
+            Text(verbatim: VideoDuration.label(seconds: Int(preview.seconds)))
+                .font(.caption2.monospacedDigit().weight(.semibold))
+        }
+        .padding(4)
+        .frame(width: Self.width)
+        .glassEffect(.regular, in: .rect(cornerRadius: 12))
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

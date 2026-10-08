@@ -292,9 +292,9 @@ public actor DvachClient {
         )
     }
 
-    public func vote(board: String, num: Int, isLike: Bool) async throws(DvachError) -> ActionResponse {
+    public func vote(board: String, num: Int, isLike: Bool) async throws(DvachError) -> VoteResponse {
         try await get(
-            ActionResponse.self,
+            VoteResponse.self,
             isLike ? .like(board: board, num: num) : .dislike(board: board, num: num),
             envelope: \.error
         )

@@ -24,6 +24,7 @@ struct DoomscrollView: View {
     @State private var scrolledID: GalleryItem.ID?
     @State private var isSharing = false
     @State private var shareURL: URL?
+    @State private var browserLink: BrowserLink?
 
     /// Goes to the post the clip came from, closing the feed on the way.
     var onGoToPost: ((Int) -> Void)?
@@ -93,6 +94,7 @@ struct DoomscrollView: View {
         .sheet(isPresented: $isSharing) {
             if let shareURL { ShareSheet(items: [shareURL]) }
         }
+        .internalBrowser(link: $browserLink)
         .alert(item: Binding(
             get: { model.transfers.saveResult },
             set: { model.transfers.saveResult = $0 }
@@ -161,7 +163,8 @@ struct DoomscrollView: View {
                             }
                         },
                         onSave: { model.saveCurrentItem() },
-                        onShare: { share() }
+                        onShare: { share() },
+                        onReverseSearch: { openOffSite($0, settings: services.settings, in: $browserLink) }
                     )
                     .containerRelativeFrame(.vertical)
                     .id(item.id)
@@ -213,7 +216,7 @@ struct DoomscrollView: View {
             Spacer(minLength: 0)
 
             if let transfer = model.transfers.transfer {
-                TransferCapsule(transfer: transfer) { model.transfers.cancelTransfer() }
+                TransferCapsule(transfer: transfer, batch: model.transfers.batch) { model.transfers.cancelTransfer() }
             } else {
                 Text(verbatim: model.positionText)
                     .font(.footnote.weight(.medium))

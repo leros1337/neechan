@@ -92,6 +92,20 @@ final class AVOutput: @unchecked Sendable {
         /// When playback ran out, so a wait that is going nowhere can be told
         /// apart from one that is simply taking a while.
         var starvedAt: ContinuousClock.Instant?
+        /// When each picture handed to the renderer since the last seek is to
+        /// be shown, the most recent last. What a step through a stopped clip
+        /// moves between; a few seconds' worth is plenty.
+        var handedOver: [FrameTiming] = []
+        /// The first picture the renderer was handed since it was last
+        /// emptied. It still holds everything handed over from here on that
+        /// the clock has not yet passed.
+        var heldSince: CMTime = .invalid
+    }
+
+    /// When a picture is shown, and for how long.
+    struct FrameTiming: Equatable, Sendable {
+        let presentation: CMTime
+        let duration: CMTime
     }
 
     /// Called about ten times a second while the clock runs.
@@ -198,6 +212,10 @@ final class AVOutput: @unchecked Sendable {
         audioRenderer = AVSampleBufferAudioRenderer()
         audioRenderer.isMuted = muted
         audioRenderer.volume = volume
+        // Played faster or slower, speech keeps its pitch rather than going
+        // up or down with the speed. Said here, on every new renderer, since a
+        // seek or a loop brings a new one.
+        audioRenderer.audioTimePitchAlgorithm = .timeDomain
         synchronizer.addRenderer(audioRenderer)
         isAudioAttached = true
         audioRenderer.requestMediaDataWhenReady(on: queue) { [weak self] in
@@ -239,6 +257,13 @@ final class AVOutput: @unchecked Sendable {
             }
             videoGeneration = videoFrames?.currentGeneration ?? 0
             audioGeneration = audioRuns?.currentGeneration ?? 0
+            // Here, on the queue the renderer is fed on, rather than with the
+            // rest below: a picture fed in between was handed over and then
+            // forgotten, and a step had nothing to step to.
+            state.withLock {
+                $0.handedOver.removeAll()
+                $0.heldSince = .invalid
+            }
         }
         state.withLock {
             $0.lastVideoEnd = .zero
@@ -295,6 +320,82 @@ final class AVOutput: @unchecked Sendable {
     var rate: Float { synchronizer.rate }
 
     var currentTime: CMTime { synchronizer.currentTime() }
+
+    // MARK: Pictures, one at a time
+
+    /// The picture the clock is on: the last one handed over at or before it.
+    var shownFrame: FrameTiming? {
+        let now = synchronizer.currentTime()
+        return state.withLock { current in
+            current.handedOver.filter { $0.presentation <= now }.max { $0.presentation < $1.presentation }
+        }
+    }
+
+    /// The first picture after `time` that the renderer holds, or failing that
+    /// the next one waiting for it.
+    func presentation(after time: CMTime) -> CMTime? {
+        let held = state.withLock { current in
+            let heldSince = current.heldSince
+            guard heldSince.isValid else { return CMTime?.none }
+            return current.handedOver.lazy.map(\.presentation)
+                .filter { $0 > time && $0 >= heldSince }
+                .min()
+        }
+        if let held { return held }
+        guard let waiting = videoFrames?.peek()?.presentation, waiting > time else { return nil }
+        return waiting
+    }
+
+    /// Whether the renderer holds the picture for `time`, so moving the
+    /// stopped clock there is enough to show it.
+    func holdsPicture(at time: CMTime) -> Bool {
+        state.withLock { current in
+            current.heldSince.isValid && time >= current.heldSince
+                && current.handedOver.contains { $0.presentation == time }
+        }
+    }
+
+    /// Gives the renderer the pictures waiting after the ones it holds, with
+    /// the clock stopped.
+    ///
+    /// A stopped renderer takes a handful of pictures and then no more, and a
+    /// clock moved past them does not change its mind: it lets a picture go
+    /// only once a running clock has shown it. A step past the last picture it
+    /// held went nowhere. Emptied, it takes the next handful from the queue,
+    /// which the decoder has already filled, so this costs no decoding. What
+    /// was handed over before is still remembered, for a step back.
+    func handOverWaitingPictures() {
+        queue.sync {
+            videoRenderer.flush()
+            state.withLock { $0.heldSince = .invalid }
+            feedVideo()
+        }
+    }
+
+    /// The last picture before `time` handed over since the last flush.
+    func presentation(before time: CMTime) -> CMTime? {
+        state.withLock { current in
+            current.handedOver.lazy.map(\.presentation).filter { $0 < time }.max()
+        }
+    }
+
+    /// When the picture the renderer is actually showing was meant to be
+    /// shown, read off the picture itself. Only while the clock is stopped,
+    /// which is the only time the renderer will say.
+    ///
+    /// For checking the renderer agrees with the clock: what `shownFrame`
+    /// works out is what was asked for, and this is what happened.
+    var displayedPresentation: CMTime? {
+        queue.sync {
+            guard let buffer = videoRenderer.displayedPixelBuffer(),
+                  let stamp = CVBufferCopyAttachment(buffer, Self.presentationKey as CFString, nil)
+            else { return nil }
+            return CMTimeMakeFromDictionary((stamp as! CFDictionary))
+        }
+    }
+
+    /// Where each picture carries the time it was handed over for.
+    private static let presentationKey = "NeechanPresentation"
 
     var isMuted: Bool {
         get { audioRenderer.isMuted }
@@ -416,6 +517,9 @@ final class AVOutput: @unchecked Sendable {
             guard let sample = sampleBuffer(for: frame) else { continue }
             renderer.enqueue(sample)
             state.withLock {
+                if !$0.heldSince.isValid { $0.heldSince = frame.presentation }
+                $0.handedOver.append(FrameTiming(presentation: frame.presentation, duration: frame.duration))
+                if $0.handedOver.count > 256 { $0.handedOver.removeFirst($0.handedOver.count - 256) }
                 $0.isAwaitingNewPosition = false
                 if $0.isStarved, !$0.earliestSinceStarved.isValid {
                     $0.earliestSinceStarved = frame.presentation
@@ -461,6 +565,10 @@ final class AVOutput: @unchecked Sendable {
             formatDescriptionSize = (width, height, format)
         }
         guard let formatDescription else { return nil }
+
+        if let stamp = CMTimeCopyAsDictionary(frame.presentation, allocator: kCFAllocatorDefault) {
+            CVBufferSetAttachment(frame.pixelBuffer, Self.presentationKey as CFString, stamp, .shouldNotPropagate)
+        }
 
         var timing = CMSampleTimingInfo(
             duration: frame.duration.isValid ? frame.duration : .invalid,
@@ -511,7 +619,7 @@ final class AVOutput: @unchecked Sendable {
         MediaLog.output.debug(
             """
             [\(self.name, privacy: .public)] at \(TimeMath.seconds(time), format: .fixed(precision: 1), privacy: .public)s, \
-            rate \(self.synchronizer.rate, format: .fixed(precision: 0), privacy: .public), \
+            rate \(self.synchronizer.rate, format: .fixed(precision: 2), privacy: .public), \
             video \(self.videoFrames?.buffered ?? 0, format: .fixed(precision: 2), privacy: .public)s and \
             audio \(self.audioRuns?.buffered ?? 0, format: .fixed(precision: 2), privacy: .public)s in hand, \
             drained video \(self.videoFrames?.isDrained ?? true, privacy: .public) \

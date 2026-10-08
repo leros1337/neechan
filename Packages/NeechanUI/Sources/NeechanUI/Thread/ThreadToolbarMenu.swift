@@ -21,6 +21,10 @@ struct ThreadToolbarMenu: View {
     var onSearch: () -> Void
     var onShowGallery: () -> Void
     var onShowDoomscroll: () -> Void
+    /// Saves every file in the thread to Photos or the reader's folder.
+    var onSaveAllFiles: () -> Void
+    /// Shows the whole thread in the reader's language, or as it was written.
+    var onToggleTranslation: () -> Void
     var onShowHiddenPosts: () -> Void
     var onReload: () -> Void
     /// Saves the thread; true also downloads the files.
@@ -47,6 +51,19 @@ struct ThreadToolbarMenu: View {
                     Image(systemName: "magnifyingglass")
                 }
             }
+            Button(action: onToggleTranslation) {
+                Label {
+                    if model.isThreadTranslated {
+                        Text("Show original", bundle: .module)
+                    } else {
+                        Text("Translate thread", bundle: .module)
+                    }
+                } icon: {
+                    Image(systemName: "translate")
+                }
+            }
+            .disabled(model.snapshot.posts.isEmpty)
+            .accessibilityIdentifier("translate-thread")
             Button(action: onShowGallery) {
                 Label {
                     Text("Gallery", bundle: .module)
@@ -65,6 +82,16 @@ struct ThreadToolbarMenu: View {
             }
             .disabled(!model.snapshot.hasVideos)
             .accessibilityIdentifier("doomscroll")
+
+            Button(action: onSaveAllFiles) {
+                Label {
+                    Text("Save all files", bundle: .module)
+                } icon: {
+                    Image(systemName: "square.and.arrow.down.on.square")
+                }
+            }
+            .disabled(!model.snapshot.hasAttachments)
+            .accessibilityIdentifier("save-all-files")
 
             if !model.isOffline {
                 Button(action: onReload) {

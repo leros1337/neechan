@@ -3,6 +3,7 @@ import NeechanAPI
 import NeechanCore
 import Observation
 import SwiftUI
+import Translation
 
 /// Drives one open thread.
 ///
@@ -156,11 +157,26 @@ public final class ThreadViewModel {
     private let repository: ThreadRepository
     private let services: AppServices
 
+    /// Saves files to Photos or the reader's folder from the thread's menu.
+    ///
+    /// The thread's own rather than the gallery's: the gallery is closed while
+    /// a whole thread's files come down.
+    public let fileTransfers: MediaTransferController
+
     public init(key: ThreadKey, services: AppServices) {
         self.key = key
         self.services = services
         self.repository = services.threadRepository(for: key)
         self.snapshot = .empty(key: key)
+        self.fileTransfers = MediaTransferController(services: services)
+    }
+
+    /// Saves every file in the thread, in reading order, one after another.
+    public func saveAllFiles() {
+        let mirror = services.settings.domain
+        fileTransfers.save(snapshot.galleryItems.compactMap { item in
+            item.fileURL(mirror: mirror).map { (item, $0) }
+        })
     }
 
     // MARK: Loading
@@ -400,10 +416,12 @@ public final class ThreadViewModel {
             adopt(snapshot)
             setNewPostNums([])
             setLoadState(.loaded)
+            continueThreadTranslation()
         case .appended(let snapshot, let nums):
             adopt(snapshot)
             setNewPostNums(nums)
             setLoadState(.loaded)
+            continueThreadTranslation()
         case .metaChanged(let snapshot):
             adopt(snapshot)
             if case .failed = loadState { setLoadState(.loaded) }
@@ -753,6 +771,238 @@ public final class ThreadViewModel {
 
     public var isSearching: Bool {
         !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    // MARK: Voting
+
+    public enum VoteChoice: Sendable, Equatable {
+        case like
+        case dislike
+    }
+
+    /// Votes cast from this screen, added to the counts the posts arrived with.
+    ///
+    /// A refresh fetches only the posts after the last one held, so the counts
+    /// on a post already here never move by themselves. Without this a vote
+    /// that counted would look like one that did nothing.
+    public private(set) var votes: [Int: VoteChoice] = [:]
+
+    /// Whether the posts here carry counts worth drawing: the board has likes
+    /// turned on. Read from the board rather than from the posts, which can
+    /// carry zeros on a board without them.
+    public var showsVotes: Bool {
+        snapshot.meta.board?.allowsLikes == true
+    }
+
+    /// Whether a vote can be sent from here.
+    ///
+    /// A vote is writing to the site, as a post is, so it follows the same
+    /// switch. And it goes through the client of the site the app is pointed
+    /// at, which for a thread opened from the other site's history is not the
+    /// one these posts came from.
+    public var canVote: Bool {
+        showsVotes && key.site == services.site && services.capabilities.voting && services.allowsPosting
+    }
+
+    public func vote(on postNum: Int) -> VoteChoice? {
+        votes[postNum]
+    }
+
+    public func likes(of post: Post) -> Int? {
+        post.likes.map { $0 + (votes[post.num] == .like ? 1 : 0) }
+    }
+
+    public func dislikes(of post: Post) -> Int? {
+        post.dislikes.map { $0 + (votes[post.num] == .dislike ? 1 : 0) }
+    }
+
+    /// What a post's vote buttons show, or nil on a board without likes.
+    public func voteCounts(for post: Post) -> VoteCounts? {
+        guard showsVotes else { return nil }
+        return VoteCounts(
+            likes: likes(of: post) ?? 0,
+            dislikes: dislikes(of: post) ?? 0,
+            mine: votes[post.num]
+        )
+    }
+
+    public struct VoteCounts: Equatable, Sendable {
+        public let likes: Int
+        public let dislikes: Int
+        /// The reader's own vote from this screen, if any.
+        public let mine: VoteChoice?
+    }
+
+    /// Counts the vote at once, and takes it back with the site's reason when
+    /// the site refuses it. A post already voted on is left alone: the site
+    /// counts one vote per reader and would refuse a second anyway.
+    public func vote(_ postNum: Int, like: Bool) async {
+        guard canVote, votes[postNum] == nil else { return }
+        votes[postNum] = like ? .like : .dislike
+        do {
+            if like {
+                try await services.likes.like(board: key.board, num: postNum)
+            } else {
+                try await services.likes.dislike(board: key.board, num: postNum)
+            }
+        } catch {
+            votes[postNum] = nil
+            notice = error.readableMessage
+        }
+    }
+
+    // MARK: Translating
+
+    /// Posts shown in the reader's language, by number. The originals stay in
+    /// the snapshot; this is drawn in their place.
+    public private(set) var translations: [Int: PostContent] = [:]
+    /// Posts waiting for the translator, in thread order.
+    private var pendingTranslation: [Int] = []
+    /// Posts asked for and not yet back, for their cells to say so.
+    private var translatingNums: Set<Int> = []
+    /// Set while a pass over `pendingTranslation` is running, so a second
+    /// request adds to it rather than starting another.
+    private var isTranslationPassRunning = false
+    /// The language the thread is written in, found once from all of it.
+    private var threadLanguage: Locale.Language??
+    private var translationTarget: Locale.Language?
+
+    /// Set while the whole thread is shown translated, so posts that arrive by
+    /// refresh are translated as well.
+    public private(set) var isThreadTranslated = false
+
+    /// What the screen's `.translationTask` runs with. A new value starts the
+    /// system's translator, which asks to download languages it lacks, and the
+    /// task hands its session back to `translatePending(with:)`.
+    public private(set) var translationConfiguration: TranslationSession.Configuration?
+
+    public func translation(of postNum: Int) -> PostContent? {
+        translations[postNum]
+    }
+
+    public func isTranslating(_ postNum: Int) -> Bool {
+        translatingNums.contains(postNum)
+    }
+
+    /// The language translations go into: the one the app is drawn in.
+    public static var readerLanguage: Locale.Language {
+        AppLocale.current.language
+    }
+
+    /// Shows one post in `target`.
+    public func translate(_ postNum: Int, into target: Locale.Language = ThreadViewModel.readerLanguage) {
+        guard translations[postNum] == nil, !translatingNums.contains(postNum) else { return }
+        enqueueTranslation([postNum], into: target)
+    }
+
+    /// Shows every post in `target`, and every post that arrives after.
+    public func translateThread(into target: Locale.Language = ThreadViewModel.readerLanguage) {
+        isThreadTranslated = true
+        let waiting = snapshot.posts.map(\.num).filter {
+            translations[$0] == nil && !translatingNums.contains($0)
+        }
+        enqueueTranslation(waiting, into: target)
+    }
+
+    public func showOriginal(_ postNum: Int) {
+        translations[postNum] = nil
+        translatingNums.remove(postNum)
+        pendingTranslation.removeAll { $0 == postNum }
+    }
+
+    public func showOriginalThread() {
+        isThreadTranslated = false
+        translations.removeAll()
+        translatingNums.removeAll()
+        pendingTranslation.removeAll()
+    }
+
+    /// Picks up the posts a refresh brought into a translated thread.
+    private func continueThreadTranslation() {
+        guard isThreadTranslated, let target = translationTarget else { return }
+        let waiting = snapshot.posts.map(\.num).filter {
+            translations[$0] == nil && !translatingNums.contains($0)
+        }
+        guard !waiting.isEmpty else { return }
+        enqueueTranslation(waiting, into: target)
+    }
+
+    private func enqueueTranslation(_ nums: [Int], into target: Locale.Language) {
+        let source = detectedThreadLanguage()
+        // The system's translator refuses a pair of one language, with a
+        // message about unsupported languages that would only mislead.
+        if let source, ThreadLanguage.isSame(source, as: target) {
+            isThreadTranslated = false
+            notice = String(
+                localized: "This thread is already in your language.",
+                bundle: .module.forAppLanguage(),
+                locale: AppLocale.current
+            )
+            return
+        }
+        translationTarget = target
+        pendingTranslation.append(contentsOf: nums)
+        translatingNums.formUnion(nums)
+        guard !isTranslationPassRunning else { return }
+        if translationConfiguration == nil {
+            translationConfiguration = TranslationSession.Configuration(source: source, target: target)
+        } else {
+            translationConfiguration?.invalidate()
+        }
+    }
+
+    private func detectedThreadLanguage() -> Locale.Language? {
+        if let threadLanguage { return threadLanguage }
+        let found = ThreadLanguage.detect(in: snapshot.posts.map { snapshot.content(of: $0.num).plainText })
+        threadLanguage = .some(found)
+        return found
+    }
+
+    /// Works through the posts waiting for the translator, a few dozen at a
+    /// time so the first ones appear while the rest are still away.
+    ///
+    /// A pass that is cancelled leaves what it had not finished waiting, for
+    /// the next one. One that fails gives up on everything waiting and says
+    /// why: the next post would fail the same way.
+    func translatePending(with translator: some PostTranslating) async {
+        guard !isTranslationPassRunning else { return }
+        isTranslationPassRunning = true
+        defer { isTranslationPassRunning = false }
+
+        while !pendingTranslation.isEmpty {
+            let chunk = Array(pendingTranslation.prefix(40))
+            let contents = chunk.map { snapshot.content(of: $0) }
+            let runs = contents.map(\.translatableTexts)
+            do {
+                var translated = try await translator.translate(runs.flatMap { $0 })[...]
+                for (index, num) in chunk.enumerated() {
+                    let count = runs[index].count
+                    let mine = Array(translated.prefix(count))
+                    translated = translated.dropFirst(count)
+                    // Put back while it was away, or nothing to translate.
+                    guard translatingNums.contains(num), count > 0 else { continue }
+                    translations[num] = contents[index].replacingTexts(mine)
+                }
+                translatingNums.subtract(chunk)
+                pendingTranslation.removeAll { chunk.contains($0) }
+            } catch is CancellationError {
+                return
+            } catch {
+                translatingNums.subtract(pendingTranslation)
+                pendingTranslation.removeAll()
+                if translations.isEmpty { isThreadTranslated = false }
+                notice = error.localizedDescription
+                return
+            }
+        }
+    }
+
+    /// A short sentence about something the reader did that did not work, shown
+    /// over the thread until it takes itself away.
+    public private(set) var notice: String?
+
+    public func dismissNotice() {
+        notice = nil
     }
 
     // MARK: Interaction

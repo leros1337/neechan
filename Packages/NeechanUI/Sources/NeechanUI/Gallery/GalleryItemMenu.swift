@@ -11,6 +11,9 @@ struct GalleryItemMenu: View {
     var onGoToPost: (() -> Void)?
     var onSave: () -> Void
     var onShare: () -> Void
+    /// Opens an image search engine's page for the file; nil leaves the item
+    /// out, where there is nothing to present that page on.
+    var onReverseSearch: ((URL) -> Void)?
 
     @Environment(AppServices.self) private var services
 
@@ -42,6 +45,25 @@ struct GalleryItemMenu: View {
             } icon: {
                 Image(systemName: "square.and.arrow.up")
             }
+        }
+
+        if let onReverseSearch, let image = item.searchableImageURL(mirror: services.settings.domain) {
+            Menu {
+                ForEach(ReverseImageSearch.allCases) { engine in
+                    Button {
+                        onReverseSearch(engine.url(for: image))
+                    } label: {
+                        Text(verbatim: engine.title)
+                    }
+                }
+            } label: {
+                Label {
+                    Text("Search for this image", bundle: .module)
+                } icon: {
+                    Image(systemName: "text.viewfinder")
+                }
+            }
+            .accessibilityIdentifier("reverse-image-search")
         }
 
         // The file's own address, not the post's: a link copied from a video

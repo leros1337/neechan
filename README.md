@@ -29,7 +29,9 @@ developer account. iOS 26 or newer, iPhone or iPad.
 
 - **Reading** — boards as a catalog or page by page, in list, card or grid layout;
   threads with reply counts, quote popups, a replies window, in-thread search, and your
-  place kept so a thread reopens where you left it.
+  place kept so a thread reopens where you left it. A post or a whole thread can be
+  translated into your language on the device, and 2ch's likes and dislikes are shown
+  and can be cast.
 - **Two imageboards** — a switch on the board list flips between 2ch and 4chan.
   Favourites, history, hidden threads and everything else you keep belong to the site
   they came from, and a pasted link opens on whichever site it names.
@@ -41,6 +43,10 @@ developer account. iOS 26 or newer, iPhone or iPad.
   than hidden, so the day that changes it is obvious; reading 4chan is unaffected.
 - **Media** — a gallery with zoom and a full-screen viewer; WebM, MKV and MP4 play through FFmpeg,
   and a WebM you save is converted to H.264 MP4, because Photos will not accept one.
+  Clips play from half to double speed, step a picture at a time while paused, and show
+  a picture of where the scrubber is while it is dragged. Text in a picture can be
+  selected with Live Text, a picture can be looked up on Yandex, Google Lens, SauceNAO or
+  iqdb, and files can be saved many at a time, from the grid or a whole thread at once.
 - **Doomscroll** — a thread's videos as a full-screen vertical feed: one clip per
   screen, autoplaying, looping and silent, with one sound control for the whole session
   and the next clip fetched ahead so a swipe does not land on black.

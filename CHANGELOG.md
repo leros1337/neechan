@@ -5,6 +5,15 @@ Notable changes per release. Earlier releases are listed under
 
 ## Unreleased
 
+A post, or a whole thread, can be read in your own language, translated on
+the device. 2ch's likes and dislikes are shown and can be cast. The text in a
+picture can be selected and copied, and a picture can be looked up on Yandex,
+Google Lens, SauceNAO or iqdb. Files can be picked in the gallery grid and
+saved together, or every file in a thread saved at once. A clip plays slower
+or faster, steps one picture at a time while paused, and shows a picture of
+where the scrubber is while it is dragged. About links to the website, the
+privacy policy, the source and an address to write to.
+
 A link in a post to a video or a picture opens in the app's own viewer, and
 a file on another host is no longer sent your 2ch session. Some MP4s that
 played in silence are heard, an AVI renamed to .mp4 plays, and a seek no
@@ -12,6 +21,25 @@ longer stops a downloading clip with an error or freezes one at its end. A
 tap in the gallery grid opens the file you tapped, not the one below it.
 Music from another app stops only while a clip is heard, and carries on
 when the clip is paused, muted or closed.
+
+### Threads
+
+- **Translate a post or the whole thread.** Translate in a post's menu shows
+  it in the language the app is set to, and Translate thread in the thread's
+  menu does every post, and every post that arrives after. It is done on the
+  device by the system's translator, which asks to download a language the
+  first time. Quotes, links, spoilers and greentext stay where they were;
+  only the words change. Show original, under the post or in either menu,
+  puts the words back. A thread already in your language says so rather than
+  being sent off.
+- **Likes and dislikes on 2ch.** The boards that count them, such as /news/,
+  show each post's likes and dislikes under it, and a tap casts yours. It
+  counts at once, and comes back off with the site's reason if the site
+  refuses it. A vote is writing to the site, so it follows the same switch as
+  posting: where posting is off, the counts are shown and cannot be tapped.
+  The app had the request for this but never made it, and the answer it
+  expected was not the one the site gives, so a vote that counted would have
+  been reported as a failure.
 
 ### Links
 
@@ -30,6 +58,29 @@ when the clip is paused, muted or closed.
 
 ### Gallery
 
+- **Text in a picture can be selected.** A picture with words in it, a
+  screenshot of a post most often, gets a Live Text button beside Save and
+  Share. Tapped, the words are lifted out of the picture and can be selected,
+  copied, translated or looked up, and a code or a thing Visual Look Up knows
+  can be opened. The long press and the drag that closes the viewer are left
+  to the text while it is lifted out, and come back when it is put away. The
+  button appears only where something was found.
+- **Look a picture up.** Search for this image, in a file's long-press menu
+  in the viewer, the grid and the feed, sends the picture's address to Yandex,
+  Google Lens, SauceNAO or iqdb. A video is looked up by its thumbnail. The
+  page opens in the app's browser or in Safari by the same rule as any other
+  link, and a file from a thread saved on the device is not offered, since no
+  engine can reach it there.
+- **Save many files at once.** Select, in the gallery grid, lets you tick
+  files and save them together, with Select all for whatever the filter is
+  showing. Save all files, in the thread's menu, saves every file in the
+  thread after asking. The capsule counts them, "Saving 3 of 42", one failure
+  does not stop the rest, and the alert at the end says how many did not make
+  it. A save pressed while another was still running used to be dropped
+  without a word; it now waits its turn.
+- **Cancel stops a conversion.** Cancelling a save while a WebM was being
+  turned into an MP4 took the capsule away and left the conversion running
+  to the end of the clip.
 - **A file on another host is not sent your session.** The player sent your
   2ch cookies, including a passcode's, with every file it fetched, whatever
   host the file was on. In a 4chan thread they went to 4chan's file host.
@@ -43,6 +94,25 @@ when the clip is paused, muted or closed.
 
 ### Media
 
+- **Playback speed.** The 1× under the viewer's scrubber picks a speed from
+  half to double. Voices keep their pitch. The speed holds as you page from
+  clip to clip, and the next viewer opens at normal speed. The feed is not
+  affected.
+- **One picture at a time.** While a clip is paused, two buttons beside the
+  speed step one picture back or forward, and holding one keeps stepping. A
+  step from the end of a clip leaves it paused where it is.
+- **A picture of where the scrubber is.** Dragging the scrubber shows the
+  picture at that point, from the keyframe at or before it, with the time
+  under it. It is made only from what is already on the device, so it never
+  competes with the clip for the connection; where the clip has not arrived,
+  the post's own thumbnail stands in.
+- **A seek while paused shows where it landed.** The clock was left at the
+  time asked for, which is nearly always a little before the picture there,
+  and the old picture stayed on screen until the clip was played.
+- **A seek is not answered with a picture from before it.** A piece of the
+  file read just as a seek began was taken for the first piece of the new
+  position. The picture after the seek could be one from where the clip had
+  been, and what came after it was decoded from the start of the clip.
 - **Music from another app stops only while a clip is heard.** Opening a
   video stopped Spotify, Music or a podcast even when the clip was muted or
   had no sound at all, and it stayed stopped until the gallery or the feed
@@ -85,6 +155,12 @@ when the clip is paused, muted or closed.
   what it once was -- one in /test/ declares fifty seconds and holds thirteen
   -- so a seek it sends off the end goes back to the last keyframe read
   instead.
+
+### About
+
+- **Links to the website and the project.** About links to neechan.pro in the
+  language the app is set to, to the privacy policy there, to the source on
+  GitHub and to the address to write to.
 
 ## 2.5.1
 

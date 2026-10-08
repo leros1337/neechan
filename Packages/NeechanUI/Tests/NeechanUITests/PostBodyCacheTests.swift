@@ -55,6 +55,25 @@ struct PostBodyCacheTests {
         #expect(first == second)
     }
 
+    /// Flipping a post between its translation and its original is a tap, and
+    /// each side is a full render. Kept as two entries, neither throws out the
+    /// other.
+    @Test("a translation and its original are kept side by side")
+    func translationHasItsOwnEntry() {
+        let (cache, counter) = makeCache()
+        let original = content("привет")
+        let translated = content("hello")
+
+        _ = cache.body(for: original, board: "b", options: options())
+        let first = cache.body(for: translated, board: "b", options: options(), isTranslated: true)
+        _ = cache.body(for: original, board: "b", options: options())
+        let second = cache.body(for: translated, board: "b", options: options(), isTranslated: true)
+
+        #expect(counter.calls == 2)
+        #expect(first == second)
+        #expect(String(first.characters) == "hello")
+    }
+
     /// The colours are baked into the text, so a theme change has to re-render.
     @Test("a different palette is rendered again")
     func paletteIsPartOfIdentity() {

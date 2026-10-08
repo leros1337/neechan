@@ -1,3 +1,4 @@
+import NeechanSettings
 import SwiftUI
 #if canImport(SafariServices) && os(iOS)
 import SafariServices
@@ -28,6 +29,20 @@ struct InternalBrowserView: UIViewControllerRepresentable {
 struct BrowserLink: Identifiable {
     let url: URL
     var id: String { url.absoluteString }
+}
+
+/// Opens a page off the imageboard the way the reader asked for.
+///
+/// In the app's own browser, so a tap does not lose what they were reading --
+/// unless they asked for Safari, or have not yet said they are 18, in which
+/// case the page opens in Safari rather than on a surface this app answers for.
+@MainActor
+func openOffSite(_ url: URL, settings: AppSettings, in browserLink: Binding<BrowserLink?>) {
+    if settings.opensLinksInApp {
+        browserLink.wrappedValue = BrowserLink(url: url)
+    } else {
+        openInSafari(url)
+    }
 }
 
 extension View {

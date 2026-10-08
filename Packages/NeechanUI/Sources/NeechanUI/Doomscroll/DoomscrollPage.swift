@@ -19,6 +19,7 @@ struct DoomscrollPage: View {
     var onGoToPost: (() -> Void)?
     var onSave: () -> Void = {}
     var onShare: () -> Void = {}
+    var onReverseSearch: ((URL) -> Void)?
 
     var body: some View {
         ZStack {
@@ -40,7 +41,13 @@ struct DoomscrollPage: View {
         // hosts a copy of whatever the menu is attached to, and in the viewer
         // a copy of a page with a player in it was a second player.
         .contextMenu {
-            GalleryItemMenu(item: item, onGoToPost: onGoToPost, onSave: onSave, onShare: onShare)
+            GalleryItemMenu(
+                item: item,
+                onGoToPost: onGoToPost,
+                onSave: onSave,
+                onShare: onShare,
+                onReverseSearch: onReverseSearch
+            )
         } preview: {
             GalleryItemMenuCard(item: item)
         }

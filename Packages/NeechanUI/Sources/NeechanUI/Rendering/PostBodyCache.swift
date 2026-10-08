@@ -18,6 +18,9 @@ final class PostBodyCache {
         let postNum: Int
         let revealSpoilers: Bool
         let palette: PostTextRenderer.Palette
+        /// The post in the reader's language rather than its own. A key of
+        /// its own, so flipping between the two serves both from memory.
+        let isTranslated: Bool
     }
 
     private struct Entry {
@@ -72,13 +75,15 @@ final class PostBodyCache {
     func body(
         for content: PostContent,
         board: String,
-        options: PostTextRenderer.Options
+        options: PostTextRenderer.Options,
+        isTranslated: Bool = false
     ) -> AttributedString {
         let key = Key(
             board: board,
             postNum: options.postNum,
             revealSpoilers: options.revealSpoilers,
-            palette: options.palette
+            palette: options.palette,
+            isTranslated: isTranslated
         )
         clock &+= 1
 

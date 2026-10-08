@@ -59,4 +59,59 @@ struct PostContentTests {
         #expect(PostContent.empty.references.isEmpty)
         #expect(PostContent.empty.isEmpty)
     }
+
+    // MARK: Translating
+
+    /// The words, in reading order, and nothing a translator would mangle: a
+    /// `>>N` is a number, a link is an address, code is code.
+    @Test("only the words are offered for translation")
+    func translatableTexts() {
+        let content = parse(
+            "Hello <b>bold world</b> "
+                + "<a href=\"/b/res/100.html#101\" class=\"post-reply-link\">&gt;&gt;101</a> "
+                + "<a href=\"https://example.com\">https://example.com</a>"
+                + "<br><span class=\"unkfunc\">&gt;green text</span>"
+                + "<br><span class=\"spoiler\">secret</span> 42 !!"
+        )
+
+        // Without the space around them or a greentext's arrow, which a
+        // translator would trim or drop, and which are put back as they were.
+        #expect(content.translatableTexts == ["Hello", "bold world", "green text", "secret"])
+    }
+
+    @Test("putting the words back changes nothing else")
+    func replacingKeepsTheTree() {
+        let content = parse(
+            "Hello <b>bold world</b> "
+                + "<a href=\"/b/res/100.html#101\" class=\"post-reply-link\">&gt;&gt;101</a>"
+        )
+
+        let same = content.replacingTexts(content.translatableTexts)
+        #expect(same == content)
+
+        let translated = content.replacingTexts(["Привет", "жирный мир"])
+        #expect(translated.plainText == "Привет жирный мир >>101")
+        #expect(parse("<span class=\"unkfunc\">&gt;green</span>").replacingTexts(["зелёный"]).plainText == ">зелёный")
+        #expect(translated.references.map(\.postNum) == [101])
+        // Still bold, and still a link: the markup is the post's, not the words'.
+        #expect(translated.styles(at: 7).contains(.bold))
+    }
+
+    /// A translator trims what it is given, and the space between two runs of
+    /// a sentence is in one of them.
+    @Test("the space around each run is kept")
+    func surroundingSpaceIsKept() {
+        let content = PostContent(nodes: [.text("  one "), .style(.bold, children: [.text("two")])])
+
+        let translated = content.replacingTexts(["uno", "dos"])
+
+        #expect(translated.plainText == "  uno dos")
+    }
+
+    @Test("too few translations leave the rest as they were")
+    func shortListLeavesTheRest() {
+        let content = parse("one <b>two</b>")
+
+        #expect(content.replacingTexts(["uno"]).plainText == "uno two")
+    }
 }

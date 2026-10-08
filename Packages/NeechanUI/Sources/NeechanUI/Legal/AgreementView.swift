@@ -103,7 +103,7 @@ struct AgreementView: View {
         .accessibilityIdentifier("agreement-contact")
     }
 
-    static let contactAddress = "neechan-dev@proton.me"
+    nonisolated static let contactAddress = "neechan-dev@proton.me"
 }
 
 /// One numbered term, kept apart from the view so the same five can be drawn

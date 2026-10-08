@@ -33,6 +33,28 @@ final class MediaRangeReader: @unchecked Sendable {
     /// Fetching the next few while the current one is being read means they
     /// are on disk by the time they are wanted.
     private let readAheadBlocks: Int
+    /// Reads only what is already in the store, and never goes to the network.
+    ///
+    /// For the scrubber's previews, which are dragged over parts of the clip
+    /// that have not arrived: fetching a piece for each position would compete
+    /// with the clip itself for the connection. A block that is not there is a
+    /// read that fails at once.
+    let isCacheOnly: Bool
+    /// Set when a cache-only read found its block missing.
+    private let missed = Mutex(false)
+
+    /// Whether a read has found its block missing since this was last asked,
+    /// and starts counting again.
+    ///
+    /// A seek through a file with gaps can come to rest short of where it was
+    /// sent, at a keyframe before the gap, and report success. This is how
+    /// the scrubber tells that apart from a seek that got there.
+    func takeMiss() -> Bool {
+        missed.withLock { missed in
+            defer { missed = false }
+            return missed
+        }
+    }
 
     private let lock = NSLock()
     /// The request being waited on, if any, so it can be given up.
@@ -53,9 +75,11 @@ final class MediaRangeReader: @unchecked Sendable {
         session: URLSession,
         store: MediaBlockStore? = nil,
         blockSize: Int? = nil,
-        readAheadBlocks: Int = 0
+        readAheadBlocks: Int = 0,
+        isCacheOnly: Bool = false
     ) {
-        self.readAheadBlocks = max(0, readAheadBlocks)
+        self.isCacheOnly = isCacheOnly
+        self.readAheadBlocks = isCacheOnly ? 0 : max(0, readAheadBlocks)
         self.url = url
         self.headers = headers
         self.session = session
@@ -104,7 +128,7 @@ final class MediaRangeReader: @unchecked Sendable {
     /// already on disk can be opened and scrubbed with no network at all.
     func length() -> Int64? {
         if let remembered = knownLength() { return remembered }
-        if wasGivenUp { return nil }
+        if wasGivenUp || isCacheOnly { return nil }
         // The answer to any ranged request carries the total, and the first
         // block is what will be asked for next anyway. Asking for one byte
         // first cost a whole round trip per clip, and on a connection already
@@ -176,6 +200,10 @@ final class MediaRangeReader: @unchecked Sendable {
             return true
         }
 
+        if isCacheOnly {
+            missed.withLock { $0 = true }
+            return false
+        }
         startReadingAhead(after: index)
         guard fetch(from: start, count: blockSize) != nil else { return false }
         // Read back what the fetch actually put in the window: a server that

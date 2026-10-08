@@ -42,8 +42,8 @@ struct PipelineSeekTests {
 
         let answered = Mutex<[TimeInterval]>([])
         let failures = Mutex<[String]>([])
-        pipeline.onFirstFrame = { target in
-            if let target { answered.withLock { $0.append(target) } }
+        pipeline.onFirstFrame = { picture in
+            if let target = picture.forSeek { answered.withLock { $0.append(target) } }
         }
         pipeline.onFailed = { message in failures.withLock { $0.append(message) } }
         pipeline.start()

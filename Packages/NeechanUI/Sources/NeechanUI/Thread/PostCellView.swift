@@ -67,6 +67,20 @@ struct PostCellView: View {
     /// this cell is itself a sheet — a second sheet over one already up does
     /// not present, so the action would do nothing.
     var onReport: (() -> Void)? = nil
+    /// The post in the reader's language, drawn in place of `content`. Nil
+    /// shows the post as it was written.
+    var translation: PostContent?
+    /// Set while the post is away at the translator.
+    var isTranslating = false
+    /// Translates the post, or puts the original back when it is translated.
+    /// Nil where nothing is listening, so the item is left out.
+    var onTranslate: (() -> Void)? = nil
+    /// The post's likes and dislikes. Nil on a board without them.
+    var votes: ThreadViewModel.VoteCounts?
+    /// Sends a like (`true`) or a dislike. Nil where the counts can only be
+    /// read: the reader has posting off, or the site is not the one the app
+    /// is pointed at.
+    var onVote: ((Bool) -> Void)? = nil
     /// This post's own address on the site, for copying and sharing.
     var postURL: URL?
     /// Card by default, so the replies sheet keeps the look it was written for.
@@ -140,11 +154,23 @@ struct PostCellView: View {
                     if isTruncated, !isExpanded, searchHighlight == nil {
                         expandButton
                     }
+
+                    if isTranslating || translation != nil {
+                        TranslationNote(isTranslating: isTranslating, onShowOriginal: onTranslate)
+                    }
                 }
             }
 
-            if !backlinks.isEmpty {
-                RepliesButton(count: backlinks.count, action: onOpenReplies)
+            if !backlinks.isEmpty || votes != nil {
+                HStack(spacing: 8) {
+                    if !backlinks.isEmpty {
+                        RepliesButton(count: backlinks.count, action: onOpenReplies)
+                    }
+                    Spacer(minLength: 0)
+                    if let votes {
+                        VoteButtons(postNum: post.num, counts: votes, onVote: onVote)
+                    }
+                }
             }
         }
         .padding(.horizontal, 12)
@@ -205,13 +231,29 @@ struct PostCellView: View {
                 }
             }
             Button {
-                copyToPasteboard(content.plainText)
+                // What is on screen: a reader who copies a translation wants
+                // the words they were reading.
+                copyToPasteboard(shownContent.plainText)
             } label: {
                 Label {
                     Text("Copy text", bundle: .module)
                 } icon: {
                     Image(systemName: "doc.on.doc")
                 }
+            }
+            if let onTranslate, !content.isEmpty {
+                Button(action: onTranslate) {
+                    Label {
+                        if translation != nil {
+                            Text("Show original", bundle: .module)
+                        } else {
+                            Text("Translate", bundle: .module)
+                        }
+                    } icon: {
+                        Image(systemName: "translate")
+                    }
+                }
+                .disabled(isTranslating)
             }
             Button {
                 copyToPasteboard("\(post.num)")
@@ -357,7 +399,7 @@ struct PostCellView: View {
 
     private var cachedBody: AttributedString {
         PostBodyCache.shared.body(
-            for: content,
+            for: shownContent,
             board: post.board,
             options: .init(
                 postNum: post.num,
@@ -365,8 +407,14 @@ struct PostCellView: View {
                 palette: .init(theme: theme),
                 ownPostNums: ownPostNums,
                 hiddenPostNums: hiddenPostNums
-            )
+            ),
+            isTranslated: translation != nil
         )
+    }
+
+    /// The body as it is drawn: the translation when there is one.
+    private var shownContent: PostContent {
+        translation ?? content
     }
 
     /// The body font: Dynamic Type, multiplied by the reader's own text scale.
@@ -433,8 +481,8 @@ struct PostCellView: View {
     /// Whether this post is long enough to be worth measuring.
     private var couldTruncate: Bool {
         CollapsePolicy.mayTruncate(
-            lineBreaks: content.lineBreakCount,
-            characters: content.plainText.count,
+            lineBreaks: shownContent.lineBreakCount,
+            characters: shownContent.plainText.count,
             limit: collapsedLineLimit
         )
     }
@@ -591,6 +639,91 @@ struct RepliesButton: View {
         .buttonBorderShape(.capsule)
         .controlSize(.small)
         .accessibilityHint(Text("Shows the replies to this post", bundle: .module))
+    }
+}
+
+/// Says a post is shown in the reader's language, with the way back to the
+/// words it was written in.
+struct TranslationNote: View {
+    let isTranslating: Bool
+    var onShowOriginal: (() -> Void)?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if isTranslating {
+                ProgressView()
+                    .controlSize(.mini)
+                Text("Translating…", bundle: .module)
+            } else {
+                Image(systemName: "translate")
+                Text("Translated", bundle: .module)
+                if let onShowOriginal {
+                    Text(verbatim: "·")
+                    Button(action: onShowOriginal) {
+                        Text("Show original", bundle: .module)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.tint)
+                }
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A post's likes and dislikes, on the boards that count them.
+///
+/// Buttons where a vote can be sent, plain counts where it cannot. Once the
+/// reader has voted, their vote is filled in and neither takes another tap:
+/// the site counts one vote per reader.
+struct VoteButtons: View {
+    let postNum: Int
+    let counts: ThreadViewModel.VoteCounts
+    var onVote: ((Bool) -> Void)?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            vote(isLike: true)
+            vote(isLike: false)
+        }
+        .font(.caption.weight(.medium).monospacedDigit())
+    }
+
+    @ViewBuilder
+    private func vote(isLike: Bool) -> some View {
+        let count = isLike ? counts.likes : counts.dislikes
+        let isMine = counts.mine == (isLike ? .like : .dislike)
+        let symbol = isLike ? "hand.thumbsup" : "hand.thumbsdown"
+        let label = Label {
+            Text(count, format: .number)
+        } icon: {
+            Image(systemName: isMine ? "\(symbol).fill" : symbol)
+        }
+
+        Group {
+            if let onVote {
+                Button { onVote(isLike) } label: { label }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.small)
+                    .tint(isMine ? (isLike ? Color.green : Color.red) : nil)
+                    // Not disabled: that would grey out the vote just cast.
+                    .allowsHitTesting(counts.mine == nil)
+            } else {
+                label
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+            }
+        }
+        .accessibilityLabel(
+            isLike
+                ? Text("\(count) likes", bundle: .module)
+                : Text("\(count) dislikes", bundle: .module)
+        )
+        .accessibilityAddTraits(isMine ? .isSelected : [])
+        .accessibilityIdentifier("\(isLike ? "like" : "dislike")-\(postNum)")
     }
 }
 

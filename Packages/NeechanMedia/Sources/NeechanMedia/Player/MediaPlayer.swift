@@ -159,6 +159,7 @@ public final class MediaPlayer {
         machine = PlaybackStateMachine(autoplays: options.autoplays, isLooping: options.loops)
         pendingSeekTarget = nil
         shouldResumeAfterSeek = true
+        pictureBeforeLanding = nil
 
         // Back to the beginning, stopped, before anything else. A feed that
         // swaps the clip under one player leaves the clock wherever the last
@@ -282,7 +283,7 @@ public final class MediaPlayer {
         // Undoes what `pause` told a seek still under way, so its picture
         // starts the clock rather than stopping it again.
         shouldResumeAfterSeek = true
-        output.setRate(1, time: .invalid)
+        output.setRate(playbackRate, time: .invalid)
         state = machine.handle(.play)
     }
 
@@ -359,6 +360,98 @@ public final class MediaPlayer {
     private var pendingSeekTarget: TimeInterval?
     /// Whether that seek should start playing when it gets there.
     private var shouldResumeAfterSeek = true
+    /// The picture just before where the last seek landed. It was decoded and
+    /// thrown away, so this is the only record of when it is shown, and the
+    /// first step back from where the seek landed goes to it.
+    private var pictureBeforeLanding: CMTime?
+
+    /// Whether a seek is still waiting for its first picture.
+    var isSeeking: Bool { pendingSeekTarget != nil }
+
+    /// When the picture the clock is on is shown.
+    var shownPresentation: CMTime? { output.shownFrame?.presentation }
+
+    /// Whether there is a picture after `time` to step forward to.
+    func hasPicture(after time: CMTime) -> Bool {
+        output.presentation(after: time) != nil
+    }
+
+    /// When the picture the renderer is showing was meant to be shown, read
+    /// off the picture. Only while stopped. For tests to check the renderer
+    /// agrees with the clock.
+    var displayedPresentation: CMTime? { output.displayedPresentation }
+
+    /// Shows the next picture, or the one before, with the clip stopped.
+    ///
+    /// Only while paused, or at the end. Forward moves the stopped clock to
+    /// the next picture's time, which the renderer already holds. Back has to
+    /// go and get the picture before: the renderer lets go of a picture once
+    /// it has been shown, so going back is a seek, to that picture's own time
+    /// when it is known, and to half a picture before it otherwise, which the
+    /// first picture after is then the one wanted.
+    public func step(forward: Bool) {
+        guard state == .paused || state == .finished, pendingSeekTarget == nil,
+              let pipeline, let shown = output.shownFrame
+        else { return }
+
+        if forward {
+            guard let next = output.presentation(after: shown.presentation) else { return }
+            output.setRate(0, time: next)
+            if !output.holdsPicture(at: next) {
+                output.handOverWaitingPictures()
+            }
+            state = machine.handle(.stepped)
+            return
+        }
+
+        let earlier = [output.presentation(before: shown.presentation), pictureBeforeLanding]
+            .compactMap { $0 }
+            .filter { $0 < shown.presentation }
+            .max()
+        let target: TimeInterval
+        if let earlier {
+            target = TimeMath.seconds(earlier)
+        } else {
+            // Not known: the seek that landed here started on a keyframe, so
+            // nothing before it was decoded. One and a half pictures back is
+            // after the picture before the one before, and the seek reports
+            // when the picture it finds is shown.
+            let duration = shown.duration.isValid && shown.duration > .zero
+                ? TimeMath.seconds(shown.duration) : 1.0 / 30
+            target = TimeMath.seconds(shown.presentation) - duration * 1.5
+        }
+        guard target >= 0 || TimeMath.seconds(shown.presentation) > duration(ofFirst: shown) else { return }
+
+        MediaLog.player.debug(
+            "[\(self.name, privacy: .public)] stepping back to \(target, format: .fixed(precision: 3), privacy: .public)s"
+        )
+        shouldResumeAfterSeek = false
+        pendingSeekTarget = max(0, target)
+        output.awaitNewPosition()
+        output.setRate(0, time: CMTime(seconds: max(0, target), preferredTimescale: 90_000))
+        pipeline.seek(to: max(0, target))
+        output.flush()
+        state = machine.handle(.stepped)
+    }
+
+    /// How long the first picture lasts, which is how far from zero a picture
+    /// has to be for there to be one before it.
+    private func duration(ofFirst frame: AVOutput.FrameTiming) -> TimeInterval {
+        frame.duration.isValid && frame.duration > .zero ? TimeMath.seconds(frame.duration) / 2 : 0.001
+    }
+
+    /// How fast clips play: 1 is as recorded.
+    ///
+    /// The player's rather than the clip's, so a speed picked in the viewer
+    /// holds as the reader pages to the next clip. Every place that starts the
+    /// clock starts it at this; a change while the clock runs takes at once,
+    /// and otherwise waits for the clock to start.
+    public var playbackRate: Float = 1 {
+        didSet {
+            guard playbackRate != oldValue, state == .playing, pendingSeekTarget == nil else { return }
+            output.setRate(playbackRate, time: .invalid)
+        }
+    }
 
     public var isMuted: Bool {
         get { output.isMuted }
@@ -403,8 +496,8 @@ public final class MediaPlayer {
         naturalSize = pipeline.naturalSize
         rotationDegrees = pipeline.rotationDegrees
 
-        pipeline.onFirstFrame = { [weak self] seek in
-            Task { @MainActor in self?.firstFrameArrived(forLoad: load, answering: seek) }
+        pipeline.onFirstFrame = { [weak self] picture in
+            Task { @MainActor in self?.firstFrameArrived(forLoad: load, picture: picture) }
         }
         pipeline.onFailed = { [weak self] message in
             Task { @MainActor in self?.failed(message, forLoad: load) }
@@ -421,8 +514,9 @@ public final class MediaPlayer {
         pipeline.start()
     }
 
-    private func firstFrameArrived(forLoad load: Int, answering seek: TimeInterval?) {
+    private func firstFrameArrived(forLoad load: Int, picture: Pipeline.FirstPicture) {
         guard load == loadCount else { return }
+        let seek = picture.forSeek
 
         // After a seek rather than after opening: the clock is moved to where
         // the reader asked for and started there, now that there is something
@@ -440,16 +534,23 @@ public final class MediaPlayer {
                 return
             }
             pendingSeekTarget = nil
-            output.setRate(
-                shouldResumeAfterSeek ? 1 : 0,
-                time: CMTime(seconds: target, preferredTimescale: 600)
-            )
+            pictureBeforeLanding = picture.previous
+            var landing = CMTime(seconds: target, preferredTimescale: 90_000)
+            // A stopped clock is put on the picture itself when that comes
+            // after the target, as it nearly always does. Left at the target
+            // it was before the picture's time, and the renderer went on
+            // showing whatever was there before the seek. A running clock
+            // reaches the picture by itself a moment later.
+            if !shouldResumeAfterSeek, picture.presentation.isValid, picture.presentation > landing {
+                landing = picture.presentation
+            }
+            output.setRate(shouldResumeAfterSeek ? playbackRate : 0, time: landing)
             if shouldResumeAfterSeek { state = machine.handle(.play) }
             return
         }
 
         state = machine.handle(.firstFrame)
-        output.setRate(state == .playing ? 1 : 0, time: .zero)
+        output.setRate(state == .playing ? playbackRate : 0, time: .zero)
     }
 
     private func failed(_ message: String, forLoad load: Int) {
@@ -492,7 +593,7 @@ public final class MediaPlayer {
             // again from where the picture actually is.
             output.flush()
         }
-        output.setRate(1, time: resumeAt)
+        output.setRate(playbackRate, time: resumeAt)
         state = machine.handle(.refilled)
     }
 

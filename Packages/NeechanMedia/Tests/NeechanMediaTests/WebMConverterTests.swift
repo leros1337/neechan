@@ -130,4 +130,27 @@ struct WebMConverterTests {
         #expect(WebMConverter.supportedSampleRate(0) == 48000)
         #expect(WebMConverter.supportedSampleRate(47000) == 48000)
     }
+
+    /// The conversion runs in a task of its own, off the caller's actor. A
+    /// cancel used to reach only the caller: the transcode carried on to the
+    /// end of the clip, so Cancel on a save, or on a batch of them, stopped
+    /// the capsule and left the encoder running.
+    @Test("cancelling the caller stops the conversion")
+    func cancellationReachesTheTranscode() async throws {
+        let source = try makeSourceFile()
+        let destination = destinationFile()
+        defer {
+            try? FileManager.default.removeItem(at: source)
+            try? FileManager.default.removeItem(at: destination)
+        }
+
+        let conversion = Task {
+            try await WebMConverter().convert(fileAt: source, to: destination)
+        }
+        conversion.cancel()
+
+        await #expect(throws: CancellationError.self) {
+            try await conversion.value
+        }
+    }
 }

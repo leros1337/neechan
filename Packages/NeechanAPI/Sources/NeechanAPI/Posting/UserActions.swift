@@ -72,10 +72,40 @@ public struct PasscodeAuth: Sendable {
     }
 }
 
-/// `POST /user/report` and `GET /api/like`
+/// `POST /user/report`
 public struct ActionResponse: Sendable, Decodable {
     public let result: Int
     public let error: DvachAPIError?
+}
+
+/// `GET /api/like` and `GET /api/dislike`
+///
+/// Answered in either of two shapes. The one the rest of the API uses,
+/// `{"result":1,"error":null}`, and the one makaba gave for years,
+/// `{"Error":null,"Status":"OK"}` or `{"Error":-4,"Reason":"…"}`, which has no
+/// `result` at all. Decoding the second as a report's reply called every vote
+/// a failure.
+public struct VoteResponse: Sendable, Decodable {
+    /// Why the vote was refused, or nil when it counted.
+    public let error: DvachAPIError?
+
+    private enum CodingKeys: String, CodingKey {
+        case error
+        case legacyError = "Error"
+        case legacyReason = "Reason"
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let error = try? container.decodeIfPresent(DvachAPIError.self, forKey: .error) {
+            self.error = error
+        } else if let code = try? container.decodeIfPresent(Int.self, forKey: .legacyError), code != 0 {
+            let reason = try? container.decodeIfPresent(String.self, forKey: .legacyReason)
+            self.error = DvachAPIError(code: DvachErrorCode(rawValue: code), message: reason ?? "")
+        } else {
+            self.error = nil
+        }
+    }
 }
 
 /// `POST /user/passlogin?json=1`

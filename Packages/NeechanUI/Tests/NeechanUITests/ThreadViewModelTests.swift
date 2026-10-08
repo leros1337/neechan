@@ -853,6 +853,23 @@ struct ThreadViewModelTests {
         model.revealedHiddenPosts = [hidden]
         #expect(model.effectiveHiddenPostNums.isEmpty)
     }
+
+    // MARK: Saving every file
+
+    @Test("saving every file queues the thread's files in reading order")
+    func saveAllFilesQueuesEverything() async throws {
+        let model = try makeModel(try await stubbedTransport())
+        await model.load()
+        let items = model.snapshot.galleryItems
+        try #require(items.count > 1, "the fixture needs more than one file")
+
+        model.saveAllFiles()
+
+        #expect(model.fileTransfers.batch?.total == items.count)
+        // Before the queue has had a turn on the main actor, so nothing is
+        // fetched from the real site.
+        model.fileTransfers.cancelTransfer()
+    }
 }
 
 /// What a refresh tells the reader afterwards.

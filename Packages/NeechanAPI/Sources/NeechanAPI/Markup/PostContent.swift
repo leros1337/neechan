@@ -79,6 +79,29 @@ public struct PostContent: Sendable, Hashable {
         PostContent.contains(in: nodes, predicate)
     }
 
+    // MARK: Translating
+
+    /// The runs of words in the post, in reading order, for a translator.
+    ///
+    /// Each run comes without the space around it or a greentext's `>`: a
+    /// translator trims what it is given and could drop the arrow, so those
+    /// stay where they are and the words are fitted back between them. Left
+    /// out are runs with no letters, and whatever a translator would mangle:
+    /// a `>>N` is a number, a link is an address, code is code.
+    public var translatableTexts: [String] {
+        var found: [String] = []
+        PostContent.collectTranslatable(in: nodes, into: &found)
+        return found
+    }
+
+    /// The same post with its runs of words replaced, in the order
+    /// `translatableTexts` gave them. Every quote, link, spoiler and style
+    /// stays where it was. A run with no replacement is left as it was.
+    public func replacingTexts(_ texts: [String]) -> PostContent {
+        var remaining = texts[...]
+        return PostContent(nodes: PostContent.replacingTranslatable(in: nodes, with: &remaining))
+    }
+
     // MARK: Tree walks
 
     private static func appendText(of nodes: [PostNode], to text: inout String) {
@@ -153,6 +176,59 @@ public struct PostContent: Sendable, Hashable {
             }
         }
         return false
+    }
+
+    /// A run's words, and what is around them that a translator must not touch.
+    private static func translatableParts(
+        of text: String
+    ) -> (prefix: Substring, words: Substring, suffix: Substring)? {
+        let start = text.firstIndex { !$0.isWhitespace && $0 != ">" } ?? text.endIndex
+        let end = text.lastIndex { !$0.isWhitespace }.map(text.index(after:)) ?? text.startIndex
+        guard start < end else { return nil }
+        let words = text[start..<end]
+        guard words.contains(where: \.isLetter) else { return nil }
+        return (text[..<start], words, text[end...])
+    }
+
+    private static func collectTranslatable(in nodes: [PostNode], into found: inout [String]) {
+        for node in nodes {
+            switch node {
+            case .text(let value):
+                if let parts = translatableParts(of: value) { found.append(String(parts.words)) }
+            case .style(_, let children),
+                 .spoiler(let children),
+                 .quote(let children),
+                 .aiGenerated(let children):
+                collectTranslatable(in: children, into: &found)
+            case .lineBreak, .code, .link, .postLink:
+                break
+            }
+        }
+    }
+
+    private static func replacingTranslatable(
+        in nodes: [PostNode],
+        with texts: inout ArraySlice<String>
+    ) -> [PostNode] {
+        nodes.map { node in
+            switch node {
+            case .text(let value):
+                guard let parts = translatableParts(of: value), let words = texts.popFirst() else {
+                    return node
+                }
+                return .text(String(parts.prefix) + words + String(parts.suffix))
+            case .style(let style, let children):
+                return .style(style, children: replacingTranslatable(in: children, with: &texts))
+            case .spoiler(let children):
+                return .spoiler(children: replacingTranslatable(in: children, with: &texts))
+            case .quote(let children):
+                return .quote(children: replacingTranslatable(in: children, with: &texts))
+            case .aiGenerated(let children):
+                return .aiGenerated(children: replacingTranslatable(in: children, with: &texts))
+            case .lineBreak, .code, .link, .postLink:
+                return node
+            }
+        }
     }
 
     private static func styles(

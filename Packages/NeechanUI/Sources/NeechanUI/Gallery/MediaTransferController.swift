@@ -24,8 +24,24 @@ public final class MediaTransferController {
     /// nothing until it was suddenly finished.
     public private(set) var transfer: Transfer?
     public var saveResult: SaveResult?
-    /// The outcome of the last video save, for the view to answer with a tap.
+    /// The outcome of the last video save, or of the last batch, for the view
+    /// to answer with a tap.
     public private(set) var lastVideoSave: VideoSaveOutcome?
+    /// How far a save of several files has got, or nil while there is one
+    /// file or none.
+    public private(set) var batch: Batch?
+
+    /// Several files saved one after another: a selection from the grid, a
+    /// whole thread, or saves pressed while another was still running.
+    public struct Batch: Equatable, Sendable {
+        public var total: Int
+        /// Files finished, whether they were saved or failed.
+        public var done: Int
+        public var failed: Int
+
+        /// The file on its way, counting from one.
+        public var current: Int { min(done + 1, total) }
+    }
 
     /// A save that did not work. A save that did is shown in the capsule.
     public struct SaveResult: Identifiable, Equatable {
@@ -81,6 +97,10 @@ public final class MediaTransferController {
     private let blocks: MediaBlockStore
     /// The work behind `transfer`, kept so Cancel has something to stop.
     private var transferTask: Task<Void, Never>?
+    /// Files waiting their turn behind the one in `transfer`.
+    private var queue: [(item: GalleryItem, url: URL)] = []
+    /// Why the last file in a batch failed, for the alert at its end.
+    private var lastBatchFailure: String?
     /// When the last progress update was published.
     ///
     /// The downloader reports every 64 KB, which is some hundreds of times for
@@ -112,22 +132,110 @@ public final class MediaTransferController {
     ///
     /// Photos is the default because it needs no setup; a chosen folder is used
     /// as soon as there is one, and keeps the board and thread structure.
+    ///
+    /// A save pressed while another is running waits its turn, and the two
+    /// become a batch. It used to be dropped without a word.
     public func save(_ item: GalleryItem, at url: URL) {
-        guard transferTask == nil else { return }
+        save([(item, url)])
+    }
+
+    /// Saves several files, one after another, with one capsule counting them.
+    ///
+    /// A file that fails is counted and the rest go on; the alert at the end
+    /// says how many did not make it. The "Ask" conflict setting keeps the
+    /// both copies here as it does for one file: nothing stops to ask.
+    public func save(_ jobs: [(GalleryItem, URL)]) {
+        guard !jobs.isEmpty else { return }
+        let isRunning = transferTask != nil
+        queue.append(contentsOf: jobs.map { (item: $0.0, url: $0.1) })
+        if var batch {
+            batch.total += jobs.count
+            self.batch = batch
+        } else if isRunning || jobs.count > 1 {
+            batch = Batch(total: jobs.count + (isRunning ? 1 : 0), done: 0, failed: 0)
+        }
+        guard !isRunning else { return }
         transferTask = Task { [weak self] in
-            await self?.performSave(item, at: url)
-            self?.transferTask = nil
+            await self?.drainQueue()
         }
     }
 
-    /// Stops whatever is in flight and clears the capsule.
+    /// Stops whatever is in flight, drops what is waiting, and clears the capsule.
     public func cancelTransfer() {
         transferTask?.cancel()
         transferTask = nil
+        queue.removeAll()
+        batch = nil
+        lastBatchFailure = nil
         transfer = nil
     }
 
-    private func performSave(_ item: GalleryItem, at url: URL) async {
+    private func drainQueue() async {
+        while !Task.isCancelled, !queue.isEmpty {
+            let job = queue.removeFirst()
+            let outcome = await performSave(job.item, at: job.url)
+            // Cancel has already put everything back as it was.
+            guard !Task.isCancelled else { return }
+            record(outcome, of: job.item)
+        }
+        guard !Task.isCancelled else { return }
+        transferTask = nil
+        endBatch()
+    }
+
+    private enum SaveOutcome {
+        case saved
+        case cancelled
+        case failed(String)
+    }
+
+    /// Answers one file: on its own as it always was, in a batch by counting it.
+    private func record(_ outcome: SaveOutcome, of item: GalleryItem) {
+        guard var batch else {
+            switch outcome {
+            case .saved:
+                finish()
+                noteVideoSave(item, succeeded: true)
+            case .cancelled:
+                // No tap: the reader stopped it and knows.
+                transfer = nil
+            case .failed(let message):
+                transfer = nil
+                saveResult = .failed(message)
+                noteVideoSave(item, succeeded: false)
+            }
+            return
+        }
+        batch.done += 1
+        if case .failed(let message) = outcome {
+            batch.failed += 1
+            lastBatchFailure = message
+        }
+        self.batch = batch
+    }
+
+    /// Ends a batch on a tick when every file made it, or on an alert saying
+    /// how many did not.
+    private func endBatch() {
+        guard let batch else { return }
+        self.batch = nil
+        // A batch is long enough to look away from, whatever it held.
+        lastVideoSave = VideoSaveOutcome(succeeded: batch.failed == 0)
+        guard batch.failed > 0 else {
+            finish()
+            return
+        }
+        transfer = nil
+        let reason = lastBatchFailure ?? ""
+        lastBatchFailure = nil
+        saveResult = .failed(String(
+            localized: "Not saved: \(batch.failed) of \(batch.total). \(reason)",
+            bundle: .module.forAppLanguage(),
+            locale: AppLocale.current
+        ))
+    }
+
+    private func performSave(_ item: GalleryItem, at url: URL) async -> SaveOutcome {
         let settings = services.settings
         transfer = Transfer(stage: .downloading, fraction: 0)
 
@@ -142,10 +250,10 @@ public final class MediaTransferController {
         do {
             let downloaded = try await wholeFile(url, referer: referer(for: item))
             scratch.append(downloaded)
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else { return .cancelled }
             let file = try await converted(downloaded, of: item)
             if file != downloaded { scratch.append(file) }
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else { return .cancelled }
             transfer = Transfer(stage: .saving, fraction: nil)
             if !settings.savesToPhotos, let bookmark = settings.downloadFolderBookmark {
                 try FileDownloadSaver.save(
@@ -165,22 +273,17 @@ public final class MediaTransferController {
             } else {
                 try await saveToPhotos(file, of: item, isOriginal: file == downloaded)
             }
-            finish()
-            noteVideoSave(item, succeeded: true)
+            return .saved
         } catch FileDownloadSaver.SaveError.skipped {
             // Skipping is what the reader asked for, not a failure. The capsule
             // says the transfer finished, so the tap agrees with the screen.
-            finish()
-            noteVideoSave(item, succeeded: true)
+            return .saved
         } catch is CancellationError {
-            // No tap for either of these: the reader stopped it and knows.
-            transfer = nil
+            return .cancelled
         } catch Downloader.DownloadError.cancelled {
-            transfer = nil
+            return .cancelled
         } catch {
-            transfer = nil
-            saveResult = .failed(error.readableSaveMessage)
-            noteVideoSave(item, succeeded: false)
+            return .failed(error.readableSaveMessage)
         }
     }
 
