@@ -3,7 +3,7 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
-## Unreleased
+## 2.5.2
 
 A post, or a whole thread, can be read in your own language, translated on
 the device. 2ch's likes and dislikes are shown and can be cast. The text in a
