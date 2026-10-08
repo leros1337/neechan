@@ -3,12 +3,48 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
-## Unreleased
+## 2.5.2
+
+A post, or a whole thread, can be read in your own language, translated on
+the device. 2ch's likes and dislikes are shown and can be cast. The text in a
+picture can be selected and copied, and a picture can be looked up on Yandex,
+Google Lens, SauceNAO or iqdb. Files can be picked in the gallery grid and
+saved together, or every file in a thread saved at once. A clip plays slower
+or faster, steps one picture at a time while paused, and shows a picture of
+where the scrubber is while it is dragged. About links to the website, the
+privacy policy, the source and an address to write to.
+
+A link in a post to a video or a picture opens in the app's own viewer, and
+a file on another host is no longer sent your 2ch session. Some MP4s that
+played in silence are heard, an AVI renamed to .mp4 plays, and a seek no
+longer stops a downloading clip with an error or freezes one at its end. A
+tap in the gallery grid opens the file you tapped, not the one below it.
+Music from another app stops only while a clip is heard, and carries on
+when the clip is paused, muted or closed.
 
 Posting to 4chan goes out the way the site's own reply form sends it, from a
 browser view inside the app. Its new captcha, a few steps of pictures to slide
 through, is drawn by the app, and the waits between captchas are the ones the
 site sends.
+
+### Threads
+
+- **Translate a post or the whole thread.** Translate in a post's menu shows
+  it in the language the app is set to, and Translate thread in the thread's
+  menu does every post, and every post that arrives after. It is done on the
+  device by the system's translator, which asks to download a language the
+  first time. Quotes, links, spoilers and greentext stay where they were;
+  only the words change. Show original, under the post or in either menu,
+  puts the words back. A thread already in your language says so rather than
+  being sent off.
+- **Likes and dislikes on 2ch.** The boards that count them, such as /news/,
+  show each post's likes and dislikes under it, and a tap casts yours. It
+  counts at once, and comes back off with the site's reason if the site
+  refuses it. A vote is writing to the site, so it follows the same switch as
+  posting: where posting is off, the counts are shown and cannot be tapped.
+  The app had the request for this but never made it, and the answer it
+  expected was not the one the site gives, so a vote that counted would have
+  been reported as a failure.
 
 ### Posting
 
@@ -34,44 +70,6 @@ site sends.
 - **A post that may have gone through says so.** When a post leaves and no
   answer comes back, the form says it may have been posted rather than that it
   failed, so it is not sent twice.
-
-## 2.5.2
-
-A post, or a whole thread, can be read in your own language, translated on
-the device. 2ch's likes and dislikes are shown and can be cast. The text in a
-picture can be selected and copied, and a picture can be looked up on Yandex,
-Google Lens, SauceNAO or iqdb. Files can be picked in the gallery grid and
-saved together, or every file in a thread saved at once. A clip plays slower
-or faster, steps one picture at a time while paused, and shows a picture of
-where the scrubber is while it is dragged. About links to the website, the
-privacy policy, the source and an address to write to.
-
-A link in a post to a video or a picture opens in the app's own viewer, and
-a file on another host is no longer sent your 2ch session. Some MP4s that
-played in silence are heard, an AVI renamed to .mp4 plays, and a seek no
-longer stops a downloading clip with an error or freezes one at its end. A
-tap in the gallery grid opens the file you tapped, not the one below it.
-Music from another app stops only while a clip is heard, and carries on
-when the clip is paused, muted or closed.
-
-### Threads
-
-- **Translate a post or the whole thread.** Translate in a post's menu shows
-  it in the language the app is set to, and Translate thread in the thread's
-  menu does every post, and every post that arrives after. It is done on the
-  device by the system's translator, which asks to download a language the
-  first time. Quotes, links, spoilers and greentext stay where they were;
-  only the words change. Show original, under the post or in either menu,
-  puts the words back. A thread already in your language says so rather than
-  being sent off.
-- **Likes and dislikes on 2ch.** The boards that count them, such as /news/,
-  show each post's likes and dislikes under it, and a tap casts yours. It
-  counts at once, and comes back off with the site's reason if the site
-  refuses it. A vote is writing to the site, so it follows the same switch as
-  posting: where posting is off, the counts are shown and cannot be tapped.
-  The app had the request for this but never made it, and the answer it
-  expected was not the one the site gives, so a vote that counted would have
-  been reported as a failure.
 
 ### Links
 
