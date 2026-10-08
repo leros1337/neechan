@@ -36,11 +36,11 @@ developer account. iOS 26 or newer, iPhone or iPad.
   Favourites, history, hidden threads and everything else you keep belong to the site
   they came from, and a pasted link opens on whichever site it names.
 - **Posting** — replies and new threads, the markup toolbar wrapping what you select,
-  drafts, attachments with metadata stripped and randomised names, and 2ch's emoji
-  captcha with its proof-of-work. **Posting to 4chan does not currently work**: its
-  posting host sits behind a script that computes a cookie in a browser, and the server
-  refuses that cookie when the app replays it. The reply form is still offered rather
-  than hidden, so the day that changes it is obvious; reading 4chan is unaffected.
+  drafts, attachments with metadata stripped and randomised names, 2ch's emoji captcha
+  with its proof-of-work, and 4chan's slider captcha. 4chan's posting host answers only
+  a browser, so on 4chan the captcha and the post go through a hidden in-app web view;
+  when Cloudflare wants to check the browser first, its check appears inside the
+  captcha box, and Get Captcha counts down whatever wait the site sends.
 - **Media** — a gallery with zoom and a full-screen viewer; WebM, MKV and MP4 play through FFmpeg,
   and a WebM you save is converted to H.264 MP4, because Photos will not accept one.
   Clips play from half to double speed, step a picture at a time while paused, and show

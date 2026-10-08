@@ -3,6 +3,38 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## Unreleased
+
+Posting to 4chan goes out the way the site's own reply form sends it, from a
+browser view inside the app. Its new captcha, a few steps of pictures to slide
+through, is drawn by the app, and the waits between captchas are the ones the
+site sends.
+
+### Posting
+
+- **4chan posts go through the browser engine.** 4chan's posting host refused
+  the app's own requests, even with the cookies a web view had earned, so the
+  reply form never got past the browser check. The captcha and the post now
+  go out from a hidden web view on the board's own page, the way 4chan's quick
+  reply sends them. When Cloudflare wants to check the browser first, its
+  check appears inside the captcha box and is answered there.
+- **4chan's new captcha.** Press Get Captcha, then on each step move the
+  slider until the picture matches what the instructions ask for, and press
+  Next. The instructions show with the picture they ask about, as on the site,
+  and a short note under the captcha says how it works. The slider starts on
+  the instructions, and nothing is picked for you.
+- **The site's own waits.** Get Captcha counts down whatever wait 4chan sends
+  with each captcha, 30 seconds, a minute or five, and "You have to wait a
+  while before doing this again" shows with it rather than as a bare error.
+  A longer wait shows the site's own message. Its link to verify your email,
+  and the one under the captcha, open in the app, so what the page sets counts
+  for the captcha. A captcha is asked for only when you press for it, since
+  each one starts the wait, and closing the form keeps the wait and a captcha
+  you had started.
+- **A post that may have gone through says so.** When a post leaves and no
+  answer comes back, the form says it may have been posted rather than that it
+  failed, so it is not sent twice.
+
 ## 2.5.2
 
 A post, or a whole thread, can be read in your own language, translated on

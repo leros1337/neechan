@@ -94,6 +94,11 @@ public struct AdaptiveRootView: View {
                 #endif
                 // Before anything else asks the site who we are.
                 await NativeUserAgent.adopt()
+                #if canImport(WebKit) && os(iOS)
+                // After the agent, which the engine's requests have to share
+                // with everything else the app sends.
+                services.fourchanBrowser.install(FourchanBrowserSession())
+                #endif
                 services.observeChallenges()
                 // The reader's cache budget, applied at launch. It used to be
                 // read only when they touched the stepper, so every launch went

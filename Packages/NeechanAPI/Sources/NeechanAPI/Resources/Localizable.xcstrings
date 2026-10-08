@@ -2,6 +2,52 @@
   "sourceLanguage": "en",
   "version": "1.0",
   "strings": {
+    "Posting to this site needs the app's browser engine, which is not available here.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Posting to this site needs the app's browser engine, which is not available here."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для отправки постов на этот сайт нужен встроенный браузер, а здесь он недоступен."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zum Posten auf dieser Seite braucht die App ihre Browser-Engine, die hier nicht verfügbar ist."
+          }
+        }
+      }
+    },
+    "The captcha came back in a form this app cannot read.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The captcha came back in a form this app cannot read."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Капча пришла в виде, который приложение не может прочитать."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Captcha kam in einer Form zurück, die diese App nicht lesen kann."
+          }
+        }
+      }
+    },
     "The captcha could not be loaded.": {
       "extractionState": "manual",
       "localizations": {
@@ -113,6 +159,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Der Beitrag konnte nicht gesendet werden."
+          }
+        }
+      }
+    },
+    "The post may have gone through. Check the thread before sending it again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The post may have gone through. Check the thread before sending it again."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пост, возможно, всё же отправлен. Проверьте тред, прежде чем отправлять снова."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Beitrag ist möglicherweise angekommen. Prüfe den Thread, bevor du ihn erneut sendest."
+          }
+        }
+      }
+    },
+    "The site answered with error %lld.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The site answered with error %lld."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сайт ответил ошибкой %lld."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Seite antwortete mit Fehler %lld."
           }
         }
       }

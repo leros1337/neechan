@@ -1113,4 +1113,23 @@ struct WatcherNotificationChoiceTests {
 
         #expect(settings.asksForNotificationPermissionAfterPosting == false)
     }
+
+    /// Kept between launches as the site's own page keeps it, and cleared when
+    /// the site withdraws it.
+    @Test("4chan's captcha ticket is kept, and can be dropped")
+    func fourchanCaptchaTicket() throws {
+        let name = "neechan.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        let settings = AppSettings(defaults: defaults)
+        #expect(settings.fourchanCaptchaTicket == nil)
+
+        settings.fourchanCaptchaTicket = "abc+/="
+        #expect(AppSettings(defaults: defaults).fourchanCaptchaTicket == "abc+/=")
+
+        settings.fourchanCaptchaTicket = ""
+        #expect(AppSettings(defaults: defaults).fourchanCaptchaTicket == nil)
+        settings.fourchanCaptchaTicket = "x"
+        settings.fourchanCaptchaTicket = nil
+        #expect(settings.fourchanCaptchaTicket == nil)
+    }
 }

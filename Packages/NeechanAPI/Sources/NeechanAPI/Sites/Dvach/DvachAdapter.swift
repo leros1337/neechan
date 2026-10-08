@@ -113,7 +113,7 @@ struct DvachAdapter: SiteAdapter {
         case .dislike:
             return "/api/dislike"
         // 4chan's only, and 2ch has no counterpart.
-        case .boardThreads, .sliderCaptcha:
+        case .boardThreads:
             return nil
         }
     }

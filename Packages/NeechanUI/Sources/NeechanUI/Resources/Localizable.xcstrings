@@ -167,6 +167,29 @@
         }
       }
     },
+    "%lld seconds left" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld seconds left"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Осталось секунд: %lld"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch %lld Sekunden"
+          }
+        }
+      }
+    },
     "%lld × %lld px" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1113,6 +1136,52 @@
         }
       }
     },
+    "4chan sent a kind of captcha this app cannot show yet." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "4chan sent a kind of captcha this app cannot show yet."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "4chan прислал капчу такого вида, который приложение пока не умеет показывать."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "4chan hat eine Art Captcha geschickt, die diese App noch nicht anzeigen kann."
+          }
+        }
+      }
+    },
+    "4chan wants one more check before it hands out a captcha." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "4chan wants one more check before it hands out a captcha."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перед выдачей капчи 4chan просит пройти ещё одну проверку."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "4chan will noch eine Prüfung, bevor es ein Captcha herausgibt."
+          }
+        }
+      }
+    },
     "7 days" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1155,6 +1224,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "30 дней"
+          }
+        }
+      }
+    },
+    "[Verify your email](https://sys.4chan.org/signin) with 4chan to skip the wait before posting." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "[Verify your email](https://sys.4chan.org/signin) with 4chan to skip the wait before posting."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "[Подтвердите email](https://sys.4chan.org/signin) на 4chan, чтобы не ждать перед постингом."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "[Bestätige deine E-Mail](https://sys.4chan.org/signin) bei 4chan, um vor dem Posten nicht warten zu müssen."
           }
         }
       }
@@ -1761,6 +1853,29 @@
         }
       }
     },
+    "Answer the check" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Answer the check"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пройти проверку"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prüfung beantworten"
+          }
+        }
+      }
+    },
     "Any post can be reported from its own menu, which reaches the moderators of the imageboard carrying it. You can also block a poster: hiding everything posted under a name keeps it out of every thread you open afterwards." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2102,29 +2217,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "«Автоматически» отмечает пост прочитанным после прокрутки мимо него."
-          }
-        }
-      }
-    },
-    "Background position" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hintergrundposition"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Background position"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Положение фона"
           }
         }
       }
@@ -2497,6 +2589,29 @@
         }
       }
     },
+    "Captcha expired." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Captcha expired."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Капча истекла."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Captcha ist abgelaufen."
+          }
+        }
+      }
+    },
     "Captcha solved" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2630,6 +2745,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "На домашнем экране иконка меняется не сразу."
+          }
+        }
+      }
+    },
+    "Check" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проверка"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prüfung"
           }
         }
       }
@@ -2953,6 +3091,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Закрыт"
+          }
+        }
+      }
+    },
+    "Cloudflare wants to check this browser first. Answer it here." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloudflare wants to check this browser first. Answer it here."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сначала Cloudflare хочет проверить браузер. Пройдите проверку здесь."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloudflare will zuerst diesen Browser prüfen. Beantworte die Prüfung hier."
           }
         }
       }
@@ -4617,6 +4778,75 @@
         }
       }
     },
+    "Get a captcha once the post is ready: the site makes you wait between them." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get a captcha once the post is ready: the site makes you wait between them."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Получите капчу, когда пост будет готов: между запросами сайт заставляет ждать."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hol dir ein Captcha, wenn der Beitrag fertig ist: Zwischen zwei Captchas lässt dich die Seite warten."
+          }
+        }
+      }
+    },
+    "Get Captcha" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get Captcha"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Получить капчу"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Captcha holen"
+          }
+        }
+      }
+    },
+    "Get Captcha (%lld)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get Captcha (%lld)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Получить капчу (%lld)"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Captcha holen (%lld)"
+          }
+        }
+      }
+    },
     "Go to" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5166,6 +5396,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Импортировать копию"
+          }
+        }
+      }
+    },
+    "Instructions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instructions"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Задание"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aufgabe"
           }
         }
       }
@@ -5860,6 +6113,29 @@
         }
       }
     },
+    "Move the slider until the picture matches what the instructions ask for, then press Next. Every step works the same way." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move the slider until the picture matches what the instructions ask for, then press Next. Every step works the same way."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Двигайте ползунок, пока картинка не совпадёт с заданием, затем нажмите «Далее». Каждый шаг решается так же."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schieb den Regler, bis das Bild zur Aufgabe passt, und tippe dann auf „Weiter“. Jeder Schritt funktioniert gleich."
+          }
+        }
+      }
+    },
     "Mute" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6224,6 +6500,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Сначала новые"
+          }
+        }
+      }
+    },
+    "Next (%lld/%lld)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next (%1$lld/%2$lld)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Далее (%1$lld/%2$lld)"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weiter (%1$lld/%2$lld)"
           }
         }
       }
@@ -7748,6 +8047,52 @@
         }
       }
     },
+    "Picture" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Picture"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Картинка"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bild"
+          }
+        }
+      }
+    },
+    "Picture %lld of %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Picture %1$lld of %2$lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Картинка %1$lld из %2$lld"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bild %1$lld von %2$lld"
+          }
+        }
+      }
+    },
     "Pin board" : {
       "comment" : "The text of a button that pins a board.",
       "isCommentAutoGenerated" : true,
@@ -7979,6 +8324,29 @@
         }
       }
     },
+    "Please wait a while." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please wait a while."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подождите немного."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bitte warte eine Weile."
+          }
+        }
+      }
+    },
     "Post %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8136,6 +8504,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Постинг"
+          }
+        }
+      }
+    },
+    "Posting to 4chan needs the app's browser engine, which is not available here." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Posting to 4chan needs the app's browser engine, which is not available here."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Для постинга на 4chan нужен встроенный браузер, а здесь он недоступен."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zum Posten auf 4chan braucht die App ihre Browser-Engine, die hier nicht verfügbar ist."
           }
         }
       }
@@ -10353,29 +10744,6 @@
         }
       }
     },
-    "Slide the background until the characters line up, then type them." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verschiebe den Hintergrund, bis die Zeichen übereinanderliegen, und tippe sie dann ein."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Slide the background until the characters line up, then type them."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Сдвиньте фон, пока символы не совпадут, затем введите их."
-          }
-        }
-      }
-    },
     "Solving the challenge…" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -11043,6 +11411,52 @@
         }
       }
     },
+    "The captcha could not be read." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The captcha could not be read."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось прочитать капчу."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Captcha konnte nicht gelesen werden."
+          }
+        }
+      }
+    },
+    "The captcha did not arrive. Try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The captcha did not arrive. Try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Капча не пришла. Попробуйте ещё раз."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Captcha ist nicht angekommen. Versuch es noch einmal."
+          }
+        }
+      }
+    },
     "The catalog shows every thread at once instead of page by page." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -11131,6 +11545,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Не удалось сменить иконку."
+          }
+        }
+      }
+    },
+    "The page the captcha sits in did not load." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The page the captcha sits in did not load."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не загрузилась страница, в которой показывается капча."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Seite, in der das Captcha sitzt, wurde nicht geladen."
           }
         }
       }
@@ -12750,6 +13187,29 @@
         }
       }
     },
+    "Verification not required." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verification not required."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проверка не требуется."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Überprüfung nötig."
+          }
+        }
+      }
+    },
     "Version" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13141,29 +13601,6 @@
         }
       }
     },
-    "What it says" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Was darin steht"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "What it says"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Что написано"
-          }
-        }
-      }
-    },
     "With this off, every thumbnail is blurred until you tap it." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13229,6 +13666,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Вы можете скрыть любой пост или тред, а правила автоскрытия уберут из ленты выбранных авторов, слова и шаблоны. Скрытые посты остаются скрытыми, пока вы сами их не раскроете."
+          }
+        }
+      }
+    },
+    "You can now request a captcha." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can now request a captcha."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Теперь можно запросить капчу."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du kannst jetzt ein Captcha anfordern."
           }
         }
       }

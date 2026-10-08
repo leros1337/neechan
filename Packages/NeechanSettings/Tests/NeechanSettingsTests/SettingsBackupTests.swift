@@ -70,6 +70,8 @@ struct SettingsBackupTests {
         source.locksApp = true
         source.hasAgreedToTerms = true
         source.recordThreadOpened()
+        // 4chan's captcha ticket is tied to this device and its address.
+        source.fourchanCaptchaTicket = "ticket"
 
         let backup = source.backupPreferences()
         let target = try makeSettings()
@@ -78,6 +80,7 @@ struct SettingsBackupTests {
         #expect(target.downloadFolderBookmark == nil)
         #expect(target.locksApp == false)
         #expect(target.hasAgreedToTerms == false)
+        #expect(target.fourchanCaptchaTicket == nil)
         // Statistics travel separately, merged rather than overwritten.
         #expect(target.statistics.threadsOpened == 0)
         for key in backup.values.keys {

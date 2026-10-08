@@ -1,0 +1,5 @@
+{
+ "challenge": "noop",
+ "ttl": 120,
+ "cd": 30
+}

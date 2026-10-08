@@ -53,11 +53,15 @@ public struct ReplyFormView: View {
         }
         // Asked for again once a browser check has been passed: the captcha is
         // the request a gate refuses first, and the reader has just done the
-        // one thing that would let it through.
+        // one thing that would let it through. The model decides whether that
+        // applies to this site's captcha.
         .task(id: services.challengesPassed) {
             guard let model, services.challengesPassed > 0 else { return }
-            await model.loadCaptcha()
+            await model.challengePassed()
         }
+        // A captcha still loading, or a check still showing, is not waited on
+        // by a form that has gone.
+        .onDisappear { model?.fourchanCaptcha?.cancel() }
         .task {
             guard model == nil else { return }
             let model = ReplyFormViewModel(board: board, thread: thread, services: services)
@@ -197,18 +201,22 @@ public struct ReplyFormView: View {
 
     @ViewBuilder
     private func captchaSection(_ model: ReplyFormViewModel) -> some View {
-        @Bindable var model = model
         Section {
-            EmojiCaptchaView(
-                state: model.captcha,
-                sliderResponse: $model.sliderResponse,
-                secondsRemaining: model.captchaSecondsRemaining,
-                chosenKeys: model.chosenCaptchaKeys,
-                onSelect: { await model.selectEmoji(at: $0) },
-                onReload: { await model.loadCaptcha() }
-            )
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
+            if let fourchanCaptcha = model.fourchanCaptcha {
+                FourchanCaptchaView(model: fourchanCaptcha, browser: services.fourchanBrowser.current)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+            } else {
+                EmojiCaptchaView(
+                    state: model.captcha,
+                    secondsRemaining: model.captchaSecondsRemaining,
+                    chosenKeys: model.chosenCaptchaKeys,
+                    onSelect: { await model.selectEmoji(at: $0) },
+                    onReload: { await model.loadCaptcha() }
+                )
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
         }
     }
 

@@ -37,8 +37,6 @@ public enum ImageboardEndpoint: Sendable, Hashable {
     case emojiCaptchaID(board: String, thread: Int?)
     case emojiCaptchaShow(id: String)
     case emojiCaptchaClick(id: String, emojiIndex: Int)
-    /// 4chan's slider puzzle.
-    case sliderCaptcha(board: String, thread: Int?)
 
     // Actions
     case search(board: String, text: String)

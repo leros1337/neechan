@@ -53,12 +53,6 @@ public final class ReplyFormViewModel {
         case loading
         /// A keyboard to answer, with the images already decoded.
         case challenge(image: PlatformImage?, keys: [PlatformImage?])
-        /// A slider puzzle for the reader to align and read out.
-        ///
-        /// Both images are handed over as they came. Nothing here works out
-        /// the offset or the characters: a person looks at it and types what
-        /// they see, which is the only way this is ever answered.
-        case slider(image: PlatformImage?, background: PlatformImage?, backgroundWidth: Int)
         case solved(token: String)
         /// The site waived it, for a passcode or because the board has it off.
         case notRequired
@@ -67,8 +61,6 @@ public final class ReplyFormViewModel {
         var isSolvedOrWaived: Bool {
             switch self {
             case .solved, .notRequired: true
-            // A slider puzzle is answered by the reader typing what they read,
-            // so whether it is solved is a question about the text field.
             default: false
             }
         }
@@ -87,18 +79,24 @@ public final class ReplyFormViewModel {
     private var session: EmojiCaptchaSession?
     private var solvedToken: String?
     private var proofOfWork: Int?
-    /// The token 4chan issued with the puzzle, sent back beside the answer.
-    private var sliderChallenge: String?
-    /// What the reader typed off the puzzle. Theirs alone.
-    public var sliderResponse = ""
     private var usesPasscode = false
     private var autosaveTask: Task<Void, Never>?
     private var countdownTask: Task<Void, Never>?
+
+    /// 4chan's captcha, on a site that sets it; nil on one that does not.
+    ///
+    /// Its own model rather than more cases here: it is asked for only when
+    /// the reader presses for it, it runs on the server's cooldowns, and it is
+    /// spent by sending — none of which is true of the emoji captcha.
+    public let fourchanCaptcha: FourchanCaptchaModel?
 
     public init(board: String, thread: Int?, services: AppServices) {
         self.board = board
         self.thread = thread
         self.services = services
+        self.fourchanCaptcha = services.capabilities.captcha == .slider
+            ? FourchanCaptchaModel(board: board, thread: thread, services: services)
+            : nil
     }
 
     // MARK: Lifecycle
@@ -133,13 +131,6 @@ public final class ReplyFormViewModel {
         try? await services.drafts.discard(board: boardRef, thread: thread)
     }
 
-    /// The reader's answer, once they have written one.
-    private var sliderAnswer: (challenge: String, response: String)? {
-        guard let sliderChallenge else { return nil }
-        let typed = sliderResponse.trimmingCharacters(in: .whitespacesAndNewlines)
-        return typed.isEmpty ? nil : (sliderChallenge, typed)
-    }
-
     // MARK: Captcha
 
     public func loadCaptcha() async {
@@ -149,12 +140,14 @@ public final class ReplyFormViewModel {
         solvedToken = nil
         proofOfWork = nil
         chosenCaptchaKeys = []
-        sliderChallenge = nil
-        sliderResponse = ""
 
         switch services.capabilities.captcha {
         case .slider:
-            await loadSliderCaptcha()
+            // Asked for only when the reader presses for it: every request
+            // starts the site's cooldown. Here it only picks up where an
+            // earlier form left it.
+            captcha = .idle
+            fourchanCaptcha?.prepare()
             return
         case .none:
             captcha = .notRequired
@@ -170,78 +163,6 @@ public final class ReplyFormViewModel {
             await apply(state)
         } catch {
             captcha = .failed(String(describing: error))
-        }
-    }
-
-    /// Fetches 4chan's puzzle and shows it.
-    ///
-    /// A browser check reaches the reader through the same sheet every other
-    /// gated request uses, so there is nothing to do about it here beyond
-    /// saying why the captcha has not appeared.
-    private func loadSliderCaptcha() async {
-        do {
-            let captcha = try await services.client.fourchanCaptcha(board: board, thread: thread)
-            if captcha.isNotRequired {
-                self.captcha = .notRequired
-                return
-            }
-            sliderChallenge = captcha.challenge
-            self.captcha = .slider(
-                image: captcha.image.flatMap(Self.decode),
-                background: captcha.background.flatMap(Self.decode),
-                backgroundWidth: captcha.backgroundWidth ?? 0
-            )
-            startSliderCountdown(seconds: captcha.ttl)
-        } catch {
-            // Untyped on purpose: `fourchanCaptcha` is `throws(DvachError)`, so
-            // `error` is already a `DvachError` and matching on one explicitly
-            // was a test that could never fail.
-            self.captcha = .failed(error.readableMessage)
-            // A gate is the one failure the reader can do something about, and
-            // the app is about to put the check in front of them. Rather than
-            // leaving the error on screen once they have passed it, wait for
-            // that and ask again.
-            if case .cloudflareChallenge = error, !isWaitingForCheck {
-                await waitForCheckThenReload()
-            }
-        }
-    }
-
-    /// True while a reload is already queued behind a check.
-    ///
-    /// One waiter, not one per attempt: each failed reload used to queue
-    /// another, every waiter woke together, and each of those reloaded and
-    /// queued again — a pile that doubled with every round.
-    private var isWaitingForCheck = false
-
-    /// Reloads once the reader has passed the browser check.
-    private func waitForCheckThenReload() async {
-        isWaitingForCheck = true
-        await services.awaitChallengePass()
-        isWaitingForCheck = false
-        guard !Task.isCancelled else { return }
-        await loadCaptcha()
-    }
-
-    /// The puzzle expires like the emoji one does, so it is counted down and
-    /// asked for again rather than silently going stale.
-    private func startSliderCountdown(seconds: Int?) {
-        countdownTask?.cancel()
-        guard let seconds, seconds > 0 else {
-            captchaSecondsRemaining = nil
-            return
-        }
-        let expiresAt = Date.now.addingTimeInterval(TimeInterval(seconds))
-        countdownTask = Task { [weak self] in
-            while !Task.isCancelled {
-                let remaining = Int(expiresAt.timeIntervalSinceNow.rounded())
-                await MainActor.run { self?.captchaSecondsRemaining = max(0, remaining) }
-                if remaining <= 0 {
-                    await self?.loadCaptcha()
-                    return
-                }
-                try? await Task.sleep(for: .seconds(1))
-            }
         }
     }
 
@@ -487,8 +408,19 @@ public final class ReplyFormViewModel {
 
     /// Whether the captcha has been dealt with, however this site asks.
     private var captchaIsAnswered: Bool {
-        if case .slider = captcha { return sliderAnswer != nil }
+        if let fourchanCaptcha { return fourchanCaptcha.answer != nil }
         return captcha.isSolvedOrWaived
+    }
+
+    /// Called once a browser check elsewhere has been passed.
+    ///
+    /// The emoji captcha is the request such a check refused first, so it is
+    /// asked for again. 4chan's is not asked for on anyone's behalf: its own
+    /// check is answered in its frame, and a request nobody pressed for would
+    /// start a cooldown nobody wanted.
+    public func challengePassed() async {
+        guard fourchanCaptcha == nil else { return }
+        await loadCaptcha()
     }
 
     public var commentLimit: Int {
@@ -510,7 +442,7 @@ public final class ReplyFormViewModel {
                 thread: thread,
                 captchaToken: solvedToken,
                 proofOfWork: proofOfWork,
-                sliderAnswer: sliderAnswer,
+                sliderAnswer: fourchanCaptcha?.answer,
                 usesPasscode: usesPasscode,
                 deletionPassword: services.settings.postDeletionPassword,
                 onStage: { [weak self] stage in
@@ -519,6 +451,7 @@ public final class ReplyFormViewModel {
             )
             draft = DraftState()
             services.settings.recordPostSent()
+            fourchanCaptcha?.consume()
             sendState = .sent(outcome)
             #if canImport(UserNotifications)
             if services.settings.asksForNotificationPermissionAfterPosting {
@@ -529,12 +462,20 @@ public final class ReplyFormViewModel {
             #endif
         } catch let error as PostingError {
             sendState = .failed(message: error.message, needsNewCaptcha: error.requiresNewCaptcha)
-            if error.requiresNewCaptcha {
+            if let fourchanCaptcha {
+                // Spent whatever the site made of the post, as its own form
+                // treats it. The next one is the reader's to ask for.
+                fourchanCaptcha.consume()
+            } else if error.requiresNewCaptcha {
                 await loadCaptcha()
             }
         } catch {
             sendState = .failed(message: String(describing: error), needsNewCaptcha: true)
-            await loadCaptcha()
+            if let fourchanCaptcha {
+                fourchanCaptcha.consume()
+            } else {
+                await loadCaptcha()
+            }
         }
     }
 }

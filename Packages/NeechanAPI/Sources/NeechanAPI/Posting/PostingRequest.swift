@@ -21,11 +21,13 @@ public struct PostingRequest: Sendable {
         case emoji(token: String, proofOfWork: Int?)
         /// A passcode is active; the cookie does the proving.
         case passcode
-        /// A slider puzzle the reader aligned and read out themselves.
+        /// 4chan's puzzle, answered by the reader.
         ///
-        /// `challenge` is the token the site issued with the images and
-        /// `response` is what the reader typed. Nothing in this app produces
-        /// either: they come back from a person looking at a picture.
+        /// `challenge` is the token the site issued with the pictures and
+        /// `response` is the position the reader picked on each step, counted
+        /// from zero and written one after another — empty when the site set
+        /// nothing to answer. Nothing in this app produces either: they come
+        /// back from a person looking at the pictures.
         case slider(challenge: String, response: String)
         /// The board asks for nothing.
         case none

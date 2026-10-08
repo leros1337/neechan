@@ -1,0 +1,6 @@
+{
+ "challenge": "synthetic-challenge-token",
+ "ttl": 120,
+ "cd": 30,
+ "extTask": {"mode": 1, "str": "Type what you see.", "imgRoot": "x", "img": ["a.png", 100, 50]}
+}

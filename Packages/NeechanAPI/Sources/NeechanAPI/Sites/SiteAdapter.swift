@@ -76,6 +76,16 @@ protocol SiteAdapter: Sendable {
 
     /// What the site said about it.
     func postingOutcome(from reply: HTTPReply) throws(PostingError) -> PostingOutcome
+
+    /// The page a post has to be sent from, for a site whose posting host
+    /// answers only a browser engine; nil for one the app posts to itself.
+    func browserPostingPage(for request: PostingRequest, on endpoints: SiteEndpoints) -> URL?
+}
+
+extension SiteAdapter {
+    func browserPostingPage(for request: PostingRequest, on endpoints: SiteEndpoints) -> URL? {
+        nil
+    }
 }
 
 /// What an adapter reports when it is handed something its site never sends.

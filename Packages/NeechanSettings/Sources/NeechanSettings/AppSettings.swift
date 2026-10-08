@@ -221,6 +221,28 @@ public final class AppSettings {
         return generated
     }
 
+    /// What 4chan's captcha handed out last time, to be sent back with the next
+    /// request for one, as the site's own page keeps it in local storage.
+    ///
+    /// Not a preference and not observed: written without a revision, so
+    /// storing one redraws nothing. Left out of backups, because it belongs to
+    /// this device and the address it asked from.
+    public var fourchanCaptchaTicket: String? {
+        get {
+            guard let stored = storedDefaults.string(forKey: Key.fourchanCaptchaTicket),
+                  !stored.isEmpty
+            else { return nil }
+            return stored
+        }
+        set {
+            if let newValue, !newValue.isEmpty {
+                storedDefaults.set(newValue, forKey: Key.fourchanCaptchaTicket)
+            } else {
+                storedDefaults.removeObject(forKey: Key.fourchanCaptchaTicket)
+            }
+        }
+    }
+
     /// The imageboard all requests go to.
     ///
     /// Stored rather than computed, like `domain`: it is read on the way to
@@ -989,6 +1011,7 @@ public final class AppSettings {
     private enum Key {
         static let imageboard = "imageboard"
         static let postDeletionPassword = "posting.deletionPassword"
+        static let fourchanCaptchaTicket = "posting.fourchanCaptchaTicket"
         static let domain = "domain"
         static let defaultBoard = "defaultBoard"
         static let uniqueHash = "attachment.uniqueHash"

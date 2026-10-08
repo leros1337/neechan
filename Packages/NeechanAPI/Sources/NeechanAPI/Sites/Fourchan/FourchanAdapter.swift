@@ -40,15 +40,6 @@ struct FourchanAdapter: SiteAdapter {
         case .post(let board, _, let inThread):
             guard let inThread else { return nil }
             return SiteRoute(base: endpoints.api, path: "/\(escape(board))/thread/\(inThread).json")
-        case .sliderCaptcha(let board, let thread):
-            return SiteRoute(
-                base: endpoints.posting,
-                path: "/captcha",
-                queryItems: [
-                    URLQueryItem(name: "board", value: board),
-                    thread.map { URLQueryItem(name: "thread_id", value: String($0)) },
-                ].compactMap { $0 }
-            )
         case .after, .threadInfo, .captchaSettings, .emojiCaptchaID, .emojiCaptchaShow,
              .emojiCaptchaClick, .search, .report, .passcodeLogin, .like, .dislike:
             return nil
@@ -123,9 +114,14 @@ extension FourchanAdapter {
 }
 
 extension FourchanAdapter {
-    /// `POST https://sys.4chan.org/{board}/post`, as the site's own reply form
+    /// `POST https://sys.4chan.org/{board}/post`, as the site's quick reply
     /// sends it: different field names, a different arrangement and a different
     /// host from 2ch's.
+    ///
+    /// Sent by the browser engine from the board's page rather than by the
+    /// app: the posting host's gates refuse anything else. That page supplies
+    /// the `Referer` and `Origin` the site checks, which a request from a page
+    /// cannot set for itself anyway.
     func postingRequest(_ request: PostingRequest, on endpoints: SiteEndpoints) -> URLRequest {
         var encoder = MultipartFormEncoder()
         for (name, value) in request.fourchanFormFields() {
@@ -146,18 +142,19 @@ extension FourchanAdapter {
         )
         urlRequest.httpMethod = "POST"
         urlRequest.setValue(encoder.contentType, forHTTPHeaderField: "Content-Type")
-        // The answer is a web page, not JSON.
-        urlRequest.setValue("text/html", forHTTPHeaderField: "Accept")
-        urlRequest.setValue(
-            endpoints.web.appending(path: "\(request.board)/").absoluteString,
-            forHTTPHeaderField: "Referer"
-        )
+        // As the quick reply asks, and answered as `{error}` or `{tid, pid}`.
+        // The page the full form gets is still read if that is what comes.
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
         urlRequest.httpBody = encoder.finalizedBody()
         urlRequest.timeoutInterval = 120
         return urlRequest
     }
 
     func postingOutcome(from reply: HTTPReply) throws(PostingError) -> PostingOutcome {
-        try FourchanPostingReply.outcome(from: String(decoding: reply.data, as: UTF8.self))
+        try FourchanPostingReply.outcome(from: reply)
+    }
+
+    func browserPostingPage(for request: PostingRequest, on endpoints: SiteEndpoints) -> URL? {
+        FourchanCaptchaRequest.pageURL(board: request.board, thread: request.thread)
     }
 }

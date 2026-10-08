@@ -46,15 +46,6 @@ struct FourchanEndpointTests {
         #expect(try url(.archiveThread(board: "g", thread: 7)) == "https://a.4cdn.org/g/thread/7.json")
     }
 
-    @Test("the captcha is asked for on the posting host")
-    func captchaEndpoint() throws {
-        #expect(
-            try url(.sliderCaptcha(board: "g", thread: 1))
-                == "https://sys.4chan.org/captcha?board=g&thread_id=1"
-        )
-        #expect(try url(.sliderCaptcha(board: "g", thread: nil)) == "https://sys.4chan.org/captcha?board=g")
-    }
-
     /// Nothing is guessed at: an endpoint the site does not serve builds no
     /// request at all, and the client turns that into a refusal.
     @Test("an endpoint 4chan does not serve is refused, not invented")
@@ -78,7 +69,6 @@ struct FourchanEndpointTests {
     @Test("2ch is not asked for the endpoints only 4chan has")
     func dvachHasNoFourchanEndpoints() {
         #expect(ImageboardEndpoint.boardThreads(board: "b").request(for: dvach) == nil)
-        #expect(ImageboardEndpoint.sliderCaptcha(board: "b", thread: nil).request(for: dvach) == nil)
     }
 
     /// Counter-intuitive, and deliberate: `a.4cdn.org` sends `max-age=5` and an

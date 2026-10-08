@@ -134,11 +134,26 @@ public enum Fixture: String, CaseIterable, Sendable {
     case fourchanArchive = "fourchan_archive"
 
     // 4chan captcha
-    ///
-    /// Synthesized rather than recorded: the live endpoint sits behind a
-    /// browser check, so a served captcha cannot be fetched here.
-    case fourchanCaptchaChallenge = "fourchan_captcha_challenge"
-    case fourchanCaptchaCooldown = "fourchan_captcha_cooldown"
+    //
+    // What the captcha frame posts to its page, one reply of each kind.
+    // Synthesized rather than recorded, from the fields the site's own
+    // `tcaptcha.min.js` reads: the frame sits behind a Cloudflare check that
+    // only a person can pass, so a served captcha cannot be fetched here.
+    /// Two steps of three 1×1 pictures, one prompt in words and one as a
+    /// picture, with a ticket and a 30-second cooldown.
+    case fourchanTwisterTasksSmall = "fourchan_twister_tasks_small"
+    /// "You have to wait a while", with a 300-second cooldown.
+    case fourchanTwisterRefused = "fourchan_twister_refused"
+    /// The longer wait, with its own message.
+    case fourchanTwisterTicketWait = "fourchan_twister_ticket_wait"
+    /// A request for an hCaptcha before any puzzle.
+    case fourchanTwisterTicketCaptcha = "fourchan_twister_ticket_captcha"
+    /// A challenge with nothing to answer.
+    case fourchanTwisterNoop = "fourchan_twister_noop"
+    /// The April 2026 variant, which this app does not ask for.
+    case fourchanTwisterExtended = "fourchan_twister_ext"
+    /// A refusal that also withdraws the stored ticket.
+    case fourchanTwisterTicketRevoked = "fourchan_twister_ticket_revoked"
     /// The real page the captcha endpoint answers with while the gate is up.
     case fourchanCloudflareGate = "fourchan_cloudflare_gate"
 

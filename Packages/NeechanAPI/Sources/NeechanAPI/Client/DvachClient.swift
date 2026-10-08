@@ -306,49 +306,6 @@ public actor DvachClient {
 
     // MARK: Captcha
 
-    /// Asks for 4chan's slider captcha.
-    ///
-    /// Almost all of this feature is the absence of code. The endpoint sits
-    /// behind a browser check, and `ChallengeDetector` reads the `cf-mitigated`
-    /// header before anything else, so a gated answer already becomes
-    /// `.cloudflareChallenge`, already reaches `onChallenge`, and already skips
-    /// the retry loop rather than hammering the gate. What is left is one
-    /// request and one model.
-    ///
-    /// Nothing here solves the puzzle. The images are handed to the reader.
-    public func fourchanCaptcha(
-        board: String,
-        thread: Int? = nil
-    ) async throws(DvachError) -> FourchanCaptcha {
-        let selection = site()
-        // One attempt: the answer is a gate or a puzzle, and neither improves
-        // by being asked for three times in a row.
-        let reply = try await send(
-            .sliderCaptcha(board: board, thread: thread),
-            // Spelled out: a bare `.none` is `Optional<RetryPolicy>.none`, which
-            // is the *default* policy and four attempts, not one.
-            policy: RetryPolicy.none
-        )
-        let captcha = try decode(reply, on: selection) { _, data in
-            try decoder.decode(FourchanCaptcha.self, from: data)
-        }
-        // A refusal carries a cooldown rather than a puzzle. Reported as a rate
-        // limit so the posting layer's existing classification applies to it.
-        Self.log.notice(
-            """
-            captcha answered: challenge=\(captcha.challenge ?? "none", privacy: .public) \
-            image=\(captcha.image?.count ?? 0, privacy: .public) \
-            background=\(captcha.background?.count ?? 0, privacy: .public) \
-            ttl=\(captcha.ttl ?? -1, privacy: .public) \
-            error=\(captcha.error ?? "none", privacy: .public)
-            """
-        )
-        if let error = captcha.error, !error.isEmpty {
-            throw DvachError.api(DvachAPIError(code: .rateLimited, message: error))
-        }
-        return captcha
-    }
-
     public func captchaSettings(board: String) async throws(DvachError) -> CaptchaSettings {
         try await get(CaptchaSettings.self, .captchaSettings(board: board))
     }

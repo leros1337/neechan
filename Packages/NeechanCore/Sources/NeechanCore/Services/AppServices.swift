@@ -36,6 +36,11 @@ public final class AppServices {
     public let cookies: CookieManager
     public let downloader: Downloader
     public let reachability = NetworkReachability()
+    /// The browser engine 4chan's captcha and posts go through, installed by
+    /// the view layer at launch. Empty in tests and anywhere without WebKit.
+    public let fourchanBrowser: FourchanBrowserSlot
+    public let fourchanCaptcha: FourchanCaptchaService
+    public let fourchanCaptchaMemory = FourchanCaptchaMemory()
 
     /// The gate page waiting to be shown, if the site asked for one.
     ///
@@ -94,6 +99,9 @@ public final class AppServices {
         // Built before `self` exists, so the hook goes through a box that is
         // filled in below.
         let challenges = ChallengeRelay()
+        let fourchanBrowser = FourchanBrowserSlot()
+        self.fourchanBrowser = fourchanBrowser
+        self.fourchanCaptcha = FourchanCaptchaService(browser: fourchanBrowser)
         let client = DvachClient(
             transport: transport,
             site: siteHolder.provider,
@@ -149,7 +157,10 @@ public final class AppServices {
 
         self.posting = PostingCoordinator(
             postingService: PostingService(
-                client: client, transport: transport, site: siteHolder.provider
+                client: client,
+                transport: transport,
+                site: siteHolder.provider,
+                browser: fourchanBrowser
             ),
             drafts: drafts,
             ownPosts: ownPosts

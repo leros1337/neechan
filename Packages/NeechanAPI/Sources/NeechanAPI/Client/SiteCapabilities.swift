@@ -7,7 +7,8 @@ import Foundation
 public enum CaptchaKind: Sendable, Hashable {
     /// 2ch's emoji keyboard, with its proof of work.
     case emoji
-    /// 4chan's slider puzzle. Solved by the reader, never by the app.
+    /// 4chan's puzzle: steps of pictures the reader slides through and
+    /// picks from. Solved by the reader, never by the app.
     case slider
     case none
 }
@@ -33,9 +34,9 @@ public enum ReportingStyle: Sendable, Hashable {
     case api
     /// The site's own report page, opened in a web view.
     ///
-    /// 4chan's form is on the posting host behind its T-Captcha — the same
-    /// gate that already refuses this app's posts — so the page the reader
-    /// fills in has to be the real one.
+    /// 4chan's form is on the posting host behind its T-Captcha, and behind
+    /// the gates in front of that host that only a browser engine passes, so
+    /// the page the reader fills in has to be the real one.
     case web
     case none
 }
@@ -106,15 +107,13 @@ public struct SiteCapabilities: Sendable, Hashable {
     /// posting host the app can still put in front of a reader — the browser
     /// engine passes the gate that the app's own requests cannot.
     ///
-    /// `posting` is on, and is known not to reach the site today. 4chan's
-    /// posting host sits behind its own gate — a script that computes a `_tcs`
-    /// cookie in the browser — and the server refuses that cookie when the
-    /// app's own requests replay it, even with everything else identical. So
-    /// the reply form opens, the captcha is asked for, and the browser check
-    /// appears and does not let go. It is left reachable on purpose: the whole
-    /// path is written and tested, and hiding it would mean the day the gate
-    /// changes nobody would find out. Reading is unaffected — the JSON host has
-    /// no gate at all.
+    /// `posting` goes through the browser engine. 4chan's posting host sits
+    /// behind a script that computes a `_tcs` cookie and behind Cloudflare, and
+    /// the server refuses both cookies when the app's own requests replay them,
+    /// even with everything else identical. So the captcha and the post go out
+    /// from a page in the engine that carries the board's address, as the
+    /// site's own reply form sends them — see `FourchanBrowser`. Reading is
+    /// unaffected — the JSON host has no gate at all.
     public static let fourchan = SiteCapabilities(
         incrementalThreadRefresh: false,
         cheapThreadPoll: false,

@@ -121,29 +121,10 @@ if not any(marker in body for marker in markers):
 print("  carries a challenge marker, as the detection test expects")
 PY
 
-# The served captcha cannot be recorded while the gate is up, so the fixture is
-# synthesized — the same thing record-fixtures.sh does for the proof-of-work
-# case it cannot reach. Shape taken from the site's own captcha.js.
-python3 - "$OUT/fourchan_captcha_challenge.json" "$OUT/fourchan_captcha_cooldown.json" <<'PY'
-import base64, json, sys
-# A 1x1 PNG stands in for the puzzle images: the tests decode them, they do not
-# look at them, and nothing in this app ever tries to solve one.
-pixel = base64.b64encode(base64.b64decode(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
-)).decode()
-json.dump({
-    "challenge": "synthetic-challenge-token",
-    "img": pixel,
-    "bg": pixel,
-    "img_width": 300,
-    "bg_width": 400,
-    "ttl": 120,
-}, open(sys.argv[1], "w"), indent=1)
-json.dump({"error": "You have to wait a while before doing this again.", "cd": 27},
-          open(sys.argv[2], "w"), indent=1)
-print("  ! fourchan_captcha_challenge.json synthesized: the live endpoint is", file=sys.stderr)
-print("    behind a browser check, so a served captcha cannot be recorded here.", file=sys.stderr)
-print("  fourchan_captcha_challenge.json, fourchan_captcha_cooldown.json")
-PY
+# The captcha itself is not recorded here. It is loaded in a frame that sits
+# behind a Cloudflare check only a person can pass, and what the frame posts to
+# its page is not something curl can see. The fourchan_twister_*.json fixtures
+# are written by hand instead, one per kind of reply, from the fields the site's
+# own tcaptcha.min.js reads; they are not overwritten by this script.
 
 echo "Done."

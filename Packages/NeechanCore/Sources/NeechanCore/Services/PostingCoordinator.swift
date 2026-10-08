@@ -35,7 +35,7 @@ public actor PostingCoordinator {
     /// - Parameters:
     ///   - captchaToken: the solved emoji captcha, or nil when none is needed.
     ///   - proofOfWork: the challenge answer that accompanies the captcha.
-    ///   - sliderAnswer: what the reader read off 4chan's slider puzzle, with
+    ///   - sliderAnswer: the positions the reader picked in 4chan's puzzle, with
     ///     the token it was issued against. Solved by them, never by the app.
     ///   - deletionPassword: what lets them delete the post afterwards, on a
     ///     site that asks for one.
