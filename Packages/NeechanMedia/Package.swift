@@ -2,8 +2,9 @@
 import PackageDescription
 
 // WebM (VP8/VP9 with Vorbis or Opus) cannot be opened by AVFoundation at all,
-// and neither can the `hev1`-tagged HEVC the boards serve in MP4, so video is
-// decoded by FFmpeg whatever the container. VideoToolbox does the work
+// and neither can the `hev1`-tagged HEVC the boards serve in MP4, or the XviD
+// AVI that turns up renamed to .mp4, so video is decoded by FFmpeg whatever
+// the container. VideoToolbox does the work
 // wherever the device has a decoder for what is in the file.
 //
 // The FFmpeg build is this project's own: trimmed to the containers and codecs
@@ -24,7 +25,7 @@ let package = Package(
         .package(path: "../NeechanAPI"),
         .package(path: "../NeechanSettings"),
         .package(path: "../NeechanTestSupport"),
-        .package(url: "https://github.com/leros1337/neechan-ffmpeg.git", from: "9.0.3")
+        .package(url: "https://github.com/leros1337/neechan-ffmpeg.git", from: "9.0.4")
     ],
     targets: [
         .target(
@@ -39,7 +40,7 @@ let package = Package(
         ),
         .testTarget(
             name: "NeechanMediaTests",
-            dependencies: ["NeechanMedia", "NeechanTestSupport"],
+            dependencies: ["NeechanMedia", "NeechanAPI", "NeechanTestSupport"],
             swiftSettings: [.swiftLanguageMode(.v6)]
         )
     ]

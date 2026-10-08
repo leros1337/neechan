@@ -22,6 +22,11 @@ enum FFmpegStatus {
     /// of the file, which is not a failure at all.
     static let inputOutputError: Int32 = -5
 
+    /// `AVERROR_INPUT_CHANGED`, `-0x636e6701`: the sound handed to the
+    /// converter is not the shape it was built for, and it has to be built
+    /// again. OR-ed with the output's code it is still this number.
+    static let inputChanged: Int32 = -0x636e_6701
+
     /// `AV_NOPTS_VALUE`: this packet or frame carries no timestamp.
     static let noTimestamp = Int64.min
 

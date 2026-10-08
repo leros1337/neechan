@@ -75,6 +75,22 @@ struct VideoDecoderTests {
         #expect(Set(times).count == times.count, "two frames claimed the same time")
     }
 
+    /// An AVI stamps its pictures with a decoding time alone, and the picture
+    /// a decoder holds back to put B-frames in order comes out at the very end
+    /// with no time at all. Untimed, it left the clip with no end the clock
+    /// could ever reach, and the timeline counted on for as long as anyone
+    /// watched.
+    @Test("a picture that comes out with no time is shown after the one before it")
+    func untimedPicturesFollowOn() throws {
+        let (frames, _) = try decodeEverything(.sampleAVI)
+        #expect(frames.count == 25)
+        #expect(frames.allSatisfy { $0.presentation.isValid }, "a picture came out with no time")
+
+        let times = frames.map { TimeMath.seconds($0.presentation) }
+        #expect(times == times.sorted(), "pictures came back out of order: \(times)")
+        #expect(Set(times).count == times.count, "two pictures claimed the same time")
+    }
+
     /// `hev1` carries its parameter sets in the stream rather than in the
     /// container, which is exactly what AVFoundation refuses to open. FFmpeg
     /// finds them, and this is the proof.

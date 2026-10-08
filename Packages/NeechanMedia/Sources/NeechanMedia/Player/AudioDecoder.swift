@@ -22,6 +22,14 @@ struct DecodedAudio: QueuedMedia, @unchecked Sendable {
 /// resampling and no drift; folding anything wider down to stereo is what a
 /// phone can play anyway.
 ///
+/// The source's rate and channels are taken from the first frame decoded, not
+/// from the file's header, because the header can be wrong. HE-AAC v2 often
+/// declares only its core, 22.05 kHz mono, and becomes 44.1 kHz stereo once
+/// the decoder finds the rest inside the first packet. Built from the header,
+/// every run after that was refused and the clip played in silence. Should
+/// the sound change shape again later, the converter is rebuilt for it and
+/// what the renderer is given stays the same.
+///
 /// Opus and Vorbis both begin with samples that exist only to prime the
 /// decoder and must not be heard. libavcodec trims them itself, which is why
 /// there is nothing here about it.
@@ -72,6 +80,7 @@ final class AudioDecoder: @unchecked Sendable {
         let opened = avcodec_open2(context, codec, nil)
         guard opened >= 0 else { throw Failure.cannotOpen(opened) }
 
+        // What the header says, until the first frame says otherwise.
         sampleRate = context.pointee.sample_rate > 0 ? context.pointee.sample_rate : 48_000
         channelCount = min(2, max(1, context.pointee.ch_layout.nb_channels))
         timeline = AudioTimeline(sampleRate: sampleRate)
@@ -80,14 +89,12 @@ final class AudioDecoder: @unchecked Sendable {
             """
             audio: \(String(cString: codec.pointee.name), privacy: .public), \
             \(self.sampleRate, privacy: .public) Hz, \
-            \(self.channelCount, privacy: .public) ch
+            \(self.channelCount, privacy: .public) ch by its header
             """
         )
 
         frame = av_frame_alloc()
         resampled = av_frame_alloc()
-        try makeResampler(from: context)
-        formatDescription = makeFormatDescription()
     }
 
     deinit {
@@ -142,31 +149,106 @@ final class AudioDecoder: @unchecked Sendable {
         timeline.reset()
     }
 
-    private func makeResampler(from context: UnsafeMutablePointer<AVCodecContext>) throws {
+    /// Settles what the renderer will be given, from the first frame decoded.
+    ///
+    /// Once only. Everything after is converted to this, so the renderer and
+    /// the timeline never see the sound change shape.
+    private func settleOutput(on frame: UnsafeMutablePointer<AVFrame>) {
+        let rate = frame.pointee.sample_rate > 0 ? frame.pointee.sample_rate : sampleRate
+        let channels = min(2, max(1, frame.pointee.ch_layout.nb_channels))
+        if rate != sampleRate || channels != channelCount {
+            MediaLog.decoder.debug(
+                """
+                audio is \(rate, privacy: .public) Hz, \(frame.pointee.ch_layout.nb_channels, privacy: .public) ch, \
+                not the \(self.sampleRate, privacy: .public) Hz, \(self.channelCount, privacy: .public) ch \
+                its header said; playing what it is
+                """
+            )
+        }
+        sampleRate = rate
+        channelCount = channels
+        timeline = AudioTimeline(sampleRate: rate)
+        formatDescription = makeFormatDescription()
+    }
+
+    /// A converter from `frame`'s shape to the settled output.
+    ///
+    /// Built from the frame rather than the decoder, which is only as right as
+    /// the header it read.
+    private func makeResampler(for frame: UnsafeMutablePointer<AVFrame>) -> Bool {
+        if resampler != nil {
+            var owned = resampler
+            swr_free(&owned)
+            resampler = nil
+        }
+
         var output = AVChannelLayout()
         av_channel_layout_default(&output, channelCount)
-        var input = AVChannelLayout()
-        let copied = av_channel_layout_copy(&input, &context.pointee.ch_layout)
-        guard copied >= 0 else { throw Failure.cannotOpen(copied) }
+        defer { av_channel_layout_uninit(&output) }
 
         var created: OpaquePointer?
         let result = swr_alloc_set_opts2(
             &created,
             &output, AV_SAMPLE_FMT_FLT, sampleRate,
-            &input, context.pointee.sample_fmt, context.pointee.sample_rate,
+            &frame.pointee.ch_layout, AVSampleFormat(rawValue: frame.pointee.format), frame.pointee.sample_rate,
             0, nil
         )
         guard result >= 0, let created, swr_init(created) >= 0 else {
-            throw Failure.cannotOpen(result)
+            var owned = created
+            swr_free(&owned)
+            return false
         }
         resampler = created
+        return true
+    }
 
-        // The shape every converted frame comes back in.
-        resampled?.pointee.format = AV_SAMPLE_FMT_FLT.rawValue
-        resampled?.pointee.sample_rate = sampleRate
-        if let resampled {
-            av_channel_layout_copy(&resampled.pointee.ch_layout, &output)
+    /// Said once per decoder, so a clip that has gone silent says why without
+    /// saying it fifty times a second.
+    private var hasReportedRefusal = false
+
+    private func reportRefusal(_ code: Int32, of frame: UnsafeMutablePointer<AVFrame>) {
+        guard !hasReportedRefusal else { return }
+        hasReportedRefusal = true
+        MediaLog.decoder.error(
+            """
+            the sound cannot be converted for playing \
+            (\(frame.pointee.sample_rate, privacy: .public) Hz, \
+            \(frame.pointee.ch_layout.nb_channels, privacy: .public) ch: \
+            \(FFmpegStatus.message(code), privacy: .public)); the clip will be silent
+            """
+        )
+    }
+
+    /// Converts `frame` into `resampled`, building or rebuilding the converter
+    /// when the frame is a shape it was not built for.
+    private func convert(
+        _ frame: UnsafeMutablePointer<AVFrame>, into resampled: UnsafeMutablePointer<AVFrame>
+    ) -> Bool {
+        if resampler == nil {
+            guard makeResampler(for: frame) else {
+                reportRefusal(0, of: frame)
+                return false
+            }
         }
+        var result = swr_convert_frame(resampler, resampled, frame)
+        if result == FFmpegStatus.inputChanged {
+            MediaLog.decoder.debug(
+                """
+                the sound changed shape midway, to \(frame.pointee.sample_rate, privacy: .public) Hz, \
+                \(frame.pointee.ch_layout.nb_channels, privacy: .public) ch; converting it to what it was
+                """
+            )
+            guard makeResampler(for: frame) else {
+                reportRefusal(result, of: frame)
+                return false
+            }
+            result = swr_convert_frame(resampler, resampled, frame)
+        }
+        guard result >= 0 else {
+            reportRefusal(result, of: frame)
+            return false
+        }
+        return true
     }
 
     /// Interleaved 32-bit float, which is what the renderer is handed.
@@ -197,7 +279,9 @@ final class AudioDecoder: @unchecked Sendable {
     private func makeAudio(
         from frame: UnsafeMutablePointer<AVFrame>, generation: Int
     ) -> DecodedAudio? {
-        guard let resampler, let resampled, let formatDescription else { return nil }
+        guard let resampled else { return nil }
+        if formatDescription == nil { settleOutput(on: frame) }
+        guard let formatDescription else { return nil }
 
         av_frame_unref(resampled)
         resampled.pointee.format = AV_SAMPLE_FMT_FLT.rawValue
@@ -205,8 +289,9 @@ final class AudioDecoder: @unchecked Sendable {
         var layout = AVChannelLayout()
         av_channel_layout_default(&layout, channelCount)
         av_channel_layout_copy(&resampled.pointee.ch_layout, &layout)
+        av_channel_layout_uninit(&layout)
 
-        guard swr_convert_frame(resampler, resampled, frame) >= 0 else { return nil }
+        guard convert(frame, into: resampled) else { return nil }
         let sampleCount = resampled.pointee.nb_samples
         guard sampleCount > 0, let data = resampled.pointee.data.0 else { return nil }
 

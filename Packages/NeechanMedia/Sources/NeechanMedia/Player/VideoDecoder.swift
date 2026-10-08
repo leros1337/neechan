@@ -187,9 +187,14 @@ final class VideoDecoder: @unchecked Sendable {
 
     /// Throws away everything the decoder is holding, after a seek.
     func flush() {
+        nextPresentation = .invalid
         guard let context else { return }
         avcodec_flush_buffers(context)
     }
+
+    /// Where the last picture's time on screen ended: the place for one that
+    /// comes out with no time of its own. Only the decoding thread touches it.
+    private var nextPresentation: CMTime = .invalid
 
     private func makeFrame(
         from frame: UnsafeMutablePointer<AVFrame>, generation: Int
@@ -218,7 +223,7 @@ final class VideoDecoder: @unchecked Sendable {
         }
         guard let pixelBuffer else { return nil }
 
-        let presentation = TimeMath.presentation(
+        var presentation = TimeMath.presentation(
             pts: frame.pointee.best_effort_timestamp,
             dts: frame.pointee.pkt_dts,
             numerator: timeBase.num,
@@ -231,6 +236,16 @@ final class VideoDecoder: @unchecked Sendable {
             frameRateNumerator: frameRate.num,
             frameRateDenominator: frameRate.den
         )
+        // An AVI stamps its pictures with a decoding time alone, and the one
+        // held back to put B-frames in order comes out at the end with no time
+        // at all. Its place is straight after the picture before it. Left
+        // untimed, the clip had no end the clock could reach.
+        if !presentation.isValid, nextPresentation.isValid {
+            presentation = nextPresentation
+        }
+        if presentation.isValid {
+            nextPresentation = duration.isValid ? presentation + duration : .invalid
+        }
         return DecodedFrame(
             pixelBuffer: pixelBuffer,
             presentation: presentation,

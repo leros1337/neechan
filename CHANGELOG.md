@@ -6,7 +6,9 @@ Notable changes per release. Earlier releases are listed under
 ## Unreleased
 
 A link in a post to a video or a picture opens in the app's own viewer, and
-a file on another host is no longer sent your 2ch session.
+a file on another host is no longer sent your 2ch session. Some MP4s that
+played in silence are heard, an AVI renamed to .mp4 plays, and a seek no
+longer stops a downloading clip with an error or freezes one at its end.
 
 ### Links
 
@@ -29,6 +31,40 @@ a file on another host is no longer sent your 2ch session.
   2ch cookies, including a passcode's, with every file it fetched, whatever
   host the file was on. In a 4chan thread they went to 4chan's file host.
   Only a file on the mirror you have chosen is sent them now.
+
+### Media
+
+- **Sound plays in an MP4 whose AAC only says it is stereo once it starts.**
+  HE-AAC v2 often declares just its core in the file's header, 22.05 kHz mono,
+  and turns out to be 44.1 kHz stereo when the first packet is decoded. The
+  player built everything from the header, refused every bit of sound that
+  came out, and said nothing: the picture played and the clip was silent.
+  What is played is now shaped by the first decoded sound, and a refusal is
+  written to the log. Two of the four HE-AAC v2 clips in one /test/ thread
+  were like this.
+- **An AVI named .mp4 plays.** A board checks a file's name, not its bytes, so
+  an old XviD rip renamed to .mp4 is posted and served as an MP4. The app's
+  FFmpeg could not read AVI or decode MPEG-4 Part 2 and the clip failed to
+  open. neechan-ffmpeg 9.0.4, the same FFmpeg n9.0.2, adds both; the file is
+  recognised by its bytes whatever it is called, and its 5.1 AC-3 sound comes
+  out as stereo. Its last picture carries no time of its own and is now
+  shown after the one before it; untimed, the clip never reached its end and
+  the timeline counted on.
+- **A seek no longer stops a clip with an error a moment later.** A seek cuts
+  short whatever read is waiting on the network, and FFmpeg kept that read's
+  failure where nothing cleared it. The next time the demuxer came to an end
+  of any kind the clip failed with "Playback failed.", a second or two after
+  the seek had worked. It took a seek in a clip still downloading, so large
+  phone videos were hit most. The interrupted read is forgotten now, and the
+  interrupt can no longer land on the very seek it was raised for.
+- **A seek past the last picture finishes the clip instead of freezing it.**
+  Dragging to the very end of any clip, or seeking into the missing part of a
+  cut-off upload, found no picture at or after the target, and the player
+  waited for one for as long as anyone watched. The last picture there is is
+  shown and the clip is over. A cut-off file keeps an index for the whole of
+  what it once was -- one in /test/ declares fifty seconds and holds thirteen
+  -- so a seek it sends off the end goes back to the last keyframe read
+  instead.
 
 ## 2.5.1
 

@@ -48,6 +48,20 @@ public enum Fixture: String, CaseIterable, Sendable {
     /// H.264 with FLAC in a Matroska file, which is what a `.mkv` usually is:
     /// the same container as WebM carrying codecs WebM never does.
     case sampleMatroska = "sample_matroska"
+    /// H.264 with HE-AAC v2 whose header says it is 22.05 kHz mono.
+    ///
+    /// It is 44.1 kHz stereo: the doubled rate and the second channel are only
+    /// signalled inside the sound itself, which the decoder finds on its first
+    /// packet. 2ch serves files like this, and a player that believes the
+    /// header plays them silent. Made by encoding HE-AAC v2 to ADTS, which
+    /// can carry only the core, and copying that into an MP4.
+    case sampleImplicitHEAAC = "sample_heaac_implicit"
+    /// An AVI named `.mp4`: XviD with B-frames and 5.1 AC-3.
+    ///
+    /// Boards check a file's name rather than its bytes, so an old rip renamed
+    /// to get past the filter is posted as an MP4 and served as one. Like the
+    /// real thing, its pictures carry only a decoding time.
+    case sampleAVI = "sample_avi"
 
     /// VP9 with no sound at all. Boards are full of these, and a player that
     /// waits for an audio clock it will never get shows a frozen picture.
@@ -78,6 +92,15 @@ public enum Fixture: String, CaseIterable, Sendable {
     /// be decoded without the ones before it. Made from an ordinary FFmpeg
     /// WebM by rewriting its Cues.
     case sampleMisindexed = "sample_misindexed"
+
+    /// A four-second VP8 and Vorbis WebM cut off after a second and a half.
+    ///
+    /// Its header still says four seconds, and its index, written at the front
+    /// as some muxers do, still points at clusters for the whole four. Seeking
+    /// past what is left sends FFmpeg off the end of the file with nothing to
+    /// show. 2ch serves uploads like this; one in /test/ declares fifty
+    /// seconds and holds thirteen.
+    case sampleCutOff = "sample_cutoff"
 
     // Captcha
     case captchaSettings = "captcha_settings"
@@ -135,8 +158,9 @@ public enum Fixture: String, CaseIterable, Sendable {
         case .sampleStillPNG: "png"
         case .sampleAnimatedGIF: "gif"
         case .sampleVideo, .sampleVP9Profile0, .sampleVP8, .sampleVorbis,
-             .sampleVideoOnly, .sampleAudioOnly, .sampleLong, .sampleMisindexed: "webm"
-        case .sampleH264, .sampleHEV1: "mp4"
+             .sampleVideoOnly, .sampleAudioOnly, .sampleLong, .sampleMisindexed,
+             .sampleCutOff: "webm"
+        case .sampleH264, .sampleHEV1, .sampleImplicitHEAAC, .sampleAVI: "mp4"
         case .sampleMatroska, .sampleUndecodableAudio: "mkv"
         default: "json"
         }

@@ -86,6 +86,17 @@ public final class MediaPlayer {
     /// than the CPU. For diagnostics.
     public var isDecodingInHardware: Bool { pipeline?.isDecodingInHardware ?? false }
 
+    /// What the open file turned out to hold, for diagnostics.
+    var containerName: String? { pipeline?.containerName }
+    var videoCodecName: String? { pipeline?.videoCodecName }
+    var audioCodecName: String? { pipeline?.audioCodecName }
+    /// Nil when the clip has no sound to decode; false when it has, and none
+    /// has come out of the decoder.
+    var hasDecodedSound: Bool? {
+        guard let pipeline, pipeline.hasAudio else { return nil }
+        return pipeline.hasDecodedSound
+    }
+
     public private(set) var state: PlaybackState = .idle {
         didSet {
             guard state != oldValue else { return }

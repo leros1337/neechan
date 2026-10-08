@@ -85,6 +85,11 @@ final class Demuxer: @unchecked Sendable {
     private var keyframes: [Int64] = []
     private(set) var audioStream: UnsafeMutablePointer<AVStream>?
 
+    /// What FFmpeg found the file to be, from its bytes rather than its name:
+    /// "matroska,webm", "mov,mp4,m4a,3gp,3g2,mj2", "avi". A board checks the
+    /// name, so the two can disagree.
+    private(set) var containerName = "unknown"
+
     init(source: MediaSource) throws {
         guard var context = avformat_alloc_context() else {
             throw Failure.cannotOpen(0)
@@ -137,10 +142,10 @@ final class Demuxer: @unchecked Sendable {
         // through their retries first.
         io?.shouldStopReading = { [weak self] in self?.shouldInterrupt ?? true }
 
-        let container = context.pointee.iformat.map { String(cString: $0.pointee.name) } ?? "unknown"
+        containerName = context.pointee.iformat.map { String(cString: $0.pointee.name) } ?? "unknown"
         MediaLog.demuxer.debug(
             """
-            opened \(container, privacy: .public): \
+            opened \(self.containerName, privacy: .public): \
             \(self.duration, format: .fixed(precision: 1), privacy: .public)s, \
             \(Int(self.naturalSize.width), privacy: .public)x\(Int(self.naturalSize.height), privacy: .public), \
             rotated \(self.rotationDegrees, format: .fixed(precision: 0), privacy: .public)°, \
@@ -183,8 +188,19 @@ final class Demuxer: @unchecked Sendable {
     }
 
     /// Lets reading start again, once the seek has been made.
+    ///
+    /// A read cut short leaves its failure on FFmpeg's byte source, along
+    /// with a mark saying the end was reached, and FFmpeg forgets neither by
+    /// itself. The next time the demuxer came to an end of any kind, the end
+    /// was reported as that failure, and a clip that had just seeked perfectly
+    /// well stopped with an input/output error. The read was cut short on
+    /// purpose; nothing is wrong with the file.
     func resumeAfterSeek() {
         isInterrupted.withLock { $0 = false }
+        if let source = context?.pointee.pb {
+            source.pointee.error = 0
+            source.pointee.eof_reached = 0
+        }
     }
 
     var isCancelledNow: Bool { isCancelled.withLock { $0 } }
@@ -343,23 +359,39 @@ final class Demuxer: @unchecked Sendable {
     /// usually close because the reader runs well ahead, and failing that to
     /// the start. Either way the pictures up to the target are decoded and
     /// thrown away, as after any seek.
+    ///
+    /// Running off the end of the file without a picture is a miss as well.
+    /// An index written at the front of a file describes the whole of it, and
+    /// a file cut off partway keeps that index: 2ch serves one that declares
+    /// fifty seconds and holds thirteen, whose index sends any seek past the
+    /// thirteenth to bytes that are not there.
     @discardableResult
     func seek(to time: TimeInterval) -> Bool {
         guard let context else { return false }
         readAhead.removeAll()
         let target = Int64(max(0, time) * TimeInterval(AV_TIME_BASE))
         guard av_seek_frame(context, -1, target, FFmpegStatus.seekBackward) >= 0 else { return false }
-        guard let video = videoStream, !landsOnKeyframe() else { return true }
+        guard let video = videoStream else { return true }
+
+        let miss: String
+        switch landing() {
+        case .keyframe, .unknown:
+            return true
+        case .notKeyframe:
+            miss = "a picture that is not a keyframe"
+        case .noPicture:
+            miss = "the end of the file with no picture on the way"
+        }
 
         let index = video.pointee.index
         let inStream = av_rescale_q(target, AVRational(num: 1, den: AV_TIME_BASE), video.pointee.time_base)
         if let known = keyframes.last(where: { $0 <= inStream }) {
             readAhead.removeAll()
-            if av_seek_frame(context, index, known, FFmpegStatus.seekBackward) >= 0, landsOnKeyframe() {
+            if av_seek_frame(context, index, known, FFmpegStatus.seekBackward) >= 0, landing() == .keyframe {
                 MediaLog.demuxer.warning(
                     """
-                    the file's index sent a seek to a picture that is not a keyframe; \
-                    went back to the one at \(TimeMath.seconds(TimeMath.time(known, numerator: video.pointee.time_base.num, denominator: video.pointee.time_base.den)), format: .fixed(precision: 3), privacy: .public)s
+                    the file's index sent a seek to \(miss, privacy: .public); \
+                    went back to the keyframe at \(TimeMath.seconds(TimeMath.time(known, numerator: video.pointee.time_base.num, denominator: video.pointee.time_base.den)), format: .fixed(precision: 3), privacy: .public)s
                     """
                 )
                 return true
@@ -367,30 +399,43 @@ final class Demuxer: @unchecked Sendable {
         }
 
         MediaLog.demuxer.warning(
-            "the file's index sent a seek to a picture that is not a keyframe; went back to the start"
+            "the file's index sent a seek to \(miss, privacy: .public); went back to the start"
         )
         readAhead.removeAll()
         guard av_seek_frame(context, -1, 0, FFmpegStatus.seekBackward) >= 0 else { return false }
-        _ = landsOnKeyframe()
+        _ = landing()
         return true
     }
 
+    /// Where a seek put the reading, judged by the first picture after it.
+    private enum Landing: Equatable {
+        case keyframe
+        case notKeyframe
+        /// The file ran out before a picture turned up.
+        case noPicture
+        /// Nothing more to learn: a read that failed, or a seek overtaken by
+        /// another. `read` reports those itself once what was kept has gone.
+        case unknown
+    }
+
     /// Reads up to the first picture, keeping everything read for `read` to
-    /// hand out, and says whether that picture is a keyframe.
-    ///
-    /// Also true when there is nothing more to learn: the end of the file, a
-    /// read that failed, or a seek that has been overtaken by another. `read`
-    /// reports those itself once what was kept has gone.
-    private func landsOnKeyframe() -> Bool {
+    /// hand out, and says what that picture was.
+    private func landing() -> Landing {
         let index = videoStream?.pointee.index
         // A picture always turns up within a few packets of sound; a file
         // where it does not is not worth reading through.
         while readAhead.count < 512 {
-            guard case .packet(let packet) = readFromFile() else { return true }
-            readAhead.append(packet)
-            if packet.streamIndex == index { return packet.isKeyframe }
+            switch readFromFile() {
+            case .packet(let packet):
+                readAhead.append(packet)
+                if packet.streamIndex == index { return packet.isKeyframe ? .keyframe : .notKeyframe }
+            case .endOfFile:
+                return .noPicture
+            case .failed, .cancelled, .interrupted:
+                return .unknown
+            }
         }
-        return true
+        return .unknown
     }
 
     /// The time base of a stream, by index.

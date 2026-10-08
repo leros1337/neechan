@@ -1,6 +1,8 @@
 import CoreGraphics
 import CoreMedia
 import Foundation
+import Libavcodec
+import Libavformat
 import Synchronization
 
 /// One file, from bytes to something ready to show.
@@ -57,6 +59,24 @@ final class Pipeline: @unchecked Sendable {
     var hasVideo: Bool { videoStreamIndex != nil }
     var hasAudio: Bool { audioStreamIndex != nil }
 
+    /// What the file turned out to be, for diagnostics.
+    var containerName: String { demuxer.containerName }
+    var videoCodecName: String? { Self.codecName(of: demuxer.videoStream) }
+    var audioCodecName: String? { Self.codecName(of: demuxer.audioStream) }
+
+    private static func codecName(of stream: UnsafeMutablePointer<AVStream>?) -> String? {
+        guard let parameters = stream?.pointee.codecpar else { return nil }
+        return String(cString: avcodec_get_name(parameters.pointee.codec_id))
+    }
+
+    /// Whether any sound has come out of the decoder yet.
+    ///
+    /// Having a sound stream is not the same thing. A decoder that will not
+    /// open, or one whose every run is refused on the way out, leaves the clip
+    /// playing in silence, and nothing else about it looks wrong.
+    var hasDecodedSound: Bool { decodedSound.withLock { $0 } }
+    private let decodedSound = Mutex(false)
+
     private(set) var isDecodingInHardware = false
 
     init(source: MediaSource, capabilities: VideoDecoderCapabilities = .current) throws {
@@ -100,10 +120,15 @@ final class Pipeline: @unchecked Sendable {
         // and the frames arrive already in the past.
         gate.withLock { $0.beginSeek(to: time) }
         audioSeekTarget.withLock { $0 = time }
-        pendingSeek.withLock { $0 = time }
         // Cut short whatever read is in flight so the seek is answered now
         // rather than whenever the network gets round to answering.
+        //
+        // Before the target is set, never after. The reading thread clears the
+        // lever as it takes a target; pulled after that, it landed on the
+        // reads of the very seek it was announcing, and nothing came round to
+        // make that seek again.
         demuxer.interruptForSeek()
+        pendingSeek.withLock { $0 = time }
         videoPackets.flush()
         audioPackets.flush()
         videoFrames.flush()
@@ -217,6 +242,7 @@ final class Pipeline: @unchecked Sendable {
                 // its end was drained. Whatever the decoder is holding belongs
                 // to the old position.
                 decoder.flush()
+                lastBeforeSeek = nil
                 lastGeneration = generation
             }
 
@@ -227,6 +253,7 @@ final class Pipeline: @unchecked Sendable {
                 // Drain: a stream with B-frames holds its last pictures back
                 // until it is told there is nothing more coming.
                 try? decoder.decode(nil, generation: generation) { emit($0) }
+                answerSeekWithTheLastPicture()
                 videoFrames.finish()
                 // Then wait to be sent round again rather than ending here.
                 // The next packet comes under a new generation, which resets
@@ -272,8 +299,10 @@ final class Pipeline: @unchecked Sendable {
             let time = TimeMath.seconds(frame.presentation)
             if frame.presentation.isValid, !Self.isForSeek(time: time, target: target) {
                 droppedSinceSeek.withLock { $0 += 1 }
+                if time < target { lastBeforeSeek = frame }
                 return
             }
+            lastBeforeSeek = nil
             // The target is cleared only once a picture has actually been
             // taken. A picture left over from where the clip was before the
             // seek fails this push, and clearing on sight let it stand in for
@@ -297,6 +326,39 @@ final class Pipeline: @unchecked Sendable {
         // of the old position whose push straddled a seek is refused here,
         // where it used to be taken for the seek's first picture.
         if gate.withLock({ $0.claimPlainReport() }) { onFirstFrame?(nil) }
+    }
+
+    /// The last picture thrown away on the way to a seek's target, in case
+    /// nothing at or after the target ever arrives. Only the video thread
+    /// touches it.
+    private nonisolated(unsafe) var lastBeforeSeek: DecodedFrame?
+
+    /// Answers a seek that the file ran out before reaching.
+    ///
+    /// A seek to the very end of a clip, or into the part of a cut-off file
+    /// that is not there, has no picture at or after its target. Nothing was
+    /// ever announced for it, so the player waited for one for as long as
+    /// anyone watched, over a frozen frame. The last picture there is stands
+    /// in, shown at the target: it is what the end of the clip looks like, and
+    /// the clip is over once it has been shown.
+    private func answerSeekWithTheLastPicture() {
+        defer { lastBeforeSeek = nil }
+        guard let target = gate.withLock({ $0.seekTarget }), let last = lastBeforeSeek else { return }
+        let shown = DecodedFrame(
+            pixelBuffer: last.pixelBuffer,
+            presentation: CMTime(seconds: target, preferredTimescale: 90_000),
+            duration: last.duration,
+            generation: last.generation
+        )
+        guard videoFrames.push(shown, generation: shown.generation) else { return }
+        guard let answered = gate.withLock({ $0.claimSeekReport() }) else { return }
+        MediaLog.decoder.debug(
+            """
+            the file ran out before \(target, format: .fixed(precision: 3), privacy: .public)s; \
+            showing its last picture, from \(TimeMath.seconds(last.presentation), format: .fixed(precision: 3), privacy: .public)s
+            """
+        )
+        onFirstFrame?(answered)
     }
 
     /// Whether a decoded picture or run of sound belongs to the seek being
@@ -324,6 +386,7 @@ final class Pipeline: @unchecked Sendable {
     /// the picture getting any packets at all. The clip then never reaches the
     /// place it was sent to.
     private func emit(_ run: DecodedAudio) {
+        decodedSound.withLock { $0 = true }
         if let target = audioSeekTarget.withLock({ $0 }) {
             let time = TimeMath.seconds(run.presentation) + run.mediaDuration
             // Only sound from before where the reader asked is dropped.

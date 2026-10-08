@@ -41,7 +41,7 @@ struct AudioDecoderTests {
         "every audio codec the app meets decodes",
         arguments: [
             Fixture.sampleVP9Profile0, .sampleVP8, .sampleVorbis, .sampleVideo,
-            .sampleH264, .sampleHEV1, .sampleMatroska
+            .sampleH264, .sampleHEV1, .sampleMatroska, .sampleImplicitHEAAC, .sampleAVI
         ]
     )
     func everyCodecDecodes(fixture: Fixture) throws {
@@ -75,7 +75,7 @@ struct AudioDecoderTests {
     /// one on nearly every frame, which is heard as crackling.
     @Test(
         "sound runs back to back, with no gaps and no overlaps",
-        arguments: [Fixture.sampleVorbis, .sampleVP9Profile0, .sampleH264]
+        arguments: [Fixture.sampleVorbis, .sampleVP9Profile0, .sampleH264, .sampleImplicitHEAAC]
     )
     func runsAreContiguous(fixture: Fixture) throws {
         let (runs, _, _) = try decodeEverything(fixture)
@@ -108,6 +108,32 @@ struct AudioDecoderTests {
         #expect(asbd.mChannelsPerFrame == UInt32(channels))
         #expect(CMSampleBufferGetNumSamples(first.sampleBuffer) > 0)
         #expect(CMSampleBufferIsValid(first.sampleBuffer))
+    }
+
+    /// The header of this sound says 22.05 kHz mono. The sound itself is
+    /// 44.1 kHz stereo, and says so only once the first packet is decoded.
+    /// Everything built from the header refused every run that came out, and
+    /// the clip played in silence without a word in the log.
+    @Test("HE-AAC v2 that calls itself mono is heard as the stereo it is")
+    func implicitHEAACIsHeard() throws {
+        let (runs, rate, channels) = try decodeEverything(.sampleImplicitHEAAC)
+        #expect(!runs.isEmpty, "not one run of sound came out")
+        #expect(rate == 44_100)
+        #expect(channels == 2)
+
+        let first = try #require(runs.first)
+        let description = try #require(CMSampleBufferGetFormatDescription(first.sampleBuffer))
+        let asbd = try #require(CMAudioFormatDescriptionGetStreamBasicDescription(description)?.pointee)
+        #expect(asbd.mSampleRate == 44_100)
+        #expect(asbd.mChannelsPerFrame == 2)
+    }
+
+    @Test("five-point-one sound is folded down to stereo")
+    func surroundComesOutAsStereo() throws {
+        let (runs, rate, channels) = try decodeEverything(.sampleAVI)
+        #expect(!runs.isEmpty)
+        #expect(rate == 48_000)
+        #expect(channels == 2)
     }
 
     @Test("a decoder can be flushed and used again, which is what a seek does")

@@ -81,7 +81,9 @@ struct DemuxerTests {
             (.sampleVideo, CGSize(width: 320, height: 240)),
             (.sampleH264, CGSize(width: 64, height: 64)),
             (.sampleHEV1, CGSize(width: 64, height: 64)),
-            (.sampleMatroska, CGSize(width: 64, height: 64))
+            (.sampleMatroska, CGSize(width: 64, height: 64)),
+            (.sampleImplicitHEAAC, CGSize(width: 64, height: 64)),
+            (.sampleAVI, CGSize(width: 64, height: 64))
         ]
     )
     func everyContainerOpens(fixture: Fixture, size: CGSize) throws {
@@ -123,6 +125,51 @@ struct DemuxerTests {
 
         #expect(demuxer.videoStream?.pointee.codecpar.pointee.codec_id == AV_CODEC_ID_H264)
         #expect(demuxer.audioStream?.pointee.codecpar.pointee.codec_id == AV_CODEC_ID_FLAC)
+    }
+
+    /// The index of a cut-off file still describes the whole of it, so a seek
+    /// into the part that is missing sends FFmpeg off the end with nothing
+    /// read. That is a miss like any other: the demuxer goes back to the last
+    /// keyframe it has seen, and the pictures from there are what there is.
+    @Test("a seek into the part of a cut-off file that is not there lands on what is")
+    func seekIntoTheMissingPart() throws {
+        let url = try file(.sampleCutOff)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let demuxer = try Demuxer(source: .file(url))
+        defer { demuxer.close() }
+        let video = try #require(demuxer.videoStream)
+
+        // Read through once, as playing it does, so its keyframes are known.
+        while demuxer.readPacket() != nil {}
+
+        #expect(demuxer.seek(to: 3))
+        var first: OwnedPacket?
+        while let packet = demuxer.readPacket() {
+            if packet.streamIndex == video.pointee.index { first = packet; break }
+        }
+        let landed = try #require(first, "the seek went off the end with nothing to show")
+        #expect(landed.isKeyframe)
+        let seconds = TimeMath.seconds(TimeMath.time(
+            landed.packet.pointee.pts,
+            numerator: video.pointee.time_base.num,
+            denominator: video.pointee.time_base.den
+        ))
+        #expect(abs(seconds - 1) < 0.01, "landed at \(seconds)s rather than the last keyframe there is")
+    }
+
+    /// The name says MP4 and the bytes say AVI. The bytes are what count:
+    /// nothing tells FFmpeg what to expect, so it looks.
+    @Test("an AVI named .mp4 is opened as the AVI it is")
+    func aviNamedMP4OpensAsAVI() throws {
+        let url = try file(.sampleAVI)
+        defer { try? FileManager.default.removeItem(at: url) }
+        #expect(url.pathExtension == "mp4")
+        let demuxer = try Demuxer(source: .file(url))
+        defer { demuxer.close() }
+
+        #expect(demuxer.containerName == "avi")
+        #expect(demuxer.videoStream?.pointee.codecpar.pointee.codec_id == AV_CODEC_ID_MPEG4)
+        #expect(demuxer.audioStream?.pointee.codecpar.pointee.codec_id == AV_CODEC_ID_AC3)
     }
 
     @Test("packets come out until the file runs out")

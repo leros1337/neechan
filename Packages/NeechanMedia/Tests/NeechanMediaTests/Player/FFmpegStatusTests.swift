@@ -24,6 +24,11 @@ struct FFmpegStatusTests {
         #expect(FFmpegStatus.message(FFmpegStatus.tryAgain) == "Resource temporarily unavailable")
     }
 
+    @Test("input changed is the code the converter asks to be rebuilt with")
+    func inputChangedMatchesTheLibrary() {
+        #expect(FFmpegStatus.message(FFmpegStatus.inputChanged) == "Input changed")
+    }
+
     @Test("no timestamp is the value FFmpeg leaves in an absent one")
     func noTimestampIsTheLibrarysOwn() {
         // AV_NOPTS_VALUE is INT64_MIN.

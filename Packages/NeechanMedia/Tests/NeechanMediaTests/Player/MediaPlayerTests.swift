@@ -39,7 +39,9 @@ struct MediaPlayerTests {
             (.sampleVP8, .webmVideo),
             (.sampleH264, .mp4Video),
             (.sampleHEV1, .mp4Video),
-            (.sampleMatroska, .webmVideo)
+            (.sampleMatroska, .webmVideo),
+            (.sampleImplicitHEAAC, .mp4Video),
+            (.sampleAVI, .mp4Video)
         ]
     )
     func everyFilePlays(fixture: Fixture, kind: MediaKind) async throws {
@@ -355,6 +357,63 @@ struct PlayerStreamCombinationTests {
         #expect(await wait { player.state == .playing }, "a silent clip never started")
         #expect(await wait { furthest > 0.2 }, "the clock did not advance without audio")
         #expect(await wait { player.state == .finished }, "a silent clip never ended")
+    }
+
+    /// The picture played and the clock ran, so nothing about the clip looked
+    /// wrong but the silence. Only whether sound came out of the decoder says
+    /// so.
+    @Test(
+        "a clip whose sound only says what it is once it starts is heard",
+        arguments: [Fixture.sampleImplicitHEAAC, .sampleAVI]
+    )
+    func soundThatChangesShapeIsHeard(fixture: Fixture) async throws {
+        // One playback test at a time; see PlayerTestGate.
+        await PlayerTestGate.shared.enter()
+        defer { PlayerTestGate.shared.leave() }
+
+        let url = try file(fixture)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let player = MediaPlayer()
+        defer { player.shutdown() }
+        player.load(url: url, options: MediaPlayerOptions(kind: .mp4Video, startsMuted: true))
+
+        #expect(
+            await wait { player.state == .playing },
+            "\(fixture.rawValue) never started: \(player.lastFailure ?? "no error")"
+        )
+        #expect(
+            await wait { player.hasDecodedSound == true },
+            "\(fixture.rawValue) played in silence"
+        )
+    }
+
+    /// Nothing at or after the target ever arrives: the file is cut off before
+    /// it, or the target is its very end. The player waited for a picture for
+    /// the seek for as long as anyone watched, over a frozen frame. The last
+    /// picture there is answers it, and the clip is over.
+    @Test(
+        "a seek past the last picture there is shows that picture and finishes",
+        arguments: [(Fixture.sampleCutOff, 3.0), (.sampleLong, 12.0)]
+    )
+    func seekPastTheLastPictureFinishes(fixture: Fixture, target: TimeInterval) async throws {
+        // One playback test at a time; see PlayerTestGate.
+        await PlayerTestGate.shared.enter()
+        defer { PlayerTestGate.shared.leave() }
+
+        let url = try file(fixture)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let player = MediaPlayer()
+        defer { player.shutdown() }
+        player.load(url: url, options: MediaPlayerOptions(kind: .webmVideo, startsMuted: true))
+        #expect(await wait { player.state == .playing }, "\(fixture.rawValue) never started")
+
+        player.seek(to: target)
+        #expect(
+            await wait(seconds: 15) { player.state == .finished },
+            "\(fixture.rawValue) is still \(player.state) after a seek to \(target)s"
+        )
     }
 
     @Test("a clip with no picture plays and ends")
@@ -812,6 +871,44 @@ struct StarvationTests {
             "it stopped at \(stalledAt)s and stayed there, reaching only \(furthest)s"
         )
         #expect(player.state != .failed(""), "it failed rather than waiting")
+    }
+
+    /// A seek cuts short whatever read is waiting on the network. FFmpeg kept
+    /// that read's failure on its byte source, where nothing cleared it, and
+    /// the next time the demuxer came to an end of any kind, the end was
+    /// reported as that old failure: the clip stopped with an input/output
+    /// error a moment after the seek had worked. On a board it took a seek in
+    /// any clip still arriving.
+    @Test("a seek that cuts a read short leaves nothing behind to fail the clip later")
+    func seekingMidReadLeavesNoFailureBehind() async throws {
+        // One playback test at a time; see PlayerTestGate.
+        await PlayerTestGate.shared.enter()
+        defer { PlayerTestGate.shared.leave() }
+
+        // Every piece held back, so the reading thread is nearly always
+        // waiting on one when the seek comes.
+        SlowServingProtocol.delay.withLock { $0 = 0.3 }
+        defer { SlowServingProtocol.delay.withLock { $0 = 0 } }
+
+        let player = MediaPlayer()
+        defer { player.shutdown() }
+
+        player.load(
+            // A name of its own: the store keeps what it has fetched.
+            url: URL(string: "https://slow.invalid/\(UUID().uuidString).webm")!,
+            options: MediaPlayerOptions(kind: .webmVideo, startsMuted: true),
+            session: slowSession(),
+            blockSize: 4 << 10
+        )
+        #expect(await wait(seconds: 30) { player.state == .playing }, "the clip never started")
+
+        player.seek(to: 8)
+        let isFailed = { if case .failed = player.state { true } else { false } }
+        #expect(
+            await wait(seconds: 60) { player.state == .finished || isFailed() },
+            "the clip neither finished nor failed: \(player.state)"
+        )
+        #expect(player.state == .finished, "it failed: \(player.lastFailure ?? "no detail")")
     }
 }
 

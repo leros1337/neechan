@@ -35,7 +35,7 @@ struct FFmpegBuildTests {
         "every codec the app opens files with is in the build",
         arguments: [
             AV_CODEC_ID_VP8, AV_CODEC_ID_VP9, AV_CODEC_ID_AV1,
-            AV_CODEC_ID_H264, AV_CODEC_ID_HEVC,
+            AV_CODEC_ID_H264, AV_CODEC_ID_HEVC, AV_CODEC_ID_MPEG4,
             AV_CODEC_ID_VORBIS, AV_CODEC_ID_OPUS, AV_CODEC_ID_AAC,
             AV_CODEC_ID_MP3, AV_CODEC_ID_FLAC, AV_CODEC_ID_ALAC,
             AV_CODEC_ID_AC3, AV_CODEC_ID_EAC3, AV_CODEC_ID_DTS
@@ -60,6 +60,7 @@ struct FFmpegBuildTests {
     func containersArePresent() {
         #expect(av_find_input_format("matroska") != nil, "no Matroska demuxer, so no WebM or MKV")
         #expect(av_find_input_format("mov") != nil, "no MOV demuxer, so no MP4")
+        #expect(av_find_input_format("avi") != nil, "no AVI demuxer, so no XviD renamed to .mp4")
         #expect(av_guess_format("mp4", nil, nil) != nil, "no MP4 muxer, so nothing to convert into")
     }
 
