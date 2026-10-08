@@ -101,8 +101,14 @@ public final class GalleryViewModel {
     /// thread on every pass of the gallery's body, and the body ran whenever
     /// playback reported progress, ten times a second.
     private let sessionCookies: [String: String]
-    /// Player options per kind of file, built on demand and kept.
-    @ObservationIgnored private var cachedOptions: [MediaKind: MediaPlayerOptions] = [:]
+    /// Player options per kind of file and whether it is sent the session,
+    /// built on demand and kept.
+    @ObservationIgnored private var cachedOptions: [OptionsKey: MediaPlayerOptions] = [:]
+
+    private struct OptionsKey: Hashable {
+        let kind: MediaKind
+        let sendsCookies: Bool
+    }
 
     public init(
         items: [GalleryItem],
@@ -303,20 +309,33 @@ public final class GalleryViewModel {
     /// Memoised per kind of file. Everything in here is fixed for the life of
     /// the gallery except the loop flag, which clears the cache when it changes.
     public func playerOptions(for item: GalleryItem) -> MediaPlayerOptions {
-        if let cached = cachedOptions[item.kind] { return cached }
+        let sendsCookies = sendsCookies(to: item)
+        let key = OptionsKey(kind: item.kind, sendsCookies: sendsCookies)
+        if let cached = cachedOptions[key] { return cached }
 
         // One thread, one site: every item here shares a referer, so keying
-        // the cache on the kind alone is safe.
+        // the cache on the kind and the cookies alone is safe.
         let options = MediaPlayerOptions(
             kind: item.kind,
             referer: referer(for: item),
             userAgent: UserAgent.current,
-            cookies: sessionCookies,
+            cookies: sendsCookies ? sessionCookies : [:],
             loops: isLooping,
             autoplays: services.settings.videoAutoplay
         )
-        cachedOptions[item.kind] = options
+        cachedOptions[key] = options
         return options
+    }
+
+    /// Whether a file is on the mirror the session belongs to.
+    ///
+    /// The player writes the cookies into a header of its own, which goes to
+    /// whatever host the file is on rather than only the hosts the cookies
+    /// were set for. A file linked from a post can be on any host at all, and
+    /// a 4chan file is on 4chan's: neither is sent a 2ch session.
+    private func sendsCookies(to item: GalleryItem) -> Bool {
+        guard let host = url(for: item)?.host() else { return false }
+        return host == services.settings.domain.baseURL.host()
     }
 
     private static func storedCookies(for domain: DvachDomain) -> [String: String] {
