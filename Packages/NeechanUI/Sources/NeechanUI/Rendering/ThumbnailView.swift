@@ -41,6 +41,11 @@ public struct ThumbnailView: View {
             .modifier(SafeForWorkBlur(isActive: isBlurred))
             .background(.quaternary)
             .clipShape(.rect(cornerRadius: side == nil ? 0 : 10))
+            // Clipping hides the part of a filled picture that spills past the
+            // square, but that part still takes taps. A tall screenshot took
+            // the taps of the gallery cell above it, so a tap on a video opened
+            // the picture below.
+            .contentShape(.rect(cornerRadius: side == nil ? 0 : 10))
             .overlay { playIndicator }
             .overlay { revealButton }
             .overlay(alignment: .bottomTrailing) { badge }

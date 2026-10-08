@@ -8,7 +8,8 @@ Notable changes per release. Earlier releases are listed under
 A link in a post to a video or a picture opens in the app's own viewer, and
 a file on another host is no longer sent your 2ch session. Some MP4s that
 played in silence are heard, an AVI renamed to .mp4 plays, and a seek no
-longer stops a downloading clip with an error or freezes one at its end.
+longer stops a downloading clip with an error or freezes one at its end. A
+tap in the gallery grid opens the file you tapped, not the one below it.
 
 ### Links
 
@@ -31,6 +32,12 @@ longer stops a downloading clip with an error or freezes one at its end.
   2ch cookies, including a passcode's, with every file it fetched, whatever
   host the file was on. In a 4chan thread they went to 4chan's file host.
   Only a file on the mirror you have chosen is sent them now.
+- **A tap in the grid opens the file you tapped.** Tapping a video could open
+  the picture below it. A thumbnail is cropped to its square, but the cropped
+  part still took taps, and later cells lie on top: a tall screenshot took
+  the lower half of the cell above it, and a wide picture the edge of the
+  cell to its left. Each thumbnail now answers only inside its own square, in
+  the grid, in a thread, on a board and in the attachments of a new post.
 
 ### Media
 

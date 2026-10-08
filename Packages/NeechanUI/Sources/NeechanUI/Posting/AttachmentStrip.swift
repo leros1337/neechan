@@ -54,6 +54,9 @@ private struct AttachmentTile: View {
                     .frame(width: 76, height: 76)
                     .background(.quaternary)
                     .clipShape(.rect(cornerRadius: 10))
+                    // A wide picture still takes taps past its clipped edge,
+                    // on the next tile and that tile's remove button.
+                    .contentShape(.rect(cornerRadius: 10))
 
                     Button(action: onRemove) {
                         Image(systemName: "xmark.circle.fill")
