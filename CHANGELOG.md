@@ -10,6 +10,8 @@ a file on another host is no longer sent your 2ch session. Some MP4s that
 played in silence are heard, an AVI renamed to .mp4 plays, and a seek no
 longer stops a downloading clip with an error or freezes one at its end. A
 tap in the gallery grid opens the file you tapped, not the one below it.
+Music from another app stops only while a clip is heard, and carries on
+when the clip is paused, muted or closed.
 
 ### Links
 
@@ -41,6 +43,17 @@ tap in the gallery grid opens the file you tapped, not the one below it.
 
 ### Media
 
+- **Music from another app stops only while a clip is heard.** Opening a
+  video stopped Spotify, Music or a podcast even when the clip was muted or
+  had no sound at all, and it stayed stopped until the gallery or the feed
+  closed. It now stops only while a clip plays out loud, and carries on when
+  the clip is paused, muted, finished or closed, or when the app goes to the
+  background. After a pause it waits a second, so a swipe in the feed does
+  not start and stop it. The feed starts muted, so music keeps playing until
+  you turn the feed's sound on. A video in another app's picture-in-picture
+  window stops the same way, but usually waits for a tap to carry on. A call,
+  or music started from Control Centre, pauses a clip that was playing out
+  loud. Before, the clip carried on with no sound.
 - **Sound plays in an MP4 whose AAC only says it is stereo once it starts.**
   HE-AAC v2 often declares just its core in the file's header, 22.05 kHz mono,
   and turns out to be 44.1 kHz stereo when the first packet is decoded. The

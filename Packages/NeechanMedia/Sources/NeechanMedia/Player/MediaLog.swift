@@ -30,4 +30,6 @@ enum MediaLog {
     static let output = Logger(subsystem: "io.neechan.media", category: "output")
     /// What the app above is told.
     static let player = Logger(subsystem: "io.neechan.media", category: "player")
+    /// Taking the sound from other apps and giving it back.
+    static let session = Logger(subsystem: "io.neechan.media", category: "session")
 }

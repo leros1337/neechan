@@ -31,6 +31,12 @@ public final class MediaPlayer {
     /// A short name for this player, so two of them can be told apart in a log.
     public private(set) var name: String
     private let shortName = String(UUID().uuidString.prefix(4))
+    /// Who this player is to whatever shares the sound between players.
+    ///
+    /// Not the object's own identity: one that has gone is said so from
+    /// `deinit`, a moment later, and by then another player can be living at
+    /// the same address.
+    let soundID = UUID()
     /// Whether this player currently holds a clip, for the count of how many
     /// are loaded at once.
     ///
@@ -64,6 +70,10 @@ public final class MediaPlayer {
         // saying so leaves exactly that behind.
         pipeline?.cancel()
         output.stop()
+        // Nor is it told to give the sound back, and music another app was
+        // playing would otherwise stay stopped for a clip nobody can hear.
+        let soundID = soundID
+        Task { @MainActor in PlaybackEnvironment.playerGone(soundID) }
     }
 
     /// Says where this player came from, so a log that shows two of them says
@@ -107,6 +117,7 @@ public final class MediaPlayer {
                 """
             )
             PlaybackEnvironment.keepScreenAwake(state == .playing)
+            reportSound()
             // A clip that is waiting wants the whole connection to itself, so
             // anything being fetched ahead of it gives way.
             PlaybackDemand.setWaitingForBytes(state == .buffering || state == .preparing)
@@ -140,7 +151,7 @@ public final class MediaPlayer {
             return
         }
 
-        unload()
+        stopClip()
         self.url = url
 
         output.name = name
@@ -165,6 +176,9 @@ public final class MediaPlayer {
         if !wasLoaded { LoadedPlayers.loaded(name) }
 
         state = machine.handle(.opened)
+        // Also when the state has not changed, which reports nothing: one
+        // clip still being opened replaced by another.
+        reportSound()
         loadCount += 1
         let load = loadCount
 
@@ -213,6 +227,12 @@ public final class MediaPlayer {
 
     /// Stops and gives everything back, keeping the layer and its settings.
     public func unload() {
+        stopClip()
+        // The state is left as it was, so it says nothing by changing.
+        reportSound()
+    }
+
+    private func stopClip() {
         url = nil
         reader?.giveUp()
         reader = nil
@@ -229,13 +249,16 @@ public final class MediaPlayer {
 
     /// Stops for good.
     public func shutdown() {
-        unload()
-        PlaybackEnvironment.releaseAudioSession()
+        stopClip()
+        // The sound goes back at once rather than after the moment a pause
+        // waits: nothing is going to play next.
+        PlaybackEnvironment.playerGone(soundID)
     }
 
     public func play() {
         guard state != .failed("") else { return }
-        PlaybackEnvironment.claimAudioSession()
+        // No taking the sound here. The state this leads to says whether the
+        // clip is heard, and only then is the sound taken from other apps.
 
         // Asked to play before there is anything to play. Starting the clock
         // now would run it against an empty renderer while the file is still
@@ -243,6 +266,7 @@ public final class MediaPlayer {
         // a picture, which is what the first one does.
         if state == .preparing || state == .idle {
             machine.autoplays = true
+            reportSound()
             return
         }
 
@@ -276,9 +300,25 @@ public final class MediaPlayer {
     /// A clip that is playing, or about to, is paused, and stays paused when
     /// the reader comes back. Nothing here starts it again: a video that picks
     /// up by itself as the app returns makes a noise nobody asked for.
+    ///
+    /// The sound goes back to other apps at once, not after the moment an
+    /// ordinary pause waits, which a suspended app may never get to.
     public func pauseForBackground() {
+        defer { PlaybackEnvironment.appWentToBackground() }
         guard state.pausesWhenAppLeaves else { return }
         MediaLog.player.debug("[\(self.name, privacy: .public)] pausing: the app went to the background")
+        pause()
+    }
+
+    /// Another app has taken the sound: a phone call, or music started from
+    /// Control Centre.
+    ///
+    /// Paused, as the system's own player does, and left paused until the
+    /// reader plays it again. Carrying on would show a picture with no sound
+    /// under a button that says the sound is on.
+    func pauseForInterruption() {
+        guard state.pausesWhenAppLeaves else { return }
+        MediaLog.player.debug("[\(self.name, privacy: .public)] pausing: another app took the sound")
         pause()
     }
 
@@ -322,7 +362,25 @@ public final class MediaPlayer {
 
     public var isMuted: Bool {
         get { output.isMuted }
-        set { output.isMuted = newValue }
+        set {
+            output.isMuted = newValue
+            reportSound()
+        }
+    }
+
+    /// Tells whatever shares the sound between players, and with other apps,
+    /// whether this one is being heard.
+    ///
+    /// From what the output is actually doing rather than what the screen
+    /// above asked for: a clip muted there but not here is still heard.
+    private func reportSound() {
+        PlaybackEnvironment.report(SoundStatus(
+            state: state,
+            isMuted: output.isMuted,
+            hasAudio: pipeline?.hasAudio,
+            autoplays: machine.autoplays,
+            isLoaded: url != nil
+        ), from: self)
     }
 
     public func setLooping(_ looping: Bool) {
@@ -352,8 +410,10 @@ public final class MediaPlayer {
             Task { @MainActor in self?.failed(message, forLoad: load) }
         }
 
-        if options.autoplays { PlaybackEnvironment.claimAudioSession() }
         output.isMuted = options.startsMuted
+        // Now that the file has said whether it holds any sound. One with
+        // none, or one starting muted, leaves other apps' music playing.
+        reportSound()
         output.begin(
             video: pipeline.hasVideo ? pipeline.videoFrames : nil,
             audio: pipeline.hasAudio ? pipeline.audioRuns : nil
