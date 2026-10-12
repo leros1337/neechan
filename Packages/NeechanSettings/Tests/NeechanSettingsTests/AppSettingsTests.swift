@@ -821,16 +821,15 @@ struct AppStoreBuildTests {
         #expect(appStoreSettings(defaults).allowsMatureBoards)
     }
 
-    /// True of the ordinary build as well; asserted here so that the cautious
-    /// start is something this build promises rather than something it inherits
-    /// by luck from a default that might later move.
-    @Test("thumbnails start blurred")
-    func nsfwStartsOff() throws {
+    /// Unlike every other build, which starts blurred. The boards for adults
+    /// are what this build keeps shut, and they start hidden above.
+    @Test("thumbnails start unblurred")
+    func nsfwStartsOn() throws {
         let settings = appStoreSettings(try freshDefaults())
-        #expect(!settings.nsfwMode)
+        #expect(settings.nsfwMode)
 
-        settings.nsfwMode = true
-        #expect(settings.nsfwMode, "NSFW mode is a preference here, not a lock")
+        settings.nsfwMode = false
+        #expect(!settings.nsfwMode, "NSFW mode is a preference here, not a lock")
     }
 
     @Test("the ordinary build is unchanged")
@@ -961,6 +960,51 @@ struct RestrictedBuildTests {
         #expect(!settings.isRestricted)
         #expect(settings.allowsMatureBoards)
         #expect(settings.allowsPosting)
+    }
+}
+
+/// NSFW mode starts on in the App Store build and off everywhere else; that
+/// it starts on is asserted with the rest of that build's starting state.
+@MainActor
+@Suite("NSFW mode in the App Store build")
+struct AppStoreNSFWModeTests {
+    private func freshDefaults() throws -> UserDefaults {
+        try #require(UserDefaults(suiteName: "neechan.tests.\(UUID().uuidString)"))
+    }
+
+    /// The safe-for-work migration writes `true` for any install that has been
+    /// used. That is the default here anyway, but it must not be what decides.
+    @Test("a reader who turned it off keeps it off once the app has been used")
+    func aChoiceSurvivesTheNextLaunch() throws {
+        let defaults = try freshDefaults()
+        let first = AppSettings(defaults: defaults, isAppStoreBuild: true)
+        first.recordThreadOpened()
+        first.nsfwMode = false
+
+        #expect(!AppSettings(defaults: defaults, isAppStoreBuild: true).nsfwMode)
+    }
+
+    @Test("the other builds still start with it off")
+    func otherBuildsStartOff() throws {
+        let restricted = AppSettings(
+            defaults: try freshDefaults(), isAppStoreBuild: false, isRestrictedBuild: true
+        )
+        let debug = AppSettings(
+            defaults: try freshDefaults(), isAppStoreBuild: false, isRestrictedBuild: false
+        )
+
+        #expect(!restricted.nsfwMode)
+        #expect(!debug.nsfwMode)
+    }
+
+    @Test("a backup that left it at its default restores the App Store default")
+    func anImportFallsBackToTheBuildDefault() throws {
+        let settings = AppSettings(defaults: try freshDefaults(), isAppStoreBuild: true)
+        settings.nsfwMode = false
+
+        settings.applyBackupPreferences(PreferencesBackup(unset: ["restrictions.nsfwMode"]))
+
+        #expect(settings.nsfwMode)
     }
 }
 

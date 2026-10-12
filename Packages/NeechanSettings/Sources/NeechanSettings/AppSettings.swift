@@ -84,8 +84,12 @@ public final class AppSettings {
         if self.isRestrictedBuild, !isAppStoreBuild {
             Self.migrateAdultDefault(defaults)
         }
-        Self.migrateSafeForWork(defaults)
-        let drawn = DrawnPreferences(defaults)
+        // The App Store build never had the old key, and its default is
+        // already what the migration would write for a used install.
+        if !isAppStoreBuild {
+            Self.migrateSafeForWork(defaults)
+        }
+        let drawn = DrawnPreferences(defaults, isAppStoreBuild: isAppStoreBuild)
         self.storedImageboard = drawn.imageboard
         self.storedDomain = drawn.domain
         self.storedTextScale = drawn.textScale
@@ -113,7 +117,7 @@ public final class AppSettings {
         let autoRefreshIntervalSeconds: Int
         let showsHiddenThreads: Bool
 
-        init(_ defaults: UserDefaults) {
+        init(_ defaults: UserDefaults, isAppStoreBuild: Bool) {
             imageboard = AppSettings.readImageboard(defaults)
             domain = AppSettings.readDomain(defaults)
             textScale = AppSettings.clampScale(
@@ -123,7 +127,7 @@ public final class AppSettings {
                 AppSettings.readDouble(defaults, Key.thumbnailScale, default: AppSettings.defaultThumbnailScale)
             )
             collapsePostLineLimit = AppSettings.readInt(defaults, Key.collapseLines, default: 12)
-            nsfwMode = AppSettings.readBool(defaults, Key.nsfwMode, default: false)
+            nsfwMode = AppSettings.readBool(defaults, Key.nsfwMode, default: isAppStoreBuild)
             mediaLoadPolicy = defaults.string(forKey: Key.mediaLoadPolicy)
                 .flatMap(MediaLoadPolicy.init(rawValue:)) ?? .always
             autoRefreshIntervalSeconds = AppSettings.readInt(defaults, Key.autoRefresh, default: 0)
@@ -135,7 +139,7 @@ public final class AppSettings {
     /// behind their backs. Each is assigned only when it moved, so a screen
     /// that reads one is redrawn only if it has to be.
     private func reloadDrawnPreferences() {
-        let drawn = DrawnPreferences(storedDefaults)
+        let drawn = DrawnPreferences(storedDefaults, isAppStoreBuild: isAppStoreBuild)
         if storedImageboard != drawn.imageboard { storedImageboard = drawn.imageboard }
         if storedDomain != drawn.domain { storedDomain = drawn.domain }
         if storedTextScale != drawn.textScale { storedTextScale = drawn.textScale }
@@ -461,6 +465,10 @@ public final class AppSettings {
     /// Off blurs every thumbnail until it is tapped, which is what a reader on
     /// a train wants. The inverse of the `interface.safeForWork` preference
     /// this replaces — see `migrateSafeForWork`.
+    ///
+    /// The App Store build starts with this on; the boards for adults are
+    /// gated there by ``allowsMatureBoards``, which starts off. Every other
+    /// build starts with it off.
     public var nsfwMode: Bool {
         get { storedNSFWMode }
         set {
