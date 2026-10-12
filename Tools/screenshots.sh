@@ -6,6 +6,7 @@
 #   Tools/screenshots.sh prepare iphone       boot it, tidy the status bar, launch the app
 #   Tools/screenshots.sh shot iphone boards   capture what is on screen right now
 #   Tools/screenshots.sh frame                frame every capture and fit it to each slot
+#   SLOT=iphone-6.3 Tools/screenshots.sh frame   only that slot, leaving the others alone
 #   Tools/screenshots.sh clean                throw the lot away
 #
 # Capturing is deliberately a separate step from framing, and deliberately
@@ -23,7 +24,11 @@ cd "$(dirname "$0")/.."
 # listing's artwork is not source.
 ROOT="Screenshots"
 RAW="$ROOT/raw"
-OUT="$ROOT/appstore"
+OUT="${OUT:-$ROOT/appstore}"
+
+# Frame for one slot only (its label, e.g. `iphone-6.3`), leaving the others'
+# output as it is. Empty means every slot.
+SLOT="${SLOT:-}"
 
 # What sits behind the device.
 #
@@ -72,14 +77,14 @@ simulator_for() {
 # device key -> the slots Apple offers, as `name:WIDTHxHEIGHT`.
 #
 # A slot is a canvas size, not the device's own resolution: the framed device is
-# fitted into it. iPhone 17 Pro shoots at 1206x2622, which is neither slot, and
-# both are produced from the one capture.
+# fitted into it. iPhone 17 Pro shoots at 1206x2622, which happens to be the
+# 6.3" slot as well, and all three are produced from the one capture.
 #
 # iPad is not optional here. The app declares `UIDeviceFamily = [1, 2]`, and App
 # Store Connect will not take a submission from an iPad-capable app without it.
 slots_for() {
     case "$1" in
-        iphone) echo "iphone-6.9:1320x2868 iphone-6.5:1242x2688" ;;
+        iphone) echo "iphone-6.9:1320x2868 iphone-6.5:1242x2688 iphone-6.3:1206x2622" ;;
         ipad)   echo "ipad-13:2048x2732" ;;
         *) return 1 ;;
     esac
@@ -236,6 +241,7 @@ cmd_frame() {
 
         for slot in $(slots_for "$device"); do
             local label="${slot%%:*}" size="${slot##*:}"
+            [ -z "$SLOT" ] || [ "$SLOT" = "$label" ] || continue
             mkdir -p "$OUT/$label"
             for framed in "$dir"/*_framed.png; do
                 [ -e "$framed" ] || continue
