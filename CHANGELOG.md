@@ -10,7 +10,8 @@ lands on the picture rather than on a spinner. Swiping between pictures is
 smooth again: one you have already seen no longer flashes and loads over at
 the end of every swipe. A muted video stays muted as you swipe to the next
 one. In the reply form, the formatting bar sits under the comment field, and
-the 4chan report sheet stays on 4chan.
+the 4chan report sheet stays on 4chan. With the app lock on, a fresh launch
+stays hidden until Face ID or the passcode lets you in.
 
 ### Gallery
 
@@ -46,6 +47,17 @@ the 4chan report sheet stays on 4chan.
   its signature was missing the main-actor mark WebKit's now carries, so it
   did not count as the delegate method and WebKit never called it. A tap on a
   link took you browsing the rest of the site in a sheet with no address bar.
+
+### Privacy
+
+- **The lock covers a fresh launch.** With the app lock on, opening the app
+  fresh showed it, and let it be used, while Face ID was still scanning, and
+  a failed or cancelled scan left it open. The lock screen was put up only
+  when the lock changed its mind, and on a fresh launch the lock had made up
+  its mind before the app knew which screen to draw on, so the one request
+  was dropped and never made again. The request is now kept until the screen
+  is known, and the lock screen is up from the first frame, before Face ID
+  asks.
 
 ### Under the hood
 
