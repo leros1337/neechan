@@ -66,7 +66,13 @@ public final class GalleryViewModel {
             // watched. Warming the next is the courtesy that gives way to it,
             // and the prefetcher checks that for itself.
             if playbackState == .preparing || playbackState == .playing { fetchWholeClip() }
-            if playbackState == .playing { warmNextVideo() }
+            if playbackState == .playing {
+                // Again on every start, on the player directly: the clip
+                // loads with the mute in its options, and a load that came up
+                // with the sound on would play it under a muted button.
+                if player.isMuted != isMuted { player.isMuted = isMuted }
+                warmNextVideo()
+            }
             // A picture after the clip waits until the clip has opened, so the
             // two do not compete while it does. Paused counts: with autoplay
             // off, that is where an opened clip stops.
@@ -81,7 +87,12 @@ public final class GalleryViewModel {
     /// playhead. Reported by the thing fetching the rest of the file.
     public var bufferedFraction: Double = 0
     public var playbackControl = PlaybackControl()
-    public var isMuted = false
+    /// Kept from clip to clip while the viewer is open, and back to sound on
+    /// the next time it opens.
+    public var isMuted = false {
+        // The cached options carry the mute each clip loads with.
+        didSet { cachedOptions.removeAll(keepingCapacity: true) }
+    }
     /// Repeat the clip when it ends. Starts from the preference, and the button
     /// in the transport changes it for this viewing only.
     public var isLooping = false {
@@ -272,8 +283,8 @@ public final class GalleryViewModel {
 
     /// Resets playback when the reader pages to another file.
     ///
-    /// The loop choice is deliberately kept: having turned it on, a reader
-    /// expects the next clip to loop too.
+    /// The loop and mute choices are deliberately kept: having turned either
+    /// on, a reader expects the next clip to loop, or stay quiet, too.
     public func resetPlayback() {
         playbackState = .idle
         playbackProgress = PlaybackProgress()
@@ -480,7 +491,8 @@ public final class GalleryViewModel {
     /// Options for the video player, carrying the headers the site expects.
     ///
     /// Memoised per kind of file. Everything in here is fixed for the life of
-    /// the gallery except the loop flag, which clears the cache when it changes.
+    /// the gallery except the loop and mute flags, which clear the cache when
+    /// they change.
     public func playerOptions(for item: GalleryItem) -> MediaPlayerOptions {
         let sendsCookies = sendsCookies(to: item)
         let key = OptionsKey(kind: item.kind, sendsCookies: sendsCookies)
@@ -494,7 +506,8 @@ public final class GalleryViewModel {
             userAgent: UserAgent.current,
             cookies: sendsCookies ? sessionCookies : [:],
             loops: isLooping,
-            autoplays: services.settings.videoAutoplay
+            autoplays: services.settings.videoAutoplay,
+            startsMuted: isMuted
         )
         cachedOptions[key] = options
         return options

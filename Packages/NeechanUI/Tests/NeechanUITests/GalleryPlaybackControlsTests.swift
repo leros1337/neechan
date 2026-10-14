@@ -46,6 +46,58 @@ struct GalleryPlaybackControlsTests {
         #expect(model.playbackRate == 1.5)
     }
 
+    // MARK: Mute
+
+    @Test("a viewer opens with the sound on")
+    func opensWithSound() throws {
+        let model = try makeModel()
+        defer { model.finishPlayback() }
+
+        #expect(!model.isMuted)
+        #expect(!model.playerOptions(for: model.items[0]).startsMuted)
+    }
+
+    /// The one player loads every clip with the options' mute, so a mute that
+    /// is not in them is lost on the next page while the button still says
+    /// muted.
+    @Test("muting one clip keeps the next one muted")
+    func muteCarriesToTheNextClip() throws {
+        let model = try makeModel()
+        defer { model.finishPlayback() }
+
+        model.toggleMuted()
+        model.resetPlayback()
+
+        #expect(model.isMuted)
+        #expect(model.playerOptions(for: model.items[0]).startsMuted)
+    }
+
+    @Test("the options follow the mute rather than keeping the first one")
+    func optionsFollowTheMute() throws {
+        let model = try makeModel()
+        defer { model.finishPlayback() }
+        let item = model.items[0]
+        _ = model.playerOptions(for: item)
+
+        model.toggleMuted()
+        #expect(model.playerOptions(for: item).startsMuted, "the options kept the old mute")
+        model.toggleMuted()
+        #expect(!model.playerOptions(for: item).startsMuted, "the options kept the old mute")
+    }
+
+    @Test("the mute is applied again when a clip starts playing")
+    func muteIsReappliedOnPlay() throws {
+        let model = try makeModel()
+        defer { model.finishPlayback() }
+
+        model.toggleMuted()
+        // Standing in for a load that came up with the sound on.
+        model.player.isMuted = false
+        model.playbackState = .playing
+
+        #expect(model.player.isMuted, "the clip played with sound under a muted button")
+    }
+
     // MARK: Scrubbing
 
     @Test("holding the scrubber says where, and letting go clears it")
