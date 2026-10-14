@@ -93,20 +93,6 @@ public struct ReplyFormView: View {
         // The captcha sits below the comment field, so scrolling must be able
         // to get the keyboard out of the way to reach it.
         .scrollDismissesKeyboard(.interactively)
-        .safeAreaBar(edge: .bottom) {
-            MarkupToolbar(
-                canAttach: model.draft.attachments.count < model.maxAttachments,
-                onStyle: {
-                    model.applyMarkup($0)
-                    // Reaching for the toolbar can take the keyboard away, and
-                    // the reader is mid-sentence.
-                    isCommentFocused = true
-                },
-                onPickPhotos: {},
-                photoSelection: $photoSelection,
-                onPickFiles: { isShowingFileImporter = true }
-            )
-        }
         .overlay { sendingOverlay(model) }
         .sheet(item: $editingAttachment) { attachment in
             AttachmentOptionsSheet(
@@ -176,6 +162,20 @@ public struct ReplyFormView: View {
                 .frame(minHeight: 140)
                 .focused($isCommentFocused)
                 .onChange(of: model.draft.comment) { _, _ in model.scheduleAutosave() }
+            MarkupToolbar(
+                canAttach: model.draft.attachments.count < model.maxAttachments,
+                onStyle: {
+                    model.applyMarkup($0)
+                    // Reaching for the toolbar can take the keyboard away, and
+                    // the reader is mid-sentence.
+                    isCommentFocused = true
+                },
+                onPickPhotos: {},
+                photoSelection: $photoSelection,
+                onPickFiles: { isShowingFileImporter = true }
+            )
+            // The bar pads itself, so it scrolls to the row's edges.
+            .listRowInsets(EdgeInsets())
         } header: {
             Text("Comment", bundle: .module)
         } footer: {

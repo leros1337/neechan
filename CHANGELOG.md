@@ -8,7 +8,8 @@ Notable changes per release. Earlier releases are listed under
 The gallery fetches the next picture while you look at this one, so a swipe
 lands on the picture rather than on a spinner. Swiping between pictures is
 smooth again: one you have already seen no longer flashes and loads over at
-the end of every swipe.
+the end of every swipe. In the reply form, the formatting bar sits under the
+comment field.
 
 ### Gallery
 
@@ -26,6 +27,13 @@ the end of every swipe.
 - **A swipe stays a swipe.** One that began slightly downward pulled the
   whole viewer down and shrank it for the rest of the swipe, as if it were
   being closed. Which way a drag goes is now decided once, as it starts.
+
+### Posting
+
+- **The formatting bar stays under the comment.** The buttons for bold,
+  italic, spoilers and the rest, and for attaching pictures and files, used
+  to float above the keyboard. They are now a fixed row right under the
+  comment field and scroll with the form.
 
 ## 2.5.2
 
