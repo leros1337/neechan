@@ -148,6 +148,11 @@ targets:
         ENABLE_PREVIEWS: YES
         SWIFT_EMIT_LOC_STRINGS: YES
       configs:
+        # Debug is archived for TestFlight by `Neechan X (Internal)`, and App
+        # Store Connect wants a dSYM for every build it takes; plain `dwarf`
+        # leaves the archive's dSYMs folder empty.
+        Debug:
+          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
         # The sideloaded release: every restriction the App Store build has,
         # and posting. `make ipa` refuses an archive that comes out otherwise.
         Release:
