@@ -3,6 +3,30 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## 2.5.3
+
+The gallery fetches the next picture while you look at this one, so a swipe
+lands on the picture rather than on a spinner. Swiping between pictures is
+smooth again: one you have already seen no longer flashes and loads over at
+the end of every swipe.
+
+### Gallery
+
+- **The next picture is ready before you get there.** While a picture is on
+  screen, the one after it is fetched and decoded, so it is already drawn as
+  you swipe onto it. A picture over 10 MB, or one whose size the site does
+  not give, is left until you land on it, and nothing is fetched ahead where
+  the app is set not to load media on the connection you are on. After a
+  video, the picture waits until the clip has opened, so the two do not
+  compete for the connection.
+- **No flash at the end of a swipe.** Every page you landed on threw its
+  picture away, showed a spinner, and read and decoded the whole file again,
+  even a picture you had looked at a moment before. The pictures either side
+  of the one on screen are now kept, and landing on one shows it at once.
+- **A swipe stays a swipe.** One that began slightly downward pulled the
+  whole viewer down and shrank it for the rest of the swipe, as if it were
+  being closed. Which way a drag goes is now decided once, as it starts.
+
 ## 2.5.2
 
 A post, or a whole thread, can be read in your own language, translated on
