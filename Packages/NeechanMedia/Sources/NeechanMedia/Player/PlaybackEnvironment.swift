@@ -158,6 +158,16 @@ private final class SoundCoordinator {
 
     // MARK: - The session
 
+    /// Where the session is changed, never the main thread.
+    ///
+    /// Setting the category and activating both wait on the audio server,
+    /// which can take long enough to stall the interface. Serial, so a take
+    /// and a hand-back land in the order the policy decided them.
+    private nonisolated static let sessionQueue = DispatchQueue(
+        label: "io.neechan.media.session",
+        qos: .userInitiated
+    )
+
     /// The sound to this app alone, which stops other apps' music.
     ///
     /// Done every time a player starts being heard, not only the first: a
@@ -166,17 +176,19 @@ private final class SoundCoordinator {
     /// symptom is a picture that moves in silence.
     private func take() {
         #if canImport(AVFAudio) && os(iOS)
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(.playback, mode: .moviePlayback, policy: .longFormVideo)
-        } catch {
-            MediaLog.session.error("could not set the category to play alone: \(Self.describe(error), privacy: .public)")
-        }
-        do {
-            try session.setActive(true)
-            MediaLog.session.debug("took the sound")
-        } catch {
-            MediaLog.session.error("could not take the sound: \(Self.describe(error), privacy: .public)")
+        Self.sessionQueue.async {
+            let session = AVAudioSession.sharedInstance()
+            do {
+                try session.setCategory(.playback, mode: .moviePlayback, policy: .longFormVideo)
+            } catch {
+                MediaLog.session.error("could not set the category to play alone: \(Self.describe(error), privacy: .public)")
+            }
+            do {
+                try session.setActive(true)
+                MediaLog.session.debug("took the sound")
+            } catch {
+                MediaLog.session.error("could not take the sound: \(Self.describe(error), privacy: .public)")
+            }
         }
         #endif
     }
@@ -192,22 +204,24 @@ private final class SoundCoordinator {
     /// The log says so if it is.
     private func handBack() {
         #if canImport(AVFAudio) && os(iOS)
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(.playback, mode: .moviePlayback, options: .mixWithOthers)
-        } catch {
-            MediaLog.session.error("could not set the category to mix: \(Self.describe(error), privacy: .public)")
-        }
-        do {
-            try session.setActive(false, options: .notifyOthersOnDeactivation)
-            MediaLog.session.debug("handed the sound back")
-        } catch {
-            MediaLog.session.error("could not hand the sound back: \(Self.describe(error), privacy: .public)")
+        Self.sessionQueue.async {
+            let session = AVAudioSession.sharedInstance()
+            do {
+                try session.setCategory(.playback, mode: .moviePlayback, options: .mixWithOthers)
+            } catch {
+                MediaLog.session.error("could not set the category to mix: \(Self.describe(error), privacy: .public)")
+            }
+            do {
+                try session.setActive(false, options: .notifyOthersOnDeactivation)
+                MediaLog.session.debug("handed the sound back")
+            } catch {
+                MediaLog.session.error("could not hand the sound back: \(Self.describe(error), privacy: .public)")
+            }
         }
         #endif
     }
 
-    private static func describe(_ error: any Error) -> String {
+    private nonisolated static func describe(_ error: any Error) -> String {
         let error = error as NSError
         return "\(error.domain) \(error.code) \(error.localizedDescription)"
     }
@@ -243,7 +257,7 @@ private final class SoundCoordinator {
             MediaLog.session.debug("interruption ended, reason \(reasonCode, privacy: .public)")
             return
         }
-        let actions = policy.interruptionBegan(becauseAppWasSuspended: reason == .appWasSuspended)
+        let actions = policy.interruptionBegan()
         MediaLog.session.debug(
             "interruption began, reason \(reasonCode, privacy: .public)\(Self.describe(actions), privacy: .public)"
         )

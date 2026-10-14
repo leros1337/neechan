@@ -136,10 +136,7 @@ struct AudioSessionPolicy<Player: Hashable> {
     /// reader plays it again. Nothing is handed back, since nothing is this
     /// app's to give.
     @discardableResult
-    mutating func interruptionBegan(becauseAppWasSuspended: Bool) -> [Action] {
-        // Delivered late, as the app comes back, about a time it was not
-        // running. The background has already given the sound back.
-        guard !becauseAppWasSuspended else { return [] }
+    mutating func interruptionBegan() -> [Action] {
         isHeld = false
         var actions = cancelPendingHandBack()
         // A clip about to play is paused too: it would otherwise take the

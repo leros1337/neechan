@@ -42,7 +42,9 @@ final class AVOutput: @unchecked Sendable {
     /// is undone a moment later, which reads as a clip that refuses to be
     /// played again. Flushing it does not clear that; a new one has none of it.
     private var audioRenderer = AVSampleBufferAudioRenderer()
-    private let queue = DispatchQueue(label: "io.neechan.media.output")
+    /// At the decode threads' own priority. They wait on this queue to take
+    /// what they made, and a lower one left them waiting behind it.
+    private let queue = DispatchQueue(label: "io.neechan.media.output", qos: .userInteractive)
 
     private var videoFrames: BoundedQueue<DecodedFrame>?
     private var audioRuns: BoundedQueue<DecodedAudio>?

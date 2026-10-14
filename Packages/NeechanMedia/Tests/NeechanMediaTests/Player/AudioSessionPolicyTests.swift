@@ -146,7 +146,7 @@ struct AudioSessionPolicyTests {
         var policy = Policy()
         policy.report("gallery", .audible)
         policy.report("feed", .silent)
-        #expect(policy.interruptionBegan(becauseAppWasSuspended: false) == [.pause(["gallery"])])
+        #expect(policy.interruptionBegan() == [.pause(["gallery"])])
         #expect(!policy.isHeld)
         // The pause is reported back as silence. Nothing is handed back:
         // the other app already has it.
@@ -160,7 +160,7 @@ struct AudioSessionPolicyTests {
         var policy = Policy()
         policy.report("gallery", .audible)
         policy.report("gallery", .holding)
-        #expect(policy.interruptionBegan(becauseAppWasSuspended: false) == [.pause(["gallery"])])
+        #expect(policy.interruptionBegan() == [.pause(["gallery"])])
     }
 
     @Test("an interruption cancels a hand-back that was waiting")
@@ -168,17 +168,8 @@ struct AudioSessionPolicyTests {
         var policy = Policy()
         policy.report("gallery", .audible)
         policy.report("gallery", .silent)
-        #expect(policy.interruptionBegan(becauseAppWasSuspended: false) == [.cancelHandBack])
+        #expect(policy.interruptionBegan() == [.cancelHandBack])
         #expect(policy.graceElapsed(1) == [])
-    }
-
-    /// Delivered late, as the app comes back, about a time it was not running.
-    @Test("an interruption that only says the app was suspended is ignored")
-    func suspendedInterruptionIsIgnored() {
-        var policy = Policy()
-        policy.report("gallery", .audible)
-        #expect(policy.interruptionBegan(becauseAppWasSuspended: true) == [])
-        #expect(policy.isHeld)
     }
 
     @Test("asking for the sound again takes it only for a clip being heard")
@@ -187,7 +178,7 @@ struct AudioSessionPolicyTests {
         policy.report("gallery", .silent)
         #expect(policy.reclaim() == [])
         policy.report("gallery", .audible)
-        policy.interruptionBegan(becauseAppWasSuspended: true)
+        policy.interruptionBegan()
         #expect(policy.reclaim() == [.take])
     }
 }
