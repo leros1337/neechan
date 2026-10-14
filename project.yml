@@ -268,6 +268,19 @@ schemes:
     archive:
       config: Release
 
+  # Neechan X unrestricted, archived for TestFlight internal testers: Debug is
+  # the build with the full directory and every icon. A scheme of its own
+  # because an Archive configuration picked in Xcode's scheme editor is lost
+  # on the next `make gen`.
+  Neechan X (Internal):
+    build:
+      targets:
+        Neechan: all
+    run:
+      config: Debug
+    archive:
+      config: Debug
+
   # For Xcode's Run and Archive menus. Deliberately without a test action: the
   # UI tests pin posting open with a launch argument this build ignores, so
   # running them here would be a screenful of red for the right reason.
