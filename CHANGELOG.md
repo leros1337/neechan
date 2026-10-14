@@ -8,8 +8,9 @@ Notable changes per release. Earlier releases are listed under
 The gallery fetches the next picture while you look at this one, so a swipe
 lands on the picture rather than on a spinner. Swiping between pictures is
 smooth again: one you have already seen no longer flashes and loads over at
-the end of every swipe. In the reply form, the formatting bar sits under the
-comment field.
+the end of every swipe. A muted video stays muted as you swipe to the next
+one. In the reply form, the formatting bar sits under the comment field, and
+the 4chan report sheet stays on 4chan.
 
 ### Gallery
 
@@ -27,6 +28,9 @@ comment field.
 - **A swipe stays a swipe.** One that began slightly downward pulled the
   whole viewer down and shrank it for the rest of the swipe, as if it were
   being closed. Which way a drag goes is now decided once, as it starts.
+- **Muted stays muted.** Muting a video and swiping to the next one played
+  the next one out loud, under a button that still said it was muted. The
+  mute now carries from clip to clip until the gallery closes.
 
 ### Posting
 
@@ -34,6 +38,33 @@ comment field.
   italic, spoilers and the rest, and for attaching pictures and files, used
   to float above the keyboard. They are now a fixed row right under the
   comment field and scroll with the form.
+
+### Reporting
+
+- **The 4chan report sheet stays on 4chan.** It was meant to refuse any link
+  that leads off the site, such as one to the rules, but the check never ran:
+  its signature was missing the main-actor mark WebKit's now carries, so it
+  did not count as the delegate method and WebKit never called it. A tap on a
+  link took you browsing the rest of the site in a sheet with no address bar.
+
+### Under the hood
+
+- **The sound no longer stalls the interface.** Taking the sound from other
+  apps and handing it back both wait on the system's audio server, and were
+  done on the main thread. They now run on a queue of their own, in the order
+  they were decided.
+- **The decoders do not wait behind a slower queue.** The video and audio
+  decoders run at the highest priority and wait for the renderers to take
+  what they made, but the queue feeding the renderers ran at the default
+  priority. It now runs at the decoders' own.
+- **The compiler warnings are gone.** An interruption reason iOS 16 stopped
+  sending is no longer looked for, and the rest were small isolation fixes.
+
+### Building
+
+- **The internal TestFlight build carries its symbols.** `Neechan X
+  (Internal)` archives Debug, which made no dSYM, and App Store Connect wants
+  one for every build it takes. Debug now makes one.
 
 ## 2.5.2
 
