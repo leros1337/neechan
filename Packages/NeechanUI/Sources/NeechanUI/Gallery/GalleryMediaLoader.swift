@@ -29,23 +29,32 @@ enum GalleryMediaLoader {
     static let animationPixelLimit = 2048
 
     /// Reads the file from the cache or the network, then decodes it.
+    ///
+    /// Says which of the two it came from, for the log.
     static func load(
         url: URL,
         referer: URL,
-        fetcher: any MediaFetching
-    ) async throws -> Loaded {
+        fetcher: any MediaFetching,
+        cache: MediaCache = .shared
+    ) async throws -> (loaded: Loaded, fromDisk: Bool) {
         let data: Data
-        if let cached = await MediaCache.shared.cachedFile(for: url),
+        let fromDisk: Bool
+        if let cached = await cache.cachedFile(for: url),
            let bytes = try? Data(contentsOf: cached) {
             data = bytes
+            fromDisk = true
         } else {
             // Full-size files are too large for URLCache to keep, so the gallery
             // uses its own disk cache: paging back to an image is instant and
             // costs no data.
             data = try await fetcher.data(url, referer: referer)
-            _ = try? await MediaCache.shared.store(data, for: url)
+            _ = try? await cache.store(data, for: url)
+            fromDisk = false
         }
-        return try await decode(data)
+        // A page swiped past while its file was arriving: the decode is the
+        // expensive part, and nobody is waiting for it.
+        try Task.checkCancellation()
+        return (try await decode(data), fromDisk)
     }
 
     /// Turns the bytes into something drawable, off the main actor.

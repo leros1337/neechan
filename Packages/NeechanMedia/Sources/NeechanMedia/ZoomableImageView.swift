@@ -44,6 +44,10 @@ public struct ZoomableImageView: UIViewRepresentable {
     /// this is set. Nil for a page that is not on screen: the gallery keeps its
     /// neighbours alive, and analysing them is work nobody sees.
     private let analysisKey: String?
+    /// False once the page has been swiped away. Its view may be kept for
+    /// when the reader comes back, and it comes back fitted, the way a page
+    /// the reader turns to always opens.
+    private let isOnScreen: Bool
     /// Whether the reader has asked to see the text in the picture.
     private let isLiveTextHighlighted: Bool
     private let onLiveTextChanged: ((LiveTextStatus) -> Void)?
@@ -52,6 +56,7 @@ public struct ZoomableImageView: UIViewRepresentable {
         image: UIImage,
         maximumZoomFactor: CGFloat = 6,
         analysisKey: String? = nil,
+        isOnScreen: Bool = true,
         isLiveTextHighlighted: Bool = false,
         onSingleTap: (() -> Void)? = nil,
         onZoomChanged: ((Bool) -> Void)? = nil,
@@ -60,6 +65,7 @@ public struct ZoomableImageView: UIViewRepresentable {
         self.image = image
         self.maximumZoomFactor = maximumZoomFactor
         self.analysisKey = analysisKey
+        self.isOnScreen = isOnScreen
         self.isLiveTextHighlighted = isLiveTextHighlighted
         self.onSingleTap = onSingleTap
         self.onZoomChanged = onZoomChanged
@@ -82,6 +88,7 @@ public struct ZoomableImageView: UIViewRepresentable {
         view.onZoomChanged = onZoomChanged
         view.onLiveTextChanged = onLiveTextChanged
         view.display(image)
+        view.setOnScreen(isOnScreen)
         view.analyze(key: analysisKey)
         view.setLiveTextHighlighted(isLiveTextHighlighted)
     }
@@ -119,6 +126,10 @@ public final class ZoomableImageScrollView: UIScrollView, UIScrollViewDelegate {
     #endif
     /// The picture the current analysis is for.
     private var analysisKey: String?
+    /// Whether a key was given on the last update: the page is the one on
+    /// screen. Its loss and return is a page swiped away and back.
+    private var isAnalysisOnScreen = false
+    private var isOnScreen = true
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -218,6 +229,19 @@ public final class ZoomableImageScrollView: UIScrollView, UIScrollViewDelegate {
         reportZoom()
     }
 
+    /// Puts a page swiped away back to fitting the screen.
+    ///
+    /// The gallery takes every page it lands on to be unzoomed. That was true
+    /// when landing built the view afresh; now the view of a page swiped away
+    /// and back can be the same one, and it would come back magnified, with
+    /// the gallery's drag-to-close fighting the reader's pan.
+    public func setOnScreen(_ onScreen: Bool) {
+        guard onScreen != isOnScreen else { return }
+        isOnScreen = onScreen
+        // Off screen by now, so there is nothing to animate.
+        if !onScreen, isZoomedIn { setZoomScale(minimumZoomScale, animated: false) }
+    }
+
     /// Keeps the image centred while it is smaller than the viewport.
     private func centerImage() {
         let horizontal = max(0, (bounds.width - contentSize.width) / 2)
@@ -288,14 +312,25 @@ public final class ZoomableImageScrollView: UIScrollView, UIScrollViewDelegate {
     /// keeps it for when the reader pages back.
     public func analyze(key: String?) {
         #if canImport(VisionKit)
-        guard let key, key != analysisKey, let interaction = analysisInteraction,
-              let image = imageView.image
-        else { return }
+        guard let key else {
+            isAnalysisOnScreen = false
+            return
+        }
+        let isReturning = !isAnalysisOnScreen
+        isAnalysisOnScreen = true
+        guard let interaction = analysisInteraction, let image = imageView.image else { return }
+        if key == analysisKey {
+            // Back on screen with what was found before. The gallery forgot
+            // it when the reader paged away, so it is told again, whether or
+            // not it changed.
+            if isReturning { reportLiveTextSoon(force: true) }
+            return
+        }
         analysisKey = key
         analysisTask?.cancel()
         if let analysis = LiveTextCache.shared.analysis(for: key) {
             interaction.analysis = analysis
-            reportLiveText()
+            reportLiveTextSoon()
             return
         }
         analysisTask = Task { [weak self] in
@@ -332,7 +367,7 @@ public final class ZoomableImageScrollView: UIScrollView, UIScrollViewDelegate {
         reportLiveText()
     }
 
-    private func reportLiveText() {
+    private func reportLiveText(force: Bool = false) {
         var status = LiveTextStatus()
         #if canImport(VisionKit)
         if let interaction = analysisInteraction, let analysis = interaction.analysis {
@@ -340,9 +375,21 @@ public final class ZoomableImageScrollView: UIScrollView, UIScrollViewDelegate {
             status.isHighlighted = interaction.selectableItemsHighlighted
         }
         #endif
-        guard status != lastReportedLiveText else { return }
+        guard force || status != lastReportedLiveText else { return }
         lastReportedLiveText = status
         onLiveTextChanged?(status)
+    }
+
+    /// Reports once the update that asked is over.
+    ///
+    /// Asked from inside a SwiftUI update, where a report changes the
+    /// gallery's state mid-update, and the gallery clears that state on the
+    /// same update when the page changes: told straight away, it could be
+    /// told and then cleared.
+    private func reportLiveTextSoon(force: Bool = false) {
+        Task { @MainActor [weak self] in
+            self?.reportLiveText(force: force)
+        }
     }
 }
 

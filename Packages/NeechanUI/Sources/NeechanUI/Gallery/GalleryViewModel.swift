@@ -67,6 +67,13 @@ public final class GalleryViewModel {
             // and the prefetcher checks that for itself.
             if playbackState == .preparing || playbackState == .playing { fetchWholeClip() }
             if playbackState == .playing { warmNextVideo() }
+            // A picture after the clip waits until the clip has opened, so the
+            // two do not compete while it does. Paused counts: with autoplay
+            // off, that is where an opened clip stops.
+            switch playbackState {
+            case .playing, .paused, .finished: preloadNextPicture()
+            default: break
+            }
         }
     }
     public var playbackProgress = PlaybackProgress()
@@ -95,6 +102,12 @@ public final class GalleryViewModel {
     /// The clip being fetched, so playing on does not ask for it again.
     @ObservationIgnored private var completingID: GalleryItem.ID?
 
+    /// The pictures decoded for the pages around the one on screen.
+    ///
+    /// Owned here for the reason the player is: the pager is not a reliable
+    /// owner of anything a page holds. See `GalleryImageStore`.
+    let images: GalleryImageStore
+
     /// The cookies the media host expects, read once when the gallery opens.
     ///
     /// The jar does not change while a gallery is on screen, and asking it was
@@ -119,9 +132,11 @@ public final class GalleryViewModel {
         cache: MediaCache = .shared,
         blocks: MediaBlockStore = .shared,
         completer: (any MediaCompleting)? = nil,
+        imageFetcher: (any MediaFetching)? = nil,
         cookieProvider: ((DvachDomain) -> [String: String])? = nil
     ) {
         self.completer = completer ?? MediaCompleter.shared
+        self.images = GalleryImageStore(fetcher: imageFetcher ?? services.downloader, cache: cache)
         self.items = items
         self.currentIndex = min(max(0, startIndex), max(0, items.count - 1))
         self.services = services
@@ -298,6 +313,81 @@ public final class GalleryViewModel {
         player.shutdown()
         stopFetchingWholeClip()
         closeScrubPreviewer()
+        // Nothing is going to draw them, and a full-size picture is tens of
+        // megabytes. Should the gallery come back, landing loads them again.
+        images.keep(only: [])
+    }
+
+    // MARK: Paging
+
+    /// The reader has landed on `currentIndex`, from the page at `old`, or the
+    /// gallery has just appeared when that is nil.
+    ///
+    /// Only a clip leaves playback to reset. Picture to picture used to reset
+    /// it all the same: every write to it redrew the whole gallery, a page for
+    /// every file in the thread, at the end of every swipe.
+    public func pageDidChange(from old: Int?) {
+        if let old, items.indices.contains(old), items[old].isVideo || playbackState != .idle {
+            resetPlayback()
+        }
+        guard let item = currentItem else { return }
+        images.keep(only: Set(
+            (currentIndex - 1...currentIndex + 1)
+                .filter(items.indices.contains)
+                .map { items[$0].id }
+        ))
+
+        let page = "\(currentIndex + 1)/\(items.count) (\(item.id))"
+        if item.isVideo {
+            // The picture after it is fetched once the clip is playing.
+            GalleryLog.log.debug("page \(page, privacy: .public): video")
+            return
+        }
+        guard let url = url(for: item) else { return }
+        GalleryLog.log.debug(
+            "page \(page, privacy: .public): \(self.images.isLoaded(item.id) ? "picture from memory" : "picture loading", privacy: .public)"
+        )
+        let landed = currentIndex
+        let referer = referer(for: item)
+        Task { [weak self, images] in
+            await images.load(item.id, url: url, referer: referer)
+            // Only once the picture on screen is in: the one after it would
+            // otherwise compete with it for the connection.
+            guard let self, self.currentIndex == landed else { return }
+            self.preloadNextPicture()
+        }
+    }
+
+    /// Fetches and decodes the picture on the next page, so the swipe onto it
+    /// shows the picture rather than a spinner.
+    ///
+    /// Within `GalleryPreloadPolicy`'s limit only, and only where the reader
+    /// allows media to load.
+    private func preloadNextPicture() {
+        let page = currentIndex + 2
+        switch GalleryPreloadPolicy.decision(after: currentIndex, in: items) {
+        case .preload(let next):
+            // Already here, on its way, or failed: landing on it retries.
+            guard images.entries[next.id] == nil, let url = url(for: next) else { return }
+            guard services.allowsMediaLoading else {
+                GalleryLog.log.debug("preload \(page) (\(next.id, privacy: .public)): skipped, media loading off")
+                return
+            }
+            GalleryLog.log.debug(
+                "preload \(page) (\(next.id, privacy: .public)): started, \(next.formattedSize, privacy: .public)"
+            )
+            images.preload(next.id, url: url, referer: referer(for: next))
+        case .tooLarge(let bytes):
+            let size = ByteCountFormatStyle(style: .file).format(Int64(bytes))
+            let limit = ByteCountFormatStyle(style: .file).format(Int64(GalleryPreloadPolicy.byteLimit))
+            GalleryLog.log.debug(
+                "preload \(page): skipped, \(size, privacy: .public) over \(limit, privacy: .public)"
+            )
+        case .sizeUnknown:
+            GalleryLog.log.debug("preload \(page): skipped, size unknown")
+        case .video, .nothingNext:
+            break
+        }
     }
 
     public func toggleControls() {
