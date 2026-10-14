@@ -99,9 +99,13 @@ struct AppLockPolicy: Equatable {
         phase = .locked(isAsking: true)
     }
 
+    /// Answers for the launch too: the lock screen is up from the first frame,
+    /// so its button can be pressed before the scene has ever become active,
+    /// and that activation must not ask a second time.
     mutating func authenticationSucceeded() {
         phase = .unlocked
         armedAt = nil
+        owesColdLaunch = false
     }
 
     /// The attempt ended without unlocking: cancelled, failed, or torn down.

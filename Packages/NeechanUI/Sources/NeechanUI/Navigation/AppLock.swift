@@ -2,6 +2,7 @@ import Foundation
 import NeechanAPI
 import NeechanSettings
 import Observation
+import os
 import SwiftUI
 
 /// Keeps the app's contents to the person who can answer for the device.
@@ -13,6 +14,10 @@ import SwiftUI
 @MainActor
 @Observable
 public final class AppLock {
+    /// Shared with the window the cover lives in, so one filter shows the whole
+    /// story: what the scene did, what the lock decided, what went on screen.
+    static let log = Logger(subsystem: Signposts.subsystem, category: "app-lock")
+
     private var policy: AppLockPolicy
     private let authenticator: any DeviceAuthenticator
     /// The attempt in flight, so a second one cannot start beside it.
@@ -32,11 +37,14 @@ public final class AppLock {
     /// The cover follows the screen and the lock follows the reader: they are
     /// separate on purpose, because the app is made inactive by things that are
     /// not the reader leaving, such as pulling down Control Centre.
-    public private(set) var isCovered = false
+    public private(set) var isCovered: Bool
 
     init(isEnabled: Bool, authenticator: any DeviceAuthenticator, grace: Duration = .seconds(60)) {
         self.policy = AppLockPolicy(isEnabled: isEnabled, grace: grace)
         self.authenticator = authenticator
+        // Covered from the first frame, the same as the policy is locked from
+        // it. Starting uncovered drew the app before anybody had answered.
+        self.isCovered = isEnabled
     }
 
     public convenience init(isEnabled: Bool) {
@@ -61,7 +69,9 @@ public final class AppLock {
 
     public func sceneBecameActive() {
         isCovered = policy.isLocked
-        guard policy.didBecomeActive(at: .now) == .authenticate else { return }
+        let activation = policy.didBecomeActive(at: .now)
+        Self.log.notice("active: \(String(describing: activation), privacy: .public), locked: \(self.policy.isLocked)")
+        guard activation == .authenticate else { return }
         isCovered = true
         authenticate()
     }
@@ -78,6 +88,7 @@ public final class AppLock {
     /// The app left the screen. The only thing that starts the clock.
     public func sceneEnteredBackground() {
         guard policy.isEnabled else { return }
+        Self.log.notice("background, locked: \(self.policy.isLocked)")
         isCovered = true
         policy.didEnterBackground(at: .now)
         // A prompt left up over an app nobody is looking at would come back as
@@ -93,6 +104,7 @@ public final class AppLock {
     public func authenticate() {
         guard policy.isLocked, !policy.isAsking else { return }
         policy.authenticationBegan()
+        Self.log.notice("asking, covered: \(self.isCovered)")
 
         attempt = Task { [weak self, authenticator] in
             let reason = String(
@@ -108,6 +120,7 @@ public final class AppLock {
 
     private func finish(_ outcome: AuthenticationOutcome) {
         attempt = nil
+        Self.log.notice("answered: \(String(describing: outcome), privacy: .public)")
         switch outcome {
         case .unlocked:
             policy.authenticationSucceeded()
