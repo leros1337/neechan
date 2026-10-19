@@ -9,9 +9,12 @@ The gallery fetches the next picture while you look at this one, so a swipe
 lands on the picture rather than on a spinner. Swiping between pictures is
 smooth again: one you have already seen no longer flashes and loads over at
 the end of every swipe. A muted video stays muted as you swipe to the next
-one. In the reply form, the formatting bar sits under the comment field, and
-the 4chan report sheet stays on 4chan. With the app lock on, a fresh launch
-stays hidden until Face ID or the passcode lets you in.
+one. A long press on a file offers Save and Share, which sends a WebM on as
+an MP4 that other apps can play. In the reply form, the formatting bar sits
+under the comment field, and the 4chan report sheet stays on 4chan. A full
+endless thread now notifies about new posts and replies to you, and its badge
+in Favorites counts what is unread. With the app lock on, a fresh launch stays
+hidden until Face ID or the passcode lets you in.
 
 ### Gallery
 
@@ -32,6 +35,15 @@ stays hidden until Face ID or the passcode lets you in.
 - **Muted stays muted.** Muting a video and swiping to the next one played
   the next one out loud, under a button that still said it was muted. The
   mute now carries from clip to clip until the gallery closes.
+- **Save and Share.** Share passed a file on as the board served it, so a
+  WebM arrived in most apps as something they could not play. A long press
+  on a file, in the viewer, the grid or the video feed, now also offers Save
+  and Share. It downloads the file under the name a save would give it,
+  without adding it to Photos, turns a WebM into an MP4, and then opens the
+  share sheet. Progress shows while it downloads and converts, and Cancel
+  stops it. If the file cannot be fetched or converted, an alert says why
+  and nothing is shared. The WebM setting for saves does not apply here: a
+  WebM is always converted.
 
 ### Posting
 
@@ -47,6 +59,19 @@ stays hidden until Face ID or the passcode lets you in.
   its signature was missing the main-actor mark WebKit's now carries, so it
   did not count as the delegate method and WebKit never called it. A tap on a
   link took you browsing the rest of the site in a sheet with no address bar.
+
+### Notifications
+
+- **Endless threads have news again.** An endless thread drops its oldest
+  post for each new one, so once it is full it always holds the same number
+  of posts, and that number was all the watcher asked 2ch for. A full endless
+  thread never had news: no notification about new posts or replies to you,
+  and no count on its badge in Favorites. These threads are now checked by
+  asking for the posts after the newest one seen, one request that a quiet
+  thread answers with a single post, and the badge counts the posts that
+  arrived since you last read the thread. The app learns that a thread is
+  endless when you leave it, or else asks for its first post once per launch,
+  the first time its count stops growing.
 
 ### Privacy
 
