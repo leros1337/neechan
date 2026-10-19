@@ -11,6 +11,9 @@ struct GalleryItemMenu: View {
     var onGoToPost: (() -> Void)?
     var onSave: () -> Void
     var onShare: () -> Void
+    /// Shares a named copy, with a WebM made into an MP4 for the apps that
+    /// cannot play one.
+    var onSaveAndShare: () -> Void
     /// Opens an image search engine's page for the file; nil leaves the item
     /// out, where there is nothing to present that page on.
     var onReverseSearch: ((URL) -> Void)?
@@ -46,6 +49,15 @@ struct GalleryItemMenu: View {
                 Image(systemName: "square.and.arrow.up")
             }
         }
+
+        Button(action: onSaveAndShare) {
+            Label {
+                Text("Save and Share", bundle: .module)
+            } icon: {
+                Image(systemName: "square.and.arrow.up.on.square")
+            }
+        }
+        .accessibilityIdentifier("save-and-share")
 
         if let onReverseSearch, let image = item.searchableImageURL(mirror: services.settings.domain) {
             Menu {

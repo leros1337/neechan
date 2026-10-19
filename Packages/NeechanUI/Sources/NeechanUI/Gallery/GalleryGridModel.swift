@@ -33,6 +33,12 @@ final class GalleryGridModel {
         return await transfers.fileForSharing(item, at: url)
     }
 
+    /// The file, named and with a WebM made into an MP4, for the share sheet.
+    func fileForSaveAndShare(_ item: GalleryItem) async -> URL? {
+        guard let url = url(for: item) else { return nil }
+        return await transfers.fileForSaveAndShare(item, at: url)
+    }
+
     // MARK: Picking files to save
 
     /// Set while the reader is picking files to save, when a tap ticks a file

@@ -171,6 +171,7 @@ public struct GalleryView: View {
             },
             onSave: { model.saveCurrentItem() },
             onShare: { share() },
+            onSaveAndShare: { saveAndShare() },
             onReverseSearch: { openOffSite($0, settings: services.settings, in: $browserLink) },
             onZoomChanged: { zoomed in
                 // Only the page being looked at has a say: the ones either side
@@ -235,6 +236,14 @@ public struct GalleryView: View {
             isPreparingShare = true
             shareURL = await model.fileForSharing()
             isPreparingShare = false
+        }
+    }
+
+    /// Converts a WebM if need be, then hands a named copy to the share sheet.
+    /// The capsule shows how far it has got, so the Share button stays as it is.
+    private func saveAndShare() {
+        Task {
+            shareURL = await model.fileForSaveAndShare()
         }
     }
 

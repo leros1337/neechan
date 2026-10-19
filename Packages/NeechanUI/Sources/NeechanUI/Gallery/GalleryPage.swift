@@ -24,6 +24,7 @@ struct GalleryPage: View {
     var onGoToPost: (() -> Void)?
     var onSave: () -> Void = {}
     var onShare: () -> Void = {}
+    var onSaveAndShare: () -> Void = {}
     var onReverseSearch: ((URL) -> Void)?
     /// Reports a picture being magnified, so the gallery leaves the
     /// drag-to-close gesture alone while the reader moves it about.
@@ -147,6 +148,7 @@ struct GalleryPage: View {
             onGoToPost: onGoToPost,
             onSave: onSave,
             onShare: onShare,
+            onSaveAndShare: onSaveAndShare,
             onReverseSearch: onReverseSearch
         )
     }

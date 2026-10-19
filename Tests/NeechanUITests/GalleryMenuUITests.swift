@@ -19,6 +19,10 @@ final class GalleryMenuUITests: LiveUITestCase {
             )
         }
         XCTAssertTrue(
+            app.buttons["save-and-share"].firstMatch.exists,
+            "the long-press menu does not offer Save and Share"
+        )
+        XCTAssertTrue(
             goToPostButton(app).exists,
             "the long-press menu does not offer a way back to the post"
         )
@@ -65,6 +69,10 @@ final class GalleryMenuUITests: LiveUITestCase {
                 "the grid's long-press menu does not offer \(action)"
             )
         }
+        XCTAssertTrue(
+            app.buttons["save-and-share"].firstMatch.exists,
+            "the grid's long-press menu does not offer Save and Share"
+        )
         XCTAssertTrue(
             goToPostButton(app).exists,
             "the grid's long-press menu does not offer a way back to the post"

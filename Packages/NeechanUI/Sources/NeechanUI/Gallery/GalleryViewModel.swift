@@ -50,6 +50,13 @@ public final class GalleryViewModel {
         return await transfers.fileForSharing(item, at: url)
     }
 
+    /// The file on screen, named and with a WebM made into an MP4, for the
+    /// share sheet.
+    public func fileForSaveAndShare() async -> URL? {
+        guard let item = currentItem, let url = url(for: item) else { return nil }
+        return await transfers.fileForSaveAndShare(item, at: url)
+    }
+
     public func clearFinishedTransfer() async {
         await transfers.clearFinishedTransfer()
     }
