@@ -38,7 +38,7 @@ public final class ScrubPreviewer: @unchecked Sendable {
     private var isClosed = false
 
     /// Shared, and safe to use from any thread; making one is not cheap.
-    nonisolated(unsafe) private static let context = CIContext(options: [.cacheIntermediates: false])
+    private static let context = CIContext(options: [.cacheIntermediates: false])
 
     /// - Parameters:
     ///   - url: the clip, as the player was given it. The block store and the

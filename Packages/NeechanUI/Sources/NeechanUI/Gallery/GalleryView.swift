@@ -17,6 +17,17 @@ public struct GalleryView: View {
     @State private var browserLink: BrowserLink?
     /// How far the reader has dragged the viewer down to close it.
     @State private var dragOffset: CGFloat = 0
+    /// Which way the drag under the finger went first. Decided once per drag,
+    /// so a swipe that starts a little downward and then goes sideways stays a
+    /// page turn, rather than dragging the whole pager down with it.
+    @State private var dragDirection: DragDirection?
+
+    /// Keyed on where the drag began, so a drag the pager took over, which
+    /// never reports its end, does not decide the next one.
+    private struct DragDirection: Equatable {
+        var start: CGPoint
+        var axis: Axis
+    }
     /// Set while the picture on screen is magnified, where a drag belongs to
     /// the picture rather than to the viewer.
     @State private var isZoomedIn = false
@@ -126,13 +137,15 @@ public struct GalleryView: View {
         // glitching.
         .offset(y: dragOffset)
         .scaleEffect(1 - min(0.12, dragOffset / 2600))
-        .onChange(of: model.currentIndex) { _, _ in
-            model.resetPlayback()
+        .onChange(of: model.currentIndex) { old, _ in
+            model.pageDidChange(from: old)
             // A new page is never zoomed, and the one left behind stops having
-            // a say in the gesture.
-            isZoomedIn = false
-            liveText = LiveTextStatus()
+            // a say in the gesture. Written only when they change: each write
+            // redraws the gallery, a page for every file in the thread.
+            if isZoomedIn { isZoomedIn = false }
+            if liveText != LiveTextStatus() { liveText = LiveTextStatus() }
         }
+        .onAppear { model.pageDidChange(from: nil) }
         .onDisappear { model.finishPlayback() }
         // The background only: a glance at the app switcher or Control Centre
         // leaves the clip playing. Nothing happens on the way back.
@@ -147,6 +160,7 @@ public struct GalleryView: View {
             url: model.url(for: item),
             playerOptions: model.playerOptions(for: item),
             player: model.player,
+            images: model.images,
             isCurrent: index == model.currentIndex,
             onSingleTap: { model.toggleControls() },
             onGoToPost: onGoToPost.map { goToPost in
@@ -157,6 +171,7 @@ public struct GalleryView: View {
             },
             onSave: { model.saveCurrentItem() },
             onShare: { share() },
+            onSaveAndShare: { saveAndShare() },
             onReverseSearch: { openOffSite($0, settings: services.settings, in: $browserLink) },
             onZoomChanged: { zoomed in
                 // Only the page being looked at has a say: the ones either side
@@ -187,14 +202,22 @@ public struct GalleryView: View {
                 // A magnified picture owns its own drags: the reader is moving
                 // it around, not putting it away.
                 guard !isZoomedIn, !liveText.isHighlighted else { return }
-                // Downward and more down than across, or this would fight the
-                // swipe between files.
-                guard value.translation.height > 0,
-                      value.translation.height > abs(value.translation.width)
-                else { return }
-                dragOffset = value.translation.height
+                // More down than across, or this would fight the swipe between
+                // files. Decided on the first movement and kept: deciding it
+                // afresh on every movement left the pager pulled down and
+                // shrunk for the rest of a swipe that began slightly downward.
+                if dragDirection?.start != value.startLocation {
+                    dragDirection = DragDirection(
+                        start: value.startLocation,
+                        axis: value.translation.height > abs(value.translation.width)
+                            ? .vertical : .horizontal
+                    )
+                }
+                guard dragDirection?.axis == .vertical else { return }
+                dragOffset = max(0, value.translation.height)
             }
             .onEnded { value in
+                dragDirection = nil
                 guard dragOffset > 0 else { return }
                 // A flick counts as well as a long pull: the gesture is a
                 // throw, and waiting for 140 points of it feels stuck.
@@ -213,6 +236,14 @@ public struct GalleryView: View {
             isPreparingShare = true
             shareURL = await model.fileForSharing()
             isPreparingShare = false
+        }
+    }
+
+    /// Converts a WebM if need be, then hands a named copy to the share sheet.
+    /// The capsule shows how far it has got, so the Share button stays as it is.
+    private func saveAndShare() {
+        Task {
+            shareURL = await model.fileForSaveAndShare()
         }
     }
 

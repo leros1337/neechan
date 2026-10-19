@@ -10,6 +10,11 @@ struct GalleryPage: View {
     let playerOptions: MediaPlayerOptions
     /// The gallery's player, shown by whichever video page is on screen.
     let player: MediaPlayer
+    /// The gallery's decoded pictures. A picture is read from here rather
+    /// than held by the page, so landing on one already decoded draws it
+    /// straight away, and both copies the pager builds of a page draw the
+    /// same one.
+    let images: GalleryImageStore
     /// Only the page on screen loads its media, so paging does not start three
     /// decoders at once.
     let isCurrent: Bool
@@ -19,6 +24,7 @@ struct GalleryPage: View {
     var onGoToPost: (() -> Void)?
     var onSave: () -> Void = {}
     var onShare: () -> Void = {}
+    var onSaveAndShare: () -> Void = {}
     var onReverseSearch: ((URL) -> Void)?
     /// Reports a picture being magnified, so the gallery leaves the
     /// drag-to-close gesture alone while the reader moves it about.
@@ -40,6 +46,7 @@ struct GalleryPage: View {
     @Environment(AppServices.self) private var services
     @Environment(\.scenePhase) private var scenePhase
 
+    /// Where a video page has got to. A picture's state is in `images`.
     @State private var loadState: PageLoadState = .idle
     /// Set once a stream has failed and the clip has been fetched whole
     /// instead, so one unplayable file cannot start that over and over.
@@ -48,8 +55,6 @@ struct GalleryPage: View {
     private enum PageLoadState {
         case idle
         case loading
-        case still(PlatformImage)
-        case animated(AnimatedFrameDecoder, AnimatedImageDecoder.Metadata)
         /// A video, already on the device: the engine plays a local file.
         case video(URL)
         case failed(String)
@@ -143,6 +148,7 @@ struct GalleryPage: View {
             onGoToPost: onGoToPost,
             onSave: onSave,
             onShare: onShare,
+            onSaveAndShare: onSaveAndShare,
             onReverseSearch: onReverseSearch
         )
     }
@@ -150,13 +156,12 @@ struct GalleryPage: View {
     /// The card the menu lifts: small on purpose.
     @ViewBuilder
     private var menuPreview: some View {
-        switch loadState {
-        case .still(let image):
+        if !item.isVideo, case .loaded(.still(let image))? = images.entries[item.id] {
             Image(platformImage: image)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 240, height: 240)
-        default:
+        } else {
             // A clip has no still to show, and one being fetched has nothing
             // yet, so the file says what it is instead.
             GalleryItemMenuCard(item: item)
@@ -165,40 +170,78 @@ struct GalleryPage: View {
 
     @ViewBuilder
     private var content: some View {
+        if item.isVideo {
+            videoContent
+        } else {
+            pictureContent
+        }
+    }
+
+    private var spinner: some View {
+        ProgressView()
+            .tint(.white)
+            .onTapGesture(perform: onSingleTap)
+    }
+
+    /// A still or an animation, from the gallery's store.
+    @ViewBuilder
+    private var pictureContent: some View {
+        if url == nil {
+            failure(Self.noAddressMessage)
+        } else {
+            switch images.entries[item.id] {
+            case nil, .loading?:
+                spinner
+
+            case .loaded(.still(let image))?:
+                #if os(iOS)
+                ZoomableImageView(
+                    image: image,
+                    analysisKey: isCurrent ? item.id : nil,
+                    isOnScreen: isCurrent,
+                    isLiveTextHighlighted: isLiveTextHighlighted,
+                    onSingleTap: onSingleTap,
+                    onZoomChanged: onZoomChanged,
+                    onLiveTextChanged: onLiveTextChanged
+                )
+                #else
+                Image(platformImage: image).resizable().scaledToFit()
+                #endif
+
+            case .loaded(.animated(let decoder, let metadata))?:
+                #if os(iOS)
+                // Paused unless this is the page being looked at and the app is
+                // in front. A paged gallery keeps its neighbours alive, so
+                // without this every animation the reader had swiped past went
+                // on drawing.
+                AnimatedImageView(
+                    decoder: decoder,
+                    metadata: metadata,
+                    isPaused: !isCurrent || scenePhase != .active
+                )
+                    .onTapGesture(perform: onSingleTap)
+                #else
+                EmptyView()
+                #endif
+
+            case .failed(.notAnImage)?:
+                failure(String(
+                    localized: "This file is not an image.",
+                    bundle: .module.forAppLanguage(),
+                    locale: AppLocale.current
+                ))
+
+            case .failed(.other(let message))?:
+                failure(message)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var videoContent: some View {
         switch loadState {
         case .idle, .loading:
-            ProgressView()
-                .tint(.white)
-                .onTapGesture(perform: onSingleTap)
-
-        case .still(let image):
-            #if os(iOS)
-            ZoomableImageView(
-                image: image,
-                analysisKey: isCurrent ? item.id : nil,
-                isLiveTextHighlighted: isLiveTextHighlighted,
-                onSingleTap: onSingleTap,
-                onZoomChanged: onZoomChanged,
-                onLiveTextChanged: onLiveTextChanged
-            )
-            #else
-            Image(platformImage: image).resizable().scaledToFit()
-            #endif
-
-        case .animated(let decoder, let metadata):
-            #if os(iOS)
-            // Paused unless this is the page being looked at and the app is in
-            // front. A paged gallery keeps its neighbours alive, so without this
-            // every animation the reader had swiped past went on drawing.
-            AnimatedImageView(
-                decoder: decoder,
-                metadata: metadata,
-                isPaused: !isCurrent || scenePhase != .active
-            )
-                .onTapGesture(perform: onSingleTap)
-            #else
-            EmptyView()
-            #endif
+            spinner
 
         case .video(let file):
             // Only the page being looked at gets a player. A paging view keeps
@@ -223,18 +266,26 @@ struct GalleryPage: View {
             }
 
         case .failed(let message):
-            ContentUnavailableView {
-                Label {
-                    Text("Could not load this file", bundle: .module)
-                } icon: {
-                    Image(systemName: "exclamationmark.triangle")
-                }
-            } description: {
-                Text(message)
-            }
-            .foregroundStyle(.white)
-            .onTapGesture(perform: onSingleTap)
+            failure(message)
         }
+    }
+
+    private func failure(_ message: String) -> some View {
+        ContentUnavailableView {
+            Label {
+                Text("Could not load this file", bundle: .module)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle")
+            }
+        } description: {
+            Text(message)
+        }
+        .foregroundStyle(.white)
+        .onTapGesture(perform: onSingleTap)
+    }
+
+    private static var noAddressMessage: String {
+        String(localized: "This file has no address.", bundle: .module.forAppLanguage(), locale: AppLocale.current)
     }
 
     /// Fetches the whole clip and plays it from disk.
@@ -259,54 +310,31 @@ struct GalleryPage: View {
 
     private func load() async {
         guard let url else {
-            loadState = .failed(String(localized: "This file has no address.", bundle: .module.forAppLanguage(), locale: AppLocale.current))
+            loadState = .failed(Self.noAddressMessage)
             return
         }
-        loadState = .loading
         let referer = item.endpoints(mirror: services.settings.domain).web
 
-        if item.isVideo {
-            // Played from the site, not fetched first. The engine reads through
-            // the app's own networking rather than its own HTTP client, which
-            // Cloudflare refuses, so the picture starts on the first frames
-            // instead of after the last byte. A clip already in the media cache
-            // is played from disk, which is faster still and works offline.
-            if let cached = await MediaCache.shared.cachedFile(for: url) {
-                loadState = .video(cached)
-            } else {
-                loadState = .video(url)
-            }
+        guard item.isVideo else {
+            // Normally already loaded, or on its way: the gallery asks for the
+            // picture on screen as the reader lands, and for the next one
+            // before they get there. This is the safety net, and costs
+            // nothing when the picture is in. It never puts a spinner over a
+            // picture already drawn, which is what this did on every landing.
+            await images.load(item.id, url: url, referer: referer)
             return
         }
-        do {
-            // Fetched and decoded away from the main actor: the app's own
-            // downloader rather than a fresh one, because building a
-            // `Downloader` builds a `URLSession` and this runs on every page
-            // the reader swipes to.
-            let loaded = try await GalleryMediaLoader.load(
-                url: url,
-                referer: referer,
-                fetcher: services.downloader
-            )
-            guard !Task.isCancelled else { return }
-            switch loaded {
-            case .still(let image):
-                loadState = .still(image)
-            case .animated(let decoder, let metadata):
-                loadState = .animated(decoder, metadata)
-            }
-        } catch is GalleryMediaLoader.LoadError {
-            guard !Task.isCancelled else { return }
-            loadState = .failed(
-                String(
-                    localized: "This file is not an image.",
-                    bundle: .module.forAppLanguage(),
-                    locale: AppLocale.current
-                )
-            )
-        } catch {
-            guard !Task.isCancelled else { return }
-            loadState = .failed(String(describing: error))
+
+        // Played from the site, not fetched first. The engine reads through
+        // the app's own networking rather than its own HTTP client, which
+        // Cloudflare refuses, so the picture starts on the first frames
+        // instead of after the last byte. A clip already in the media cache
+        // is played from disk, which is faster still and works offline.
+        loadState = .loading
+        if let cached = await MediaCache.shared.cachedFile(for: url) {
+            loadState = .video(cached)
+        } else {
+            loadState = .video(url)
         }
     }
 }

@@ -84,6 +84,7 @@ struct GalleryGridView: View {
                                 },
                                 onSave: { model.save(item) },
                                 onShare: { share(item) },
+                                onSaveAndShare: { saveAndShare(item) },
                                 onReverseSearch: { openOffSite($0, settings: services.settings, in: $browserLink) }
                             )
                         }
@@ -280,6 +281,13 @@ struct GalleryGridView: View {
     private func share(_ item: GalleryItem) {
         Task {
             shareURL = await model.fileForSharing(item)
+        }
+    }
+
+    /// Converts a WebM if need be, then hands a named copy to the share sheet.
+    private func saveAndShare(_ item: GalleryItem) {
+        Task {
+            shareURL = await model.fileForSaveAndShare(item)
         }
     }
 

@@ -53,6 +53,7 @@ struct LinkActionsMenu: View {
 /// which turns a 2ch address into navigation inside the app, and every screen
 /// presented from the thread inherits it: "Open in browser" on a post opened
 /// the post in the thread behind the viewer, where nobody could see it.
+@MainActor
 func openInSafari(_ url: URL) {
     #if canImport(UIKit)
     UIApplication.shared.open(url)

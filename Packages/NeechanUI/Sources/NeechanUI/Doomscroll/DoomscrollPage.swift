@@ -19,6 +19,7 @@ struct DoomscrollPage: View {
     var onGoToPost: (() -> Void)?
     var onSave: () -> Void = {}
     var onShare: () -> Void = {}
+    var onSaveAndShare: () -> Void = {}
     var onReverseSearch: ((URL) -> Void)?
 
     var body: some View {
@@ -46,6 +47,7 @@ struct DoomscrollPage: View {
                 onGoToPost: onGoToPost,
                 onSave: onSave,
                 onShare: onShare,
+                onSaveAndShare: onSaveAndShare,
                 onReverseSearch: onReverseSearch
             )
         } preview: {

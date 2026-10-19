@@ -67,6 +67,17 @@ struct AppLockTests {
         #expect(lock.isCovered == false)
     }
 
+    /// The cover is what keeps the first frame of a launch empty. Starting
+    /// uncovered left a fresh launch on screen, and usable, under the prompt.
+    @Test("a launch with the lock on is covered before anything has happened")
+    func launchStartsCovered() {
+        let (locked, _) = make()
+        let (open, _) = make(enabled: false)
+
+        #expect(locked.isCovered)
+        #expect(open.isCovered == false)
+    }
+
     @Test("with the lock off nothing is hidden and nobody is asked")
     func disabledAsksNobody() async {
         let (lock, device) = make(enabled: false)

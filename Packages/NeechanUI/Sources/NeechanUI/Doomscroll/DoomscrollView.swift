@@ -164,6 +164,7 @@ struct DoomscrollView: View {
                         },
                         onSave: { model.saveCurrentItem() },
                         onShare: { share() },
+                        onSaveAndShare: { saveAndShare() },
                         onReverseSearch: { openOffSite($0, settings: services.settings, in: $browserLink) }
                     )
                     .containerRelativeFrame(.vertical)
@@ -311,6 +312,13 @@ struct DoomscrollView: View {
     private func share() {
         Task {
             shareURL = await model.fileForSharing()
+            isSharing = shareURL != nil
+        }
+    }
+
+    private func saveAndShare() {
+        Task {
+            shareURL = await model.fileForSaveAndShare()
             isSharing = shareURL != nil
         }
     }

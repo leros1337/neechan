@@ -3,6 +3,106 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## 2.5.3
+
+The gallery fetches the next picture while you look at this one, so a swipe
+lands on the picture rather than on a spinner. Swiping between pictures is
+smooth again: one you have already seen no longer flashes and loads over at
+the end of every swipe. A muted video stays muted as you swipe to the next
+one. A long press on a file offers Save and Share, which sends a WebM on as
+an MP4 that other apps can play. In the reply form, the formatting bar sits
+under the comment field, and the 4chan report sheet stays on 4chan. A full
+endless thread now notifies about new posts and replies to you, and its badge
+in Favorites counts what is unread. With the app lock on, a fresh launch stays
+hidden until Face ID or the passcode lets you in.
+
+### Gallery
+
+- **The next picture is ready before you get there.** While a picture is on
+  screen, the one after it is fetched and decoded, so it is already drawn as
+  you swipe onto it. A picture over 10 MB, or one whose size the site does
+  not give, is left until you land on it, and nothing is fetched ahead where
+  the app is set not to load media on the connection you are on. After a
+  video, the picture waits until the clip has opened, so the two do not
+  compete for the connection.
+- **No flash at the end of a swipe.** Every page you landed on threw its
+  picture away, showed a spinner, and read and decoded the whole file again,
+  even a picture you had looked at a moment before. The pictures either side
+  of the one on screen are now kept, and landing on one shows it at once.
+- **A swipe stays a swipe.** One that began slightly downward pulled the
+  whole viewer down and shrank it for the rest of the swipe, as if it were
+  being closed. Which way a drag goes is now decided once, as it starts.
+- **Muted stays muted.** Muting a video and swiping to the next one played
+  the next one out loud, under a button that still said it was muted. The
+  mute now carries from clip to clip until the gallery closes.
+- **Save and Share.** Share passed a file on as the board served it, so a
+  WebM arrived in most apps as something they could not play. A long press
+  on a file, in the viewer, the grid or the video feed, now also offers Save
+  and Share. It downloads the file under the name a save would give it,
+  without adding it to Photos, turns a WebM into an MP4, and then opens the
+  share sheet. Progress shows while it downloads and converts, and Cancel
+  stops it. If the file cannot be fetched or converted, an alert says why
+  and nothing is shared. The WebM setting for saves does not apply here: a
+  WebM is always converted.
+
+### Posting
+
+- **The formatting bar stays under the comment.** The buttons for bold,
+  italic, spoilers and the rest, and for attaching pictures and files, used
+  to float above the keyboard. They are now a fixed row right under the
+  comment field and scroll with the form.
+
+### Reporting
+
+- **The 4chan report sheet stays on 4chan.** It was meant to refuse any link
+  that leads off the site, such as one to the rules, but the check never ran:
+  its signature was missing the main-actor mark WebKit's now carries, so it
+  did not count as the delegate method and WebKit never called it. A tap on a
+  link took you browsing the rest of the site in a sheet with no address bar.
+
+### Notifications
+
+- **Endless threads have news again.** An endless thread drops its oldest
+  post for each new one, so once it is full it always holds the same number
+  of posts, and that number was all the watcher asked 2ch for. A full endless
+  thread never had news: no notification about new posts or replies to you,
+  and no count on its badge in Favorites. These threads are now checked by
+  asking for the posts after the newest one seen, one request that a quiet
+  thread answers with a single post, and the badge counts the posts that
+  arrived since you last read the thread. The app learns that a thread is
+  endless when you leave it, or else asks for its first post once per launch,
+  the first time its count stops growing.
+
+### Privacy
+
+- **The lock covers a fresh launch.** With the app lock on, opening the app
+  fresh showed it, and let it be used, while Face ID was still scanning, and
+  a failed or cancelled scan left it open. The lock screen was put up only
+  when the lock changed its mind, and on a fresh launch the lock had made up
+  its mind before the app knew which screen to draw on, so the one request
+  was dropped and never made again. The request is now kept until the screen
+  is known, and the lock screen is up from the first frame, before Face ID
+  asks.
+
+### Under the hood
+
+- **The sound no longer stalls the interface.** Taking the sound from other
+  apps and handing it back both wait on the system's audio server, and were
+  done on the main thread. They now run on a queue of their own, in the order
+  they were decided.
+- **The decoders do not wait behind a slower queue.** The video and audio
+  decoders run at the highest priority and wait for the renderers to take
+  what they made, but the queue feeding the renderers ran at the default
+  priority. It now runs at the decoders' own.
+- **The compiler warnings are gone.** An interruption reason iOS 16 stopped
+  sending is no longer looked for, and the rest were small isolation fixes.
+
+### Building
+
+- **The internal TestFlight build carries its symbols.** `Neechan X
+  (Internal)` archives Debug, which made no dSYM, and App Store Connect wants
+  one for every build it takes. Debug now makes one.
+
 ## 2.5.2
 
 A post, or a whole thread, can be read in your own language, translated on

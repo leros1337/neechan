@@ -222,6 +222,11 @@ public final class DoomscrollViewModel {
         return await transfers.fileForSharing(item, at: url)
     }
 
+    public func fileForSaveAndShare() async -> URL? {
+        guard let item = currentItem, let url = url(for: item) else { return nil }
+        return await transfers.fileForSaveAndShare(item, at: url)
+    }
+
     // MARK: Lifecycle
 
     /// The app has gone to the background.

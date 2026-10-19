@@ -143,6 +143,18 @@ struct AppLockPolicyTests {
         #expect(policy.didBecomeActive(at: at(20)) == .doNothing)
     }
 
+    /// The lock screen is up from the first frame, so its button can be pressed
+    /// before the scene has ever become active.
+    @Test("an unlock before the first activation answers for the launch")
+    func unlockBeforeFirstActivation() {
+        var policy = AppLockPolicy(isEnabled: true)
+        policy.authenticationBegan()
+        policy.authenticationSucceeded()
+
+        #expect(policy.didBecomeActive(at: at(0)) == .doNothing, "one launch, one prompt")
+        #expect(policy.isLocked == false)
+    }
+
     /// A device with no passcode cannot ask anyone anything, and an app that
     /// cannot be opened is worse than one that is not locked.
     @Test("a device that cannot ask opens instead")

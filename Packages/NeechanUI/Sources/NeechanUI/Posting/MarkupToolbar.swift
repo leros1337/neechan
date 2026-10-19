@@ -3,7 +3,7 @@ import NeechanCore
 import PhotosUI
 import SwiftUI
 
-/// The formatting and attachment bar above the keyboard.
+/// The formatting and attachment bar under the comment field.
 struct MarkupToolbar: View {
     let canAttach: Bool
     var onStyle: (WakabaMarkup.Style) -> Void

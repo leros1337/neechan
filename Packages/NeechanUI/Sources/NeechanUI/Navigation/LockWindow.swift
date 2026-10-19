@@ -52,18 +52,47 @@ private struct AppLockCover: ViewModifier {
 final class LockWindowHost {
     @ObservationIgnored private var window: UIWindow?
     @ObservationIgnored private weak var scene: UIWindowScene?
+    /// What was last asked for, kept for a scene that turns up afterwards.
+    ///
+    /// A launch decides it is locked before the view has found its scene, and
+    /// from then on nothing about the lock changes until somebody answers. A
+    /// request dropped for want of a scene was never made again, and the prompt
+    /// ran over the live app.
+    @ObservationIgnored private var isCovered = false
+    @ObservationIgnored private var isLocked = false
+    @ObservationIgnored private var onUnlock: () -> Void = {}
 
     func attach(to scene: UIWindowScene) {
         guard scene !== self.scene else { return }
+        // A window belongs to the scene it was made in, and would go on
+        // covering that one rather than the one the app now draws into.
+        if let window, window.windowScene !== scene {
+            window.isHidden = true
+            self.window = nil
+        }
         self.scene = scene
+        AppLock.log.notice("scene attached, covered: \(self.isCovered), locked: \(self.isLocked)")
+        apply()
+    }
+
+    func update(isCovered: Bool, isLocked: Bool, onUnlock: @escaping () -> Void) {
+        self.isCovered = isCovered
+        self.isLocked = isLocked
+        self.onUnlock = onUnlock
+        apply()
     }
 
     /// Builds the window the first time it is wanted, and lets it go when it is
     /// not: with the lock off, the app carries nothing extra at all.
-    func update(isCovered: Bool, isLocked: Bool, onUnlock: @escaping () -> Void) {
-        guard isCovered, let scene else {
+    private func apply() {
+        guard isCovered else {
+            if window != nil { AppLock.log.notice("cover taken down") }
             window?.isHidden = true
             window = nil
+            return
+        }
+        guard let scene else {
+            AppLock.log.notice("cover held until the scene is known")
             return
         }
 
@@ -84,6 +113,7 @@ final class LockWindowHost {
         window.windowLevel = .alert + 1
         apply(isLocked: isLocked, to: window)
         self.window = window
+        AppLock.log.notice("cover built, locked: \(self.isLocked)")
     }
 
     /// A cover over an app nobody is touching takes no touches and is not made

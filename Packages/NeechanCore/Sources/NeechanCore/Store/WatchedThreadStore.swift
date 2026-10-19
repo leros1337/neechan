@@ -48,6 +48,27 @@ public actor WatchedThreadStore {
         try modelContext.save()
     }
 
+    /// Notes what a poll found by post number rather than by count.
+    ///
+    /// An endless thread drops its oldest post for every new one, so once it
+    /// is full its count stops moving and the difference `record` takes is
+    /// always zero. What arrived is added to what was already unread instead,
+    /// and the counts are left as they were.
+    public func recordArrivals(key: ThreadKey, newPosts: Int, maxNum: Int) throws {
+        let state = try stored(key) ?? insert(key)
+        state.lastKnownMaxNum = max(state.lastKnownMaxNum, maxNum)
+        state.isThreadDeleted = false
+        state.lastPolledAt = .now
+        state.lastError = nil
+        var unread = state.unreadCount + newPosts
+        // However long the reader was away, the thread holds no more than this.
+        if state.lastKnownPostsCount > 0 {
+            unread = min(unread, max(state.lastKnownPostsCount, newPosts))
+        }
+        state.unreadCount = unread
+        try modelContext.save()
+    }
+
     public func recordFailure(_ key: ThreadKey, message: String) throws {
         let state = try stored(key) ?? insert(key)
         state.lastPolledAt = .now
@@ -69,17 +90,23 @@ public actor WatchedThreadStore {
     ///   watcher's endpoint reports a count and nothing else. A closed thread
     ///   will never have news, and the watcher uses this to stop asking about it
     ///   at the reader's interval.
+    /// - Parameter isEndless: whether the thread drops its oldest posts. Its
+    ///   unread count is what arrived since, not a difference of counts, so
+    ///   having read to the end clears it outright.
     public func markRead(
         _ key: ThreadKey,
         upTo postNum: Int,
         totalPosts: Int,
-        isClosed: Bool = false
+        isClosed: Bool = false,
+        isEndless: Bool = false
     ) throws {
         let state = try stored(key) ?? insert(key)
         state.lastReadPostNum = max(state.lastReadPostNum, postNum)
         state.lastKnownPostsCount = max(state.lastKnownPostsCount, totalPosts)
         state.readPostsCount = max(state.readPostsCount, totalPosts)
-        state.unreadCount = max(0, state.lastKnownPostsCount - readCount(state))
+        state.unreadCount = isEndless
+            ? 0
+            : max(0, state.lastKnownPostsCount - readCount(state))
         // Only ever set: a thread that closed stays closed, and a stale false
         // from an old snapshot must not reopen it.
         if isClosed { state.isClosed = true }

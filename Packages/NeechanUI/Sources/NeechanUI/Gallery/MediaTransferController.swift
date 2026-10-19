@@ -95,8 +95,13 @@ public final class MediaTransferController {
     /// works in a directory of its own rather than in the reader's real cache.
     private let cache: MediaCache
     private let blocks: MediaBlockStore
+    /// Where "Save and Share" keeps the one file it last handed to the share
+    /// sheet. Injectable for the same reason as the cache.
+    private let shareDirectory: URL
     /// The work behind `transfer`, kept so Cancel has something to stop.
     private var transferTask: Task<Void, Never>?
+    /// A "Save and Share" in flight, kept for the same reason.
+    private var shareTask: Task<ShareOutcome, Never>?
     /// Files waiting their turn behind the one in `transfer`.
     private var queue: [(item: GalleryItem, url: URL)] = []
     /// Why the last file in a batch failed, for the alert at its end.
@@ -111,12 +116,15 @@ public final class MediaTransferController {
         services: AppServices,
         downloader: (any MediaDownloading)? = nil,
         cache: MediaCache = .shared,
-        blocks: MediaBlockStore = .shared
+        blocks: MediaBlockStore = .shared,
+        shareDirectory: URL = FileManager.default.temporaryDirectory
+            .appending(path: "SaveAndShare", directoryHint: .isDirectory)
     ) {
         self.services = services
         self.downloader = downloader ?? services.downloader
         self.cache = cache
         self.blocks = blocks
+        self.shareDirectory = shareDirectory
     }
 
     /// What the media host expects to see as the page the file was linked from.
@@ -164,6 +172,8 @@ public final class MediaTransferController {
     public func cancelTransfer() {
         transferTask?.cancel()
         transferTask = nil
+        shareTask?.cancel()
+        shareTask = nil
         queue.removeAll()
         batch = nil
         lastBatchFailure = nil
@@ -304,6 +314,86 @@ public final class MediaTransferController {
         return try? await wholeFile(url, referer: referer(for: item))
     }
 
+    private enum ShareOutcome {
+        case shared(URL)
+        case cancelled
+        case failed(String)
+    }
+
+    /// Downloads the file into a folder of its own, under the name a save would
+    /// give it, and returns it for the share sheet.
+    ///
+    /// Unlike plain Share, a WebM is always turned into an MP4 first, whatever
+    /// the setting for saves says: most of the apps the sheet offers cannot
+    /// play a WebM, and that is the reason to press this rather than Share.
+    /// A conversion that fails is reported rather than shared as the WebM.
+    ///
+    /// Pressed while something else is in flight, it does nothing: the capsule
+    /// is already up saying what that is, and two jobs would fight over it.
+    public func fileForSaveAndShare(_ item: GalleryItem, at url: URL) async -> URL? {
+        guard transferTask == nil, shareTask == nil else { return nil }
+        let task = Task { await performSaveAndShare(item, at: url) }
+        shareTask = task
+        let outcome = await task.value
+        // Cancel has already put everything back as it was.
+        guard !task.isCancelled else { return nil }
+        shareTask = nil
+        transfer = nil
+        switch outcome {
+        case .shared(let file):
+            // No tick: the share sheet coming up says it worked.
+            return file
+        case .cancelled:
+            return nil
+        case .failed(let message):
+            saveResult = .failed(message)
+            return nil
+        }
+    }
+
+    private func performSaveAndShare(_ item: GalleryItem, at url: URL) async -> ShareOutcome {
+        transfer = Transfer(stage: .downloading, fraction: 0)
+
+        var scratch: [URL] = []
+        defer {
+            for file in scratch { try? FileManager.default.removeItem(at: file) }
+        }
+
+        do {
+            let downloaded = try await wholeFile(url, referer: referer(for: item))
+            scratch.append(downloaded)
+            try Task.checkCancellation()
+            var file = downloaded
+            if item.kind == .webmVideo {
+                file = try await mp4(from: downloaded)
+                scratch.append(file)
+            }
+            try Task.checkCancellation()
+            return .shared(try keepForSharing(file, named: Self.name(for: item, matching: file)))
+        } catch is CancellationError {
+            return .cancelled
+        } catch Downloader.DownloadError.cancelled {
+            return .cancelled
+        } catch {
+            return .failed(error.readableSaveMessage)
+        }
+    }
+
+    /// Moves `file` into the share folder as `name`, clearing out the file
+    /// shared before it.
+    ///
+    /// The folder holds one file at a time. The share sheet is done with the
+    /// last one long before the reader can press this again, and clearing it
+    /// here means a share the app was closed in the middle of is not kept for
+    /// ever.
+    private func keepForSharing(_ file: URL, named name: String) throws -> URL {
+        try? FileManager.default.removeItem(at: shareDirectory)
+        try FileManager.default.createDirectory(at: shareDirectory, withIntermediateDirectories: true)
+        let destination = shareDirectory.appending(path: name)
+        try FileManager.default.moveItem(at: file, to: destination)
+        return destination
+    }
+
     /// Turns a WebM into an MP4, when that is what the reader asked for.
     ///
     /// Photos refuses a WebM outright, so for that destination a conversion
@@ -313,6 +403,19 @@ public final class MediaTransferController {
     private func converted(_ file: URL, of item: GalleryItem) async throws -> URL {
         guard services.settings.convertsWebMOnSave, item.kind == .webmVideo else { return file }
 
+        do {
+            return try await mp4(from: file)
+        } catch {
+            if isSavingToPhotos { throw error }
+            return file
+        }
+    }
+
+    /// Converts a WebM into an MP4 beside it, with the capsule following along.
+    ///
+    /// A conversion that fails leaves no half-written MP4 behind, and the WebM
+    /// where it was.
+    private func mp4(from file: URL) async throws -> URL {
         transfer = Transfer(stage: .converting, fraction: 0)
         let destination = file.deletingPathExtension().appendingPathExtension("mp4")
         do {
@@ -321,8 +424,7 @@ public final class MediaTransferController {
             }
         } catch {
             try? FileManager.default.removeItem(at: destination)
-            if isSavingToPhotos { throw error }
-            return file
+            throw error
         }
         // The WebM has served its purpose; leaving it behind fills the disk.
         try? FileManager.default.removeItem(at: file)

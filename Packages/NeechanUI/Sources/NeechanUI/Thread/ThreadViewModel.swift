@@ -542,8 +542,11 @@ public final class ThreadViewModel {
             key,
             upTo: last,
             totalPosts: snapshot.posts.count,
-            isClosed: snapshot.meta.isClosed
+            isClosed: snapshot.meta.isClosed,
+            isEndless: snapshot.meta.isEndless
         )
+        // Saves the watcher asking the site what the thread already said.
+        await services.watcher.noteThread(key, isEndless: snapshot.meta.isEndless)
         #if canImport(UserNotifications)
         // What the banner announced has now been read.
         await services.notifications.clearNotification(for: key)

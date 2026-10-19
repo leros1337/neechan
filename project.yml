@@ -32,8 +32,8 @@ configs:
 
 settings:
   base:
-    MARKETING_VERSION: "2.5.2"
-    CURRENT_PROJECT_VERSION: "10"
+    MARKETING_VERSION: "2.5.3"
+    CURRENT_PROJECT_VERSION: "17"
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
     SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY: YES
@@ -148,6 +148,11 @@ targets:
         ENABLE_PREVIEWS: YES
         SWIFT_EMIT_LOC_STRINGS: YES
       configs:
+        # Debug is archived for TestFlight by `Neechan X (Internal)`, and App
+        # Store Connect wants a dSYM for every build it takes; plain `dwarf`
+        # leaves the archive's dSYMs folder empty.
+        Debug:
+          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
         # The sideloaded release: every restriction the App Store build has,
         # and posting. `make ipa` refuses an archive that comes out otherwise.
         Release:
@@ -267,6 +272,19 @@ schemes:
       config: Debug
     archive:
       config: Release
+
+  # Neechan X unrestricted, archived for TestFlight internal testers: Debug is
+  # the build with the full directory and every icon. A scheme of its own
+  # because an Archive configuration picked in Xcode's scheme editor is lost
+  # on the next `make gen`.
+  Neechan X (Internal):
+    build:
+      targets:
+        Neechan: all
+    run:
+      config: Debug
+    archive:
+      config: Debug
 
   # For Xcode's Run and Archive menus. Deliberately without a test action: the
   # UI tests pin posting open with a launch argument this build ignores, so
