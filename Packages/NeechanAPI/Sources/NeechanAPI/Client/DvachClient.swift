@@ -167,14 +167,17 @@ public actor DvachClient {
     ///
     /// `inThread` is a hint for a site with no single-post endpoint: it fetches
     /// that thread and picks the post out. 2ch ignores it.
+    ///
+    /// - Parameter policy: `.poll` for the watcher, which asks on a timer.
     public func post(
         board: String,
         num: Int,
-        inThread: Int? = nil
+        inThread: Int? = nil,
+        policy: RetryPolicy? = nil
     ) async throws(DvachError) -> SinglePostResponse {
         let selection = site()
         let known = try await boardMetadata(board, on: selection)
-        let reply = try await send(.post(board: board, num: num, inThread: inThread))
+        let reply = try await send(.post(board: board, num: num, inThread: inThread), policy: policy)
         let response = try decode(reply, on: selection) { adapter, data in
             try adapter.singlePost(
                 from: data, board: known, num: num,

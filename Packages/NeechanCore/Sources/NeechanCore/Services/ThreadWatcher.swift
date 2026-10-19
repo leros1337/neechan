@@ -6,7 +6,9 @@ import SwiftData
 /// Polls watched threads for new posts.
 ///
 /// Uses `/api/mobile/v2/info`, which returns only a count: a watcher checking
-/// twenty threads must not download twenty threads.
+/// twenty threads must not download twenty threads. An endless thread's count
+/// stops moving once it is full, so those are asked for the posts after the
+/// newest one seen instead.
 public actor ThreadWatcher {
     /// What one poll found.
     public struct Result: Sendable, Equatable {
@@ -60,6 +62,19 @@ public actor ThreadWatcher {
     private var scheduleStates: [ThreadKey: WatcherSchedule.ThreadState] = [:]
     private var schedule = WatcherSchedule(baseInterval: .seconds(60))
 
+    /// Which threads are endless, as far as this launch has found out.
+    ///
+    /// An endless thread drops its oldest post for every new one, so once it
+    /// is full the count `/info` reports never moves again, and a watcher going
+    /// by that count reports nothing there at all: no new posts, no replies.
+    /// Those threads are watched by post number instead.
+    ///
+    /// Held in memory, like the schedule, rather than stored: the thread
+    /// screen says so whenever the reader leaves one, and otherwise asking the
+    /// opening post costs one small request per thread per launch, and only
+    /// for a thread whose count has stopped growing.
+    private var endless: [ThreadKey: Bool] = [:]
+
     /// How many threads are asked about at once.
     ///
     /// The radio costs far more to wake than to keep awake, so a pass that
@@ -97,6 +112,13 @@ public actor ThreadWatcher {
         pollTask = nil
         inFlight.removeAll()
         scheduleStates.removeAll()
+        endless.removeAll()
+    }
+
+    /// Tells the watcher what the thread screen already knows, so it need not
+    /// ask the site.
+    public func noteThread(_ key: ThreadKey, isEndless: Bool) {
+        endless[key] = isEndless
     }
 
     /// Points the watcher at the live device and preference state.
@@ -327,6 +349,9 @@ public actor ThreadWatcher {
         // corrupt the other site's unread count.
         guard key.site == site().site else { return nil }
         let known = try? await states.state(for: key)
+        if endless[key] == true {
+            return await pollEndless(key, known: known)
+        }
 
         do {
             let response = try await client.threadInfo(board: key.board, thread: key.threadNum)
@@ -340,6 +365,14 @@ public actor ThreadWatcher {
             let total = info.posts + 1
             let previous = known?.lastKnownPostsCount ?? total
             let newPosts = max(0, total - previous)
+
+            // A count that has stopped growing may be a full endless thread
+            // rather than a quiet one. Settled before the count is written,
+            // which would otherwise reset the unread posts kept by number. A
+            // first poll has nothing to compare, so it is left to the next.
+            if newPosts == 0, known != nil, await isEndless(key) {
+                return await pollEndless(key, known: known)
+            }
 
             let scan = newPosts > 0 ? await scanReplies(in: key, known: known) : nil
             guard key.site == site().site else { return nil }
@@ -355,18 +388,86 @@ public actor ThreadWatcher {
                 key: key, newPostCount: newPosts, isDeleted: false, replies: scan?.replies ?? []
             )
         } catch {
-            // A thread that is gone stays gone; anything else is a hiccup and
-            // must not make the reader think their thread was deleted.
-            let isMissing = error.code?.meansMissing == true || isNotFound(error)
-            if isMissing {
-                try? await states.markDeleted(key)
-                record(key, outcome: .deleted)
-                return Result(key: key, newPostCount: 0, isDeleted: true)
-            }
-            try? await states.recordFailure(key, message: error.readableWatcherMessage)
-            record(key, outcome: isRateLimited(error) ? .rateLimited : .failure)
-            return nil
+            return await recordFailedPoll(key, error: error)
         }
+    }
+
+    /// Notes a poll that got no answer, and says what that means.
+    private func recordFailedPoll(_ key: ThreadKey, error: DvachError) async -> Result? {
+        // A thread that is gone stays gone; anything else is a hiccup and
+        // must not make the reader think their thread was deleted.
+        let isMissing = error.code?.meansMissing == true || isNotFound(error)
+        if isMissing {
+            try? await states.markDeleted(key)
+            record(key, outcome: .deleted)
+            return Result(key: key, newPostCount: 0, isDeleted: true)
+        }
+        try? await states.recordFailure(key, message: error.readableWatcherMessage)
+        record(key, outcome: isRateLimited(error) ? .rateLimited : .failure)
+        return nil
+    }
+
+    /// Whether the thread is endless, asking its opening post when this launch
+    /// does not know yet.
+    ///
+    /// A failed ask is not an answer: the thread stays unknown, is asked about
+    /// again on its next quiet poll, and nothing is written against it. `/info`
+    /// has already answered, so it is neither gone nor failing.
+    private func isEndless(_ key: ThreadKey) async -> Bool {
+        if let known = endless[key] { return known }
+        guard SiteCapabilities.of(key.site).incrementalThreadRefresh else { return false }
+        guard
+            let opening = try? await client.post(
+                board: key.board, num: key.threadNum, policy: .poll
+            ).post
+        else { return false }
+        endless[key] = opening.isEndless
+        return opening.isEndless
+    }
+
+    /// Polls an endless thread by post number.
+    ///
+    /// Asks for the posts after the newest one seen. On a quiet thread that is
+    /// the one post echoed back; on a busy one, exactly the new posts, which
+    /// the reply check then reads without a second request. An anchor the
+    /// thread has since dropped brings back everything it still holds, all of
+    /// it newer than the anchor, which is the right count.
+    private func pollEndless(_ key: ThreadKey, known: WatchedThreadSnapshot?) async -> Result? {
+        guard key.site == site().site else { return nil }
+        let mine = (try? await ownPosts?.postNums(in: key)) ?? []
+        // Whatever the reader or the last poll reached is old news, and nobody
+        // answered a post before it was written.
+        let anchor = max(
+            known?.lastKnownMaxNum ?? 0,
+            known?.lastReadPostNum ?? 0,
+            mine.max() ?? 0,
+            key.threadNum
+        )
+        // A thread favourited from a board list and never opened has no post
+        // to count from: all of it is unread, but none of it is news.
+        let isAnchored = anchor > key.threadNum
+
+        let posts: [Post]
+        do {
+            posts = try await fetchAfter(key, anchor: anchor)
+        } catch {
+            guard key.site == site().site else { return nil }
+            return await recordFailedPoll(key, error: error)
+        }
+        guard key.site == site().site else { return nil }
+
+        let fresh = posts.filter { $0.num > anchor }
+        let newPosts = isAnchored ? fresh.count : 0
+        try? await states.recordArrivals(
+            key: key, newPosts: fresh.count, maxNum: fresh.map(\.num).max() ?? anchor
+        )
+        record(key, outcome: newPosts > 0 ? .news : .quiet)
+        return Result(
+            key: key,
+            newPostCount: newPosts,
+            isDeleted: false,
+            replies: isAnchored ? replyNums(in: fresh, key: key, mine: mine) : []
+        )
     }
 
     /// What reading a thread's new posts found.
@@ -395,19 +496,26 @@ public actor ThreadWatcher {
         // it was written. `/info` reports the thread's own number as its
         // "num", so the stored maximum alone is not a real anchor.
         let anchor = max(known?.lastKnownMaxNum ?? 0, known?.lastReadPostNum ?? 0, newestOwn)
-        guard let posts = await posts(in: key, after: anchor) else { return nil }
+        guard let posts = try? await fetchAfter(key, anchor: anchor) else { return nil }
 
         let fresh = posts.filter { $0.num > anchor }
+        return ReplyScan(
+            replies: replyNums(in: fresh, key: key, mine: mine),
+            readUpTo: fresh.map(\.num).max() ?? anchor
+        )
+    }
+
+    /// The posts in `fresh` answering one of the reader's, oldest first.
+    private func replyNums(in fresh: [Post], key: ThreadKey, mine: Set<Int>) -> [Int] {
         let index = ReplyIndex(posts: fresh, thread: key)
-        let replies = fresh.map(\.num).filter { num in
+        return fresh.map(\.num).filter { num in
             // The reader following up on themselves is not an answer.
             !mine.contains(num) && index.references(from: num).contains(where: mine.contains)
         }
-        return ReplyScan(replies: replies, readUpTo: fresh.map(\.num).max() ?? anchor)
     }
 
-    /// The thread's posts from `anchor` on, or nil when they cannot be had.
-    private func posts(in key: ThreadKey, after anchor: Int) async -> [Post]? {
+    /// The thread's posts from `anchor` on.
+    private func fetchAfter(_ key: ThreadKey, anchor: Int) async throws(DvachError) -> [Post] {
         do {
             return try await client.after(
                 board: key.board, thread: key.threadNum, sinceNum: anchor
@@ -416,8 +524,8 @@ public actor ThreadWatcher {
             // The site will not serve "posts after N" once N itself is gone,
             // and a reader's post is just what a moderator deletes. The opening
             // post stands for as long as the thread does.
-            guard error.code?.meansMissing == true, anchor != key.threadNum else { return nil }
-            return try? await client.after(
+            guard error.code?.meansMissing == true, anchor != key.threadNum else { throw error }
+            return try await client.after(
                 board: key.board, thread: key.threadNum, sinceNum: key.threadNum
             ).posts
         }
