@@ -3,6 +3,19 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## 2.5.4
+
+Tapping a notification opens the thread again, instead of closing the app.
+
+### Notifications
+
+- **A tapped notification no longer crashes the app.** Tapping a banner, or
+  its entry in Notification Centre, closed the app instead of opening the
+  thread. The app answered the system's tap from the wrong thread, which iOS
+  does not allow. It now opens the thread at the reply the notification was
+  about, whether the app was already open in the background or not running
+  at all.
+
 ## 2.5.3
 
 The gallery fetches the next picture while you look at this one, so a swipe
