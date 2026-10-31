@@ -19,7 +19,7 @@ public enum NeechanStore {
     /// Everything that needs a schema asks for this rather than naming a
     /// version, so the fallback container in the app's own launch path cannot
     /// drift a version behind the store it is standing in for.
-    public static var currentModels: [any PersistentModel.Type] { NeechanSchemaV2.models }
+    public static var currentModels: [any PersistentModel.Type] { NeechanSchemaV3.models }
 
     /// - Parameter inMemory: used by tests, so each one starts clean and
     ///   nothing touches the user's real database.

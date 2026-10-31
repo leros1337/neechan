@@ -253,7 +253,7 @@ struct FavoriteBoardRow: View {
     }
 }
 
-/// A watched thread, with its unread badge and state.
+/// A watched thread, with its unread and reply badges and state.
 struct FavoriteRow: View {
     let item: FavoriteItem
 
@@ -288,8 +288,13 @@ struct FavoriteRow: View {
 
             Spacer(minLength: 0)
 
-            if item.unreadCount > 0 {
-                UnreadBadge(count: item.unreadCount)
+            HStack(spacing: 6) {
+                if item.unreadReplies > 0 {
+                    ReplyBadge(count: item.unreadReplies)
+                }
+                if item.unreadCount > 0 {
+                    UnreadBadge(count: item.unreadCount)
+                }
             }
         }
         .contentShape(.rect)
@@ -308,6 +313,31 @@ struct UnreadBadge: View {
             .padding(.vertical, 3)
             .background(.tint, in: .capsule)
             .accessibilityLabel(Text("\(count) new posts", bundle: .module))
+    }
+}
+
+/// How many answers to the reader's own posts have arrived since the thread
+/// was last read.
+///
+/// Its own badge rather than a second number in the unread one: a busy
+/// thread's count says nothing about whether anyone answered, and that is the
+/// one the reader is looking for. Red, as the system badges what is for them.
+struct ReplyBadge: View {
+    let count: Int
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Image(systemName: "arrowshape.turn.up.left.fill")
+                .imageScale(.small)
+            Text(verbatim: count > 99 ? "99+" : "\(count)")
+        }
+        .font(.caption2.weight(.semibold).monospacedDigit())
+        .foregroundStyle(.white)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(.red, in: .capsule)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("\(count) replies to you", bundle: .module))
     }
 }
 

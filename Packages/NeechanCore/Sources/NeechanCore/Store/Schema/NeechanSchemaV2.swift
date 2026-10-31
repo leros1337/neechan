@@ -2,7 +2,8 @@ import Foundation
 import NeechanAPI
 import SwiftData
 
-/// The live schema: every record says which imageboard it belongs to.
+/// The second persisted schema, frozen: every record says which imageboard it
+/// belongs to.
 ///
 /// V1 knew one site, so `/b/12345` was a thread. With two, it is two threads
 /// that happen to be written the same way, and `FavoriteBoard` — unique on the
@@ -10,9 +11,11 @@ import SwiftData
 /// pin with no error at all. Moving the uniqueness onto `(site, board, …)` is
 /// what the whole version exists for.
 ///
-/// The models are nested for the reason `NeechanSchemaV1`'s are; the
-/// `typealias`es at the bottom of this file are what the rest of the app sees,
-/// so no repository, view or test names a version.
+/// Kept exactly as it shipped. A store remembers the hash of the shape that
+/// wrote it, and staged migration refuses a store whose hash matches no
+/// version it is given ("unknown model version"), so a property added here
+/// in place would have left every existing store unopenable. Changes go in
+/// `NeechanSchemaV3`. Nothing outside migration should use these models.
 public enum NeechanSchemaV2: VersionedSchema {
     public static var versionIdentifier: Schema.Version { Schema.Version(2, 0, 0) }
 
@@ -534,18 +537,3 @@ public enum NeechanSchemaV2: VersionedSchema {
         }
     }
 }
-
-// What the rest of the app sees. Nothing outside this folder names a schema
-// version, so a future V3 is a change to these lines and nowhere else.
-public typealias HistoryEntry = NeechanSchemaV2.HistoryEntry
-public typealias WatchedThreadState = NeechanSchemaV2.WatchedThreadState
-public typealias Draft = NeechanSchemaV2.Draft
-public typealias DraftAttachment = NeechanSchemaV2.DraftAttachment
-public typealias OwnPost = NeechanSchemaV2.OwnPost
-public typealias Favorite = NeechanSchemaV2.Favorite
-public typealias FavoriteBoard = NeechanSchemaV2.FavoriteBoard
-public typealias HiddenThread = NeechanSchemaV2.HiddenThread
-public typealias HiddenPostRule = NeechanSchemaV2.HiddenPostRule
-public typealias AutohideRule = NeechanSchemaV2.AutohideRule
-public typealias SavedThread = NeechanSchemaV2.SavedThread
-public typealias StoredTheme = NeechanSchemaV2.StoredTheme

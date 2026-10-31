@@ -135,6 +135,41 @@ struct WatcherReplyTests {
         #expect(results.first?.replies == [])
     }
 
+    /// The banner is gone once dismissed; the favourites list is where the
+    /// reader sees the answers afterwards, so the poll has to leave them there.
+    @Test("an answer found by a poll stays on the thread until it is read")
+    func keepsReplyForFavorites() async throws {
+        let fixture = try await makeFixture(ownPostNums: [5])
+        await fixture.transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 12))
+        await fixture.transport.stub(
+            pathContaining: "/after/b/1/",
+            data: afterData([postJSON(5), postJSON(6, replyingTo: [5]), postJSON(7)])
+        )
+        _ = await fixture.watcher.pollOnce()
+        #expect(try await fixture.states.state(for: key)?.unreadReplies == 1)
+
+        await fixture.transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 14))
+        await fixture.transport.stub(
+            pathContaining: "/after/b/1/",
+            data: afterData([postJSON(7), postJSON(8, replyingTo: [5]), postJSON(9, replyingTo: [5])])
+        )
+        _ = await fixture.watcher.pollOnce()
+        #expect(try await fixture.states.state(for: key)?.unreadReplies == 3)
+
+        try await fixture.states.markRead(key, upTo: 9, totalPosts: 15)
+        #expect(try await fixture.states.state(for: key)?.unreadReplies == 0)
+    }
+
+    @Test("a thread the reader has not written in has no answers to keep")
+    func noOwnPostsNoReplies() async throws {
+        let fixture = try await makeFixture(ownPostNums: [])
+        await fixture.transport.stub(pathSuffix: "/info/b/1", data: infoData(posts: 12))
+
+        _ = await fixture.watcher.pollOnce()
+
+        #expect(try await fixture.states.state(for: key)?.unreadReplies == 0)
+    }
+
     @Test("the reader answering their own post is not a reply")
     func ignoresOwnFollowUp() async throws {
         let fixture = try await makeFixture(ownPostNums: [5, 6])

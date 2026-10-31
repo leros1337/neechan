@@ -24,14 +24,19 @@ struct StoreMigrationTests {
     /// Copied because opening it migrates it in place, and swift-testing runs
     /// these in parallel: they would otherwise migrate one file five times.
     private func v1StoreCopy() throws -> URL {
+        try storeCopy(named: "neechan-v1")
+    }
+
+    /// - Parameter name: the fixture's file name without its extension.
+    private func storeCopy(named name: String) throws -> URL {
         let fixture = try #require(
-            Bundle.module.url(forResource: "neechan-v1", withExtension: "store", subdirectory: "Fixtures")
-                ?? Bundle.module.url(forResource: "neechan-v1", withExtension: "store"),
-            "the V1 store fixture is missing from the test bundle"
+            Bundle.module.url(forResource: name, withExtension: "store", subdirectory: "Fixtures")
+                ?? Bundle.module.url(forResource: name, withExtension: "store"),
+            "the \(name) store fixture is missing from the test bundle"
         )
         let directory = URL.temporaryDirectory.appending(path: "NeechanMigration-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let copy = directory.appending(path: "neechan-v1.store")
+        let copy = directory.appending(path: "\(name).store")
         try FileManager.default.copyItem(at: fixture, to: copy)
         return copy
     }
@@ -131,5 +136,24 @@ struct StoreMigrationTests {
         let container = try NeechanStore.makeContainer(at: url)
         let context = ModelContext(container)
         #expect(try context.fetch(FetchDescriptor<Favorite>()).count == 1)
+    }
+
+    /// `neechan-v2.store` was written by V2 as it stood before a watched
+    /// thread counted replies to the reader. A field added to a version that
+    /// is already on disk must still open that store, or the reader loses
+    /// every favourite on update.
+    @Test("a store from before reply counts opens with none")
+    func storeBeforeReplyCountsOpens() throws {
+        let url = try storeCopy(named: "neechan-v2")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let container = try NeechanStore.makeContainer(at: url)
+        let context = ModelContext(container)
+
+        let favorites = try context.fetch(FetchDescriptor<Favorite>())
+        #expect(favorites.first?.title == "Тред")
+        let watched = try #require(try context.fetch(FetchDescriptor<WatchedThreadState>()).first)
+        #expect(watched.unreadCount == 4)
+        #expect(watched.unreadReplies == 0)
     }
 }

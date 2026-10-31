@@ -93,6 +93,7 @@ public actor BackupService {
                     lastKnownMaxNum: $0.lastKnownMaxNum,
                     lastKnownPostsCount: $0.lastKnownPostsCount,
                     unreadCount: $0.unreadCount,
+                    unreadReplies: $0.unreadReplies,
                     readPostsCount: $0.readPostsCount,
                     isThreadDeleted: $0.isThreadDeleted,
                     isClosed: $0.isClosed,
@@ -247,6 +248,7 @@ public actor BackupService {
             state.lastKnownMaxNum = entry.lastKnownMaxNum
             state.lastKnownPostsCount = entry.lastKnownPostsCount
             state.unreadCount = entry.unreadCount
+            state.unreadReplies = entry.unreadReplies ?? 0
             state.readPostsCount = entry.readPostsCount
             state.isThreadDeleted = entry.isThreadDeleted
             state.isClosed = entry.isClosed

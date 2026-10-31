@@ -16,9 +16,14 @@ import SwiftData
 /// *not* lightweight: `#Unique` moves from `(board, threadNum)` onto
 /// `(site, board, threadNum)`, which changes the entity and is not something to
 /// leave to inference.
+///
+/// V3 adds one defaulted property, which inference handles; the stage is
+/// lightweight. It still needs a version of its own, because staged migration
+/// will not open a store whose shape matches none of the versions listed here,
+/// and V2 stores are already on readers' phones.
 public enum NeechanMigrationPlan: SchemaMigrationPlan {
     public static var schemas: [any VersionedSchema.Type] {
-        [NeechanSchemaV1.self, NeechanSchemaV2.self]
+        [NeechanSchemaV1.self, NeechanSchemaV2.self, NeechanSchemaV3.self]
     }
 
     static let v1ToV2 = MigrationStage.custom(
@@ -76,5 +81,10 @@ public enum NeechanMigrationPlan: SchemaMigrationPlan {
         }
     )
 
-    public static var stages: [MigrationStage] { [v1ToV2] }
+    static let v2ToV3 = MigrationStage.lightweight(
+        fromVersion: NeechanSchemaV2.self,
+        toVersion: NeechanSchemaV3.self
+    )
+
+    public static var stages: [MigrationStage] { [v1ToV2, v2ToV3] }
 }
