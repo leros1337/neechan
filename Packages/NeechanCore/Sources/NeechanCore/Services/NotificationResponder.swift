@@ -43,17 +43,38 @@ public final class NotificationResponder: NSObject, UNUserNotificationCenterDele
         return await presentation(for: payload)
     }
 
+    /// The completion-handler form on purpose, not the async one.
+    ///
+    /// UIKit's handler for a tap must be called on the main thread. The async
+    /// form calls it from wherever its task finishes, which after the hop to
+    /// the main actor and back is the cooperative pool, and the app crashed
+    /// every time a banner was tapped.
     public nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
-        guard
-            response.actionIdentifier == UNNotificationDefaultActionIdentifier,
-            let payload = NotificationPayload(
-                userInfo: response.notification.request.content.userInfo
-            )
-        else { return }
-        await open(payload)
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let payload = response.actionIdentifier == UNNotificationDefaultActionIdentifier
+            ? NotificationPayload(userInfo: response.notification.request.content.userInfo)
+            : nil
+        handleResponse(payload, completion: completionHandler)
+    }
+
+    /// Takes a tapped banner where it leads, then answers the centre, both on
+    /// the main thread whatever thread this is called from.
+    ///
+    /// - Parameter payload: what the banner carried, or nil when it was
+    ///   dismissed, or was a tap that names no thread.
+    nonisolated func handleResponse(
+        _ payload: NotificationPayload?,
+        completion: @escaping () -> Void
+    ) {
+        // Not Sendable as imported, but only ever called once, on main.
+        nonisolated(unsafe) let completion = completion
+        Task { @MainActor in
+            if let payload { open(payload) }
+            completion()
+        }
     }
 
     private func presentation(for payload: NotificationPayload?) -> UNNotificationPresentationOptions {

@@ -148,6 +148,67 @@ struct UnreadCountTests {
 
         #expect(try await store.state(for: key)?.unreadCount == 0)
     }
+
+    /// The watcher reports each answer once, on the poll that first sees it,
+    /// so the store has to keep the running total: a later poll with nothing
+    /// for the reader must not wipe answers they have not seen yet.
+    @Test("answers to the reader add up until the thread is read")
+    func repliesAddUpUntilRead() async throws {
+        let store = try makeStore()
+        let key = ThreadKey(site: .dvach, board: "b", threadNum: 1)
+        try await store.markRead(key, upTo: 100, totalPosts: 10)
+
+        try await store.record(key: key, postsCount: 12, maxNum: 120, isDeleted: false, replies: 2)
+        try await store.record(key: key, postsCount: 13, maxNum: 130, isDeleted: false)
+        try await store.record(key: key, postsCount: 15, maxNum: 150, isDeleted: false, replies: 1)
+        #expect(try await store.state(for: key)?.unreadReplies == 3)
+
+        try await store.markRead(key, upTo: 150, totalPosts: 15)
+        #expect(try await store.state(for: key)?.unreadReplies == 0)
+    }
+
+    @Test("clearing a thread's unread clears its answers too")
+    func clearingClearsReplies() async throws {
+        let store = try makeStore()
+        let key = ThreadKey(site: .dvach, board: "b", threadNum: 1)
+        try await store.record(key: key, postsCount: 12, maxNum: 120, isDeleted: false, replies: 2)
+
+        try await store.clearUnread(key)
+
+        #expect(try await store.state(for: key)?.unreadReplies == 0)
+    }
+
+    @Test("a favourite carries its answers to the reader")
+    func favoriteCarriesReplies() async throws {
+        let container = try NeechanStore.makeContainer(inMemory: true)
+        let favorites = FavoritesRepository(modelContainer: container)
+        let store = WatchedThreadStore(modelContainer: container)
+        let key = ThreadKey(site: .dvach, board: "b", threadNum: 1)
+        try await favorites.add(key, title: "Тред")
+
+        #expect(try await favorites.favorites(site: .dvach).first?.unreadReplies == 0)
+
+        try await store.record(key: key, postsCount: 12, maxNum: 120, isDeleted: false, replies: 2)
+
+        #expect(try await favorites.favorites(site: .dvach).first?.unreadReplies == 2)
+    }
+
+    @Test("sorted by unread, a thread with answers to the reader comes first")
+    func repliesSortFirst() async throws {
+        let container = try NeechanStore.makeContainer(inMemory: true)
+        let favorites = FavoritesRepository(modelContainer: container)
+        let store = WatchedThreadStore(modelContainer: container)
+        let busy = ThreadKey(site: .dvach, board: "b", threadNum: 1)
+        let answered = ThreadKey(site: .dvach, board: "b", threadNum: 2)
+        try await favorites.add(busy, title: "Шумный")
+        try await favorites.add(answered, title: "Мой")
+        try await store.record(key: busy, postsCount: 50, maxNum: 500, isDeleted: false)
+        try await store.record(key: answered, postsCount: 3, maxNum: 30, isDeleted: false, replies: 1)
+
+        let items = try await favorites.favorites(site: .dvach, order: .unreadFirst)
+
+        #expect(items.map(\.key) == [answered, busy])
+    }
 }
 
 @Suite("Thread watcher")

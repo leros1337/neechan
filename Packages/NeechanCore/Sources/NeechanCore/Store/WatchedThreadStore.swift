@@ -9,6 +9,8 @@ public struct WatchedThreadSnapshot: Sendable, Hashable {
     /// How many posts the thread held when the reader last left it.
     public var readPostsCount: Int
     public var unreadCount: Int
+    /// Answers to the reader's own posts since they last read the thread.
+    public var unreadReplies: Int
     /// When the watcher last asked the site about this thread.
     public var lastPolledAt: Date
     public var isDeleted: Bool
@@ -29,14 +31,19 @@ public actor WatchedThreadStore {
     /// - Parameter isClosed: write-only-true, like the one `markRead` sets: a
     ///   thread that has fallen off the board does not come back, and a poll
     ///   that cannot see it must not clear what an earlier one established.
+    /// - Parameter replies: answers to the reader this poll found. Added to
+    ///   those not yet read, never put in their place: the watcher reports an
+    ///   answer only on the poll that first sees it.
     public func record(
         key: ThreadKey,
         postsCount: Int,
         maxNum: Int,
         isDeleted: Bool,
-        isClosed: Bool = false
+        isClosed: Bool = false,
+        replies: Int = 0
     ) throws {
         let state = try stored(key) ?? insert(key)
+        state.unreadReplies += replies
         state.lastKnownPostsCount = postsCount
         state.lastKnownMaxNum = max(state.lastKnownMaxNum, maxNum)
         state.isThreadDeleted = isDeleted
@@ -54,8 +61,12 @@ public actor WatchedThreadStore {
     /// is full its count stops moving and the difference `record` takes is
     /// always zero. What arrived is added to what was already unread instead,
     /// and the counts are left as they were.
-    public func recordArrivals(key: ThreadKey, newPosts: Int, maxNum: Int) throws {
+    ///
+    /// - Parameter replies: answers to the reader among them, added up the way
+    ///   `record` adds them.
+    public func recordArrivals(key: ThreadKey, newPosts: Int, maxNum: Int, replies: Int = 0) throws {
         let state = try stored(key) ?? insert(key)
+        state.unreadReplies += replies
         state.lastKnownMaxNum = max(state.lastKnownMaxNum, maxNum)
         state.isThreadDeleted = false
         state.lastPolledAt = .now
@@ -107,6 +118,8 @@ public actor WatchedThreadStore {
         state.unreadCount = isEndless
             ? 0
             : max(0, state.lastKnownPostsCount - readCount(state))
+        // Having read the thread is having seen every answer in it.
+        state.unreadReplies = 0
         // Only ever set: a thread that closed stays closed, and a stale false
         // from an old snapshot must not reopen it.
         if isClosed { state.isClosed = true }
@@ -123,6 +136,7 @@ public actor WatchedThreadStore {
     public func clearUnread(_ key: ThreadKey) throws {
         guard let state = try stored(key) else { return }
         state.unreadCount = 0
+        state.unreadReplies = 0
         try modelContext.save()
     }
 
@@ -166,6 +180,7 @@ extension WatchedThreadSnapshot {
             lastKnownPostsCount: state.lastKnownPostsCount,
             readPostsCount: state.readPostsCount,
             unreadCount: state.unreadCount,
+            unreadReplies: state.unreadReplies,
             lastPolledAt: state.lastPolledAt,
             isDeleted: state.isThreadDeleted,
             isClosed: state.isClosed,

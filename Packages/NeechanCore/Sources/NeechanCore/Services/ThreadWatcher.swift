@@ -381,7 +381,9 @@ public actor ThreadWatcher {
                 key: key,
                 postsCount: total,
                 maxNum: max(known?.lastKnownMaxNum ?? 0, info.num, scan?.readUpTo ?? 0),
-                isDeleted: false
+                isDeleted: false,
+                // Kept for the favourites list, which outlives the banner.
+                replies: scan?.replies.count ?? 0
             )
             record(key, outcome: newPosts > 0 ? .news : .quiet)
             return Result(
@@ -458,16 +460,15 @@ public actor ThreadWatcher {
 
         let fresh = posts.filter { $0.num > anchor }
         let newPosts = isAnchored ? fresh.count : 0
+        let replies = isAnchored ? replyNums(in: fresh, key: key, mine: mine) : []
         try? await states.recordArrivals(
-            key: key, newPosts: fresh.count, maxNum: fresh.map(\.num).max() ?? anchor
+            key: key,
+            newPosts: fresh.count,
+            maxNum: fresh.map(\.num).max() ?? anchor,
+            replies: replies.count
         )
         record(key, outcome: newPosts > 0 ? .news : .quiet)
-        return Result(
-            key: key,
-            newPostCount: newPosts,
-            isDeleted: false,
-            replies: isAnchored ? replyNums(in: fresh, key: key, mine: mine) : []
-        )
+        return Result(key: key, newPostCount: newPosts, isDeleted: false, replies: replies)
     }
 
     /// What reading a thread's new posts found.

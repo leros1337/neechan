@@ -3,6 +3,29 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## 2.5.4
+
+Tapping a notification opens the thread again, instead of closing the app.
+Favorites show how many replies to you each thread has.
+
+### Favorites
+
+- **Replies to you get their own badge.** Next to the count of new posts, a
+  red badge shows how many of them answer your posts, so a thread where
+  someone replied to you stands out from one that is only busy. It counts
+  until you open the thread, and sorting by unread puts these threads first.
+  It needs a post of yours in the thread, and for now it works on 2ch only:
+  4chan's watcher sees post counts, not the posts themselves.
+
+### Notifications
+
+- **A tapped notification no longer crashes the app.** Tapping a banner, or
+  its entry in Notification Centre, closed the app instead of opening the
+  thread. The app answered the system's tap from the wrong thread, which iOS
+  does not allow. It now opens the thread at the reply the notification was
+  about, whether the app was already open in the background or not running
+  at all.
+
 ## 2.5.3
 
 The gallery fetches the next picture while you look at this one, so a swipe

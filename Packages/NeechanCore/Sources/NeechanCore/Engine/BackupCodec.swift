@@ -149,6 +149,9 @@ public struct NeechanBackup: Codable, Sendable, Equatable {
         public var lastKnownMaxNum: Int
         public var lastKnownPostsCount: Int
         public var unreadCount: Int
+        /// Absent in a file written before threads counted answers to the
+        /// reader, which restores as none.
+        public var unreadReplies: Int?
         public var readPostsCount: Int
         public var isThreadDeleted: Bool
         public var isClosed: Bool

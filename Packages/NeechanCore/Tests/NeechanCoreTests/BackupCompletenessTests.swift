@@ -41,6 +41,7 @@ struct BackupCompletenessTests {
         watched.lastKnownMaxNum = 20
         watched.lastKnownPostsCount = 21
         watched.unreadCount = 3
+        watched.unreadReplies = 2
         watched.readPostsCount = 10
         watched.isClosed = true
         watched.lastPolledAt = date
@@ -107,11 +108,27 @@ struct BackupCompletenessTests {
         #expect(state.lastKnownMaxNum == 20)
         #expect(state.lastKnownPostsCount == 21)
         #expect(state.unreadCount == 3)
+        #expect(state.unreadReplies == 2)
         #expect(state.readPostsCount == 10)
         #expect(state.isClosed)
         #expect(state.lastPolledAt == date)
         #expect(state.scrollAnchorPostNum == 4)
         #expect(state.scrollAnchorOffset == 12.5)
+    }
+
+    /// Files written before threads counted answers to the reader have no
+    /// such field, and must still restore.
+    @Test("a watched thread from an older file comes back with no answers")
+    func olderWatchStateHasNoReplies() throws {
+        let json = #"""
+        {"board":"b","threadNum":1,"site":"dvach","lastReadPostNum":4,"lastKnownMaxNum":20,
+         "lastKnownPostsCount":21,"unreadCount":3,"readPostsCount":10,"isThreadDeleted":false,
+         "isClosed":false,"isArchived":false,"lastPolledAt":0,"scrollAnchorOffset":0}
+        """#
+        let entry = try JSONDecoder().decode(NeechanBackup.WatchedThreadEntry.self, from: Data(json.utf8))
+
+        #expect(entry.unreadCount == 3)
+        #expect((entry.unreadReplies ?? 0) == 0)
     }
 
     @Test("a theme comes too, so the setting that picks it has something to pick")

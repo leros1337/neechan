@@ -12,6 +12,8 @@ public struct FavoriteItem: Sendable, Hashable, Identifiable {
     public let thumbnailPath: String?
 
     public let unreadCount: Int
+    /// Answers to the reader's own posts since they last read the thread.
+    public let unreadReplies: Int
     public let isDeleted: Bool
     public let isClosed: Bool
 
@@ -24,6 +26,7 @@ public struct FavoriteItem: Sendable, Hashable, Identifiable {
         isWatched: Bool,
         thumbnailPath: String?,
         unreadCount: Int = 0,
+        unreadReplies: Int = 0,
         isDeleted: Bool = false,
         isClosed: Bool = false
     ) {
@@ -33,6 +36,7 @@ public struct FavoriteItem: Sendable, Hashable, Identifiable {
         self.isWatched = isWatched
         self.thumbnailPath = thumbnailPath
         self.unreadCount = unreadCount
+        self.unreadReplies = unreadReplies
         self.isDeleted = isDeleted
         self.isClosed = isClosed
     }
@@ -126,6 +130,7 @@ public actor FavoritesRepository {
                 isWatched: favorite.isWatched,
                 thumbnailPath: favorite.opThumbnailPath,
                 unreadCount: state?.unreadCount ?? 0,
+                unreadReplies: state?.unreadReplies ?? 0,
                 isDeleted: state?.isThreadDeleted ?? false,
                 isClosed: state?.isClosed ?? false
             )
@@ -211,8 +216,10 @@ public actor FavoritesRepository {
         case .title:
             items.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
         case .unreadFirst:
-            // Threads with something new, most first, then the rest by date.
+            // Threads with answers to the reader first, then those with
+            // something new, most first, then the rest by date.
             items.sorted {
+                if $0.unreadReplies != $1.unreadReplies { return $0.unreadReplies > $1.unreadReplies }
                 if $0.unreadCount != $1.unreadCount { return $0.unreadCount > $1.unreadCount }
                 return $0.createdAt > $1.createdAt
             }

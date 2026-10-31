@@ -103,6 +103,7 @@ struct WatcherEndlessTests {
 
         #expect(results.first?.newPostCount == 2)
         #expect(results.first?.replies == [51])
+        #expect(try await fixture.states.state(for: key)?.unreadReplies == 1)
     }
 
     /// Once the watcher knows, the count is not worth asking for: it says
