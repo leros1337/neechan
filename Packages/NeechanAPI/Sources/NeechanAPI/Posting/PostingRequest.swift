@@ -156,9 +156,11 @@ public struct PostingRequest: Sendable {
         if let icon { fields.append(("icon", String(icon))) }
         if isOriginalPoster { fields.append(("op_mark", "1")) }
 
-        // Sage travels in the email field, exactly as the site's own form sends
-        // it; there is no separate flag in the API.
+        // The site's own form sends sage twice: its checkbox, which a browser
+        // submits as `on`, and the word in the email field, which the form
+        // keeps in step with it. Both go, as they do from the site.
         if isSage {
+            fields.append(("sage", "on"))
             fields.append(("email", "sage"))
         } else if let email, !email.isEmpty {
             fields.append(("email", email))

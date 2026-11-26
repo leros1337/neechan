@@ -114,6 +114,31 @@ struct ModelDecodingTests {
         #expect(post.files.isEmpty)
     }
 
+    @Test("a post the site recorded as saged reads as sage")
+    func recordedSageReadsAsSage() throws {
+        // 2ch sends sage back as a link, `mailto:sage`, not as the bare word
+        // the form sent: matching only the word missed every one of them.
+        let page = try FixtureLoader.decode(BoardPage.self, from: .indexPage1)
+        let posts = page.threads.flatMap(\.posts)
+        let saged = try #require(posts.first { $0.num == 63479297 })
+        #expect(saged.email == "mailto:sage")
+        #expect(saged.isSage)
+        #expect(posts.filter(\.isSage).map(\.num) == [63479297])
+    }
+
+    @Test("sage is read from the email however the site writes it", arguments: [
+        ("mailto:sage", true),
+        ("mailto:SAGE", true),
+        ("sage", true),
+        ("Sage", true),
+        ("mailto:someone@example.com", false),
+        ("mailto:Eee", false),
+        ("", false),
+    ])
+    func sageFromEmail(email: String, isSage: Bool) {
+        #expect(Post(num: 1, email: email).isSage == isSage)
+    }
+
     @Test("a post carrying only a number still decodes")
     func minimalPostDecodes() throws {
         let post = try JSONDecoder().decode(Post.self, from: Data(#"{"num":42}"#.utf8))
