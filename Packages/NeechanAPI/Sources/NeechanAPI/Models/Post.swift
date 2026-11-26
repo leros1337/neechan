@@ -67,8 +67,14 @@ public struct Post: Sendable, Hashable, Identifiable, Decodable {
     public var isSticky: Bool { stickyPriority > 0 }
 
     /// True when the poster sent the post with sage, so it did not bump.
+    ///
+    /// 2ch hands the email back as the link it puts on the poster's name,
+    /// `mailto:sage`, rather than as the word that was sent, so the scheme is
+    /// dropped before looking.
     public var isSage: Bool {
-        email.lowercased() == "sage" || email.lowercased().hasPrefix("sage")
+        var address = email.lowercased()
+        if address.hasPrefix("mailto:") { address.removeFirst("mailto:".count) }
+        return address.hasPrefix("sage")
     }
 
     public var isBanned: Bool { bannedState == 1 }
