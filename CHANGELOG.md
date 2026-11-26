@@ -3,6 +3,27 @@
 Notable changes per release. Earlier releases are listed under
 [Releases](../../releases).
 
+## 2.5.5
+
+Sage on 2ch is sent the way the site's own form sends it, and saged posts are
+marked SAGE. Swiping back out of a thread brings the tab bar up as you swipe.
+
+### Posting
+
+- **Sage is sent the way 2ch's own form sends it.** The site's form sends
+  sage twice: as its checkbox, and as the word in the email field. The app
+  sent only the email, and now sends both.
+- **Saged posts on 2ch are marked SAGE.** 2ch gives the email back as
+  `mailto:sage`, not `sage`, so no post on 2ch was shown as saged, and a
+  filter for saged posts matched none of them.
+
+### Threads
+
+- **The tab bar comes up as you swipe back.** On a slow swipe out of a thread,
+  the board appeared without its tab bar, which then popped in at the end. The
+  bar now rises as the swipe begins, and goes away again if you let the thread
+  slide back.
+
 ## 2.5.4
 
 Tapping a notification opens the thread again, instead of closing the app.
