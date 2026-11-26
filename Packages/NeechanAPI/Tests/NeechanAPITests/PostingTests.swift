@@ -155,10 +155,27 @@ struct PostingServiceTests {
         )
         #expect(body.contains("Тема"))
         #expect(body.contains("Аноним#trip"))
-        // The site reads sage from the email field, as the web form does.
-        #expect(body.contains(#"name="email""#))
-        #expect(body.contains("\r\n\r\nsage\r\n"))
+        // The site's own form sends sage twice: as its checkbox and in the
+        // email field. Both go, so whichever one the server reads is there.
+        #expect(body.contains("name=\"sage\"\r\n\r\non\r\n"))
+        #expect(body.contains("name=\"email\"\r\n\r\nsage\r\n"))
         #expect(body.contains(#"name="op_mark""#))
+    }
+
+    @Test("no sage checkbox is sent when the post is not saged")
+    func omitsSageWhenNotSaged() async throws {
+        let transport = StubTransport()
+        await transport.stub(pathSuffix: "/user/posting", data: try FixtureLoader.data(.postingPostOK))
+
+        var request = draft(thread: 1)
+        request.email = "someone@example.com"
+        _ = try await makeService(transport).send(request)
+
+        let body = String(
+            decoding: try #require(await transport.lastRequest()?.httpBody), as: UTF8.self
+        )
+        #expect(body.contains(#"name="sage""#) == false)
+        #expect(body.contains("name=\"email\"\r\n\r\nsomeone@example.com\r\n"))
     }
 
     @Test("attachments are sent as a repeated file array")
