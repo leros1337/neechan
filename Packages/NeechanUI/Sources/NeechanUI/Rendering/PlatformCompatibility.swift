@@ -78,11 +78,17 @@ extension View {
         #endif
     }
 
-    /// Hides the tab bar where there is one.
+    /// Hides the tab bar where there is one, and brings it back as a swipe
+    /// out of the screen begins rather than once it has finished.
     @ViewBuilder
     func hidesTabBar() -> some View {
         #if os(iOS)
         toolbar(.hidden, for: .tabBar)
+            .background {
+                TabBarOnSwipeBack()
+                    .frame(width: 0, height: 0)
+                    .accessibilityHidden(true)
+            }
         #else
         self
         #endif
